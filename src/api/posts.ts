@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
+import { Post } from "@/types/post";
 
 export function getPosts() {
-    return apiFetch("/api/Posts");
+    return apiFetch<{ data: Post[] }>("/api/Posts");
 }

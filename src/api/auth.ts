@@ -7,14 +7,11 @@ type LoginData = {
 };
 
 export function login(data: LoginData) {
-    return apiFetch("/api/Auth/login", {
+    return apiFetch<{ message: string; data: AuthResponse }>("/api/Auth/login", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-    }) as Promise<{
-        message: string;
-        data: AuthResponse;
-    }>;
+    });
 }
