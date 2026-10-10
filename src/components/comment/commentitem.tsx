@@ -1,4 +1,4 @@
-import { formatPostDate } from "@/lib/formatPostDate";
+import { formatDistanceToNow } from "date-fns";
 import { PostComment } from "@/types/post";
 
 import { Text, View } from "react-native";
@@ -7,7 +7,8 @@ import Avatar from "@/components/avatar";
 
 /**
  * A single comment bubble: avatar, author name, relative-style timestamp, and
- * the comment body.
+ * the comment body. The timestamp matches the web app's comment rendering
+ * (e.g. "5 minutes ago", "3 days ago").
  */
 export default function CommentItem({ comment }: { comment: PostComment }) {
     return (
@@ -25,7 +26,9 @@ export default function CommentItem({ comment }: { comment: PostComment }) {
                     </Text>
 
                     <Text className="text-label-sm text-text-secondary">
-                        {formatPostDate(comment.createdAt)}
+                        {formatDistanceToNow(new Date(comment.createdAt), {
+                            addSuffix: true,
+                        })}
                     </Text>
                 </View>
 
