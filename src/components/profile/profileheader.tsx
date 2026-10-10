@@ -23,7 +23,7 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
     return (
         <View>
             {/* Cover image */}
-            <View className="relative h-44 w-full">
+            <View className="relative h-56 w-full">
                 {user.coverImageUrl ? (
                     <Image
                         source={{ uri: getImageUrl(user.coverImageUrl)! }}
@@ -36,8 +36,9 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 <View className="absolute inset-0 bg-black/25" />
             </View>
 
-            {/* Profile card — sits below the cover, avatar does not overlap */}
-            <View className="mx-4 mt-4 rounded-2xl bg-surface-lowest p-4 shadow-sm">
+            {/* Profile card — overlaps the cover by ~10px; the avatar stays
+                fully inside the card */}
+            <View className="mx-4 -mt-2.5 rounded-2xl bg-surface-lowest p-4 shadow-sm">
                 <Avatar
                     src={user.avatarUrl}
                     name={user.name}

@@ -7,10 +7,10 @@ import { View } from "react-native";
 export default function ProfileSkeleton() {
     return (
         <View>
-            <View className="h-44 w-full bg-surface-high" />
+            <View className="h-56 w-full bg-surface-high" />
 
             <View className="px-4">
-                <View className="mt-4 rounded-2xl bg-surface-lowest p-4 shadow-sm">
+                <View className="-mt-2.5 rounded-2xl bg-surface-lowest p-4 shadow-sm">
                     <View className="h-24 w-24 rounded-full bg-surface-high" />
 
                     <View style={{ gap: 10 }} className="mt-3">
