@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { Image as ImageIcon } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -28,7 +29,10 @@ export default function CreatePost() {
                 />
 
                 {/* Post input */}
-                <Pressable className="flex-1 rounded-full bg-surface-low px-4 py-3">
+                <Pressable
+                    onPress={() => router.push("/(tabs)/create")}
+                    className="flex-1 rounded-full bg-surface-low px-4 py-3"
+                >
                     <Text className="text-body-sm text-text-secondary">
                         {firstName
                             ? `What's on your mind, ${firstName}?`
@@ -37,7 +41,10 @@ export default function CreatePost() {
                 </Pressable>
 
                 {/* Add photo */}
-                <Pressable className="ml-3 items-center justify-center">
+                <Pressable
+                    onPress={() => router.push("/(tabs)/create")}
+                    className="ml-3 items-center justify-center"
+                >
                     <ImageIcon size={22} color={colors.primary} />
                 </Pressable>
             </View>
