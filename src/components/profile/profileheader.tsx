@@ -16,10 +16,6 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    // The Edit Profile button sits on the primary gradient: white reads best on
-    // the darker light-mode gradient, black on the lighter dark-mode gradient.
-    const gradientButtonTextColor = isDark ? "#000000" : "#ffffff";
-
     const joined = new Date(user.createdAt).toLocaleDateString("en-US", {
         month: "long",
         year: "numeric",
@@ -94,11 +90,8 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                                     paddingHorizontal: 16,
                                 }}
                             >
-                                <Pencil size={16} color={gradientButtonTextColor} />
-                                <Text
-                                    className="text-label-md font-semibold"
-                                    style={{ color: gradientButtonTextColor }}
-                                >
+                                <Pencil size={16} color={colors.textPrimary} />
+                                <Text className="text-label-md font-semibold text-text-primary">
                                     Edit Profile
                                 </Text>
                             </LinearGradient>
