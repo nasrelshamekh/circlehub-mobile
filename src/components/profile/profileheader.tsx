@@ -1,5 +1,5 @@
-import { CalendarDays, MapPin } from "lucide-react-native";
-import { Image, Text, View } from "react-native";
+import { CalendarDays, MapPin, Pencil, Settings } from "lucide-react-native";
+import { Image, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
 import { useTheme } from "@/context/themecontext";
@@ -27,7 +27,7 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 {user.coverImageUrl ? (
                     <Image
                         source={{ uri: getImageUrl(user.coverImageUrl)! }}
-                        className="h-full w-full"
+                        className="h-full w-full rounded-lg"
                         resizeMode="cover"
                     />
                 ) : (
@@ -36,9 +36,8 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 <View className="absolute inset-0 bg-black/25" />
             </View>
 
-            {/* Profile card — overlaps the cover by ~10px; the avatar stays
-                fully inside the card */}
-            <View className="mx-4 -mt-2.5 rounded-2xl bg-surface-lowest p-4 shadow-sm">
+            {/* Profile card — overlaps the cover; the avatar sits inside the card */}
+            <View className="mx-4 -mt-8 rounded-2xl bg-surface-lowest p-4 shadow-sm">
                 <Avatar
                     src={user.avatarUrl}
                     name={user.name}
@@ -63,6 +62,24 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                     @{user.username}
                     {user.jobTitle ? `  •  ${user.jobTitle}` : ""}
                 </Text>
+
+                {user.isCurrentUser ? (
+                    // Placeholder actions — no wiring yet, they do nothing on
+                    // press for now. Settings opens profile settings and Edit
+                    // Profile opens the profile editor once those screens exist.
+                    <View className="mt-4 flex-row gap-2">
+                        <Pressable className="h-10 w-10 items-center justify-center rounded-xl bg-surface-low">
+                            <Settings size={18} color={colors.textPrimary} />
+                        </Pressable>
+
+                        <Pressable className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2">
+                            <Pencil size={16} color={colors.buttonGradientText} />
+                            <Text className="text-label-md font-semibold text-on-primary">
+                                Edit Profile
+                            </Text>
+                        </Pressable>
+                    </View>
+                ) : null}
 
                 {user.bio ? (
                     <Text className="mt-2 text-body-sm text-text-secondary">
