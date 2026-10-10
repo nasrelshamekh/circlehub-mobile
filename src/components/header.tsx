@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
@@ -21,7 +22,7 @@ import { themeColors } from "@/theme/colors";
 export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const { isDark, toggleTheme } = useTheme();
-    const { signOut } = useAuth();
+    const { signOut, user } = useAuth();
 
     const colors = isDark
         ? themeColors.dark
@@ -78,10 +79,10 @@ export default function Header() {
                             onPress={() => setMenuOpen((prev) => !prev)}
                             className="items-center justify-center"
                         >
-                            <Image
-                                source={require("@/assets/images/avatar.jpg")}
-                                className="h-10 w-10 rounded-full"
-                                resizeMode="cover"
+                            <Avatar
+                                src={user?.avatarUrl}
+                                name={user?.name ?? ""}
+                                className="h-10 w-10"
                             />
                         </Pressable>
                     </View>
