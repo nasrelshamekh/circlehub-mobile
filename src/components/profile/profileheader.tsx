@@ -8,9 +8,8 @@ import { themeColors } from "@/theme/colors";
 import { UserProfile } from "@/types/user";
 
 /**
- * Profile hero — cover image, overlapping avatar, name, bio and stats —
- * mirroring the web app's ProfileHeader. The avatar ring uses the card's
- * surface-lowest background so it works in both color schemes.
+ * Profile hero — cover image, avatar, name, bio and stats — mirroring the
+ * web app's ProfileHeader.
  */
 export default function ProfileHeader({ user }: { user: UserProfile }) {
     const { isDark } = useTheme();
@@ -37,16 +36,14 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 <View className="absolute inset-0 bg-black/25" />
             </View>
 
-            {/* Profile card */}
-            <View className="mx-4 -mt-12 rounded-2xl bg-surface-lowest p-4 shadow-sm">
-                <View className="-mt-14 self-start rounded-full bg-surface-lowest p-1.5">
-                    <Avatar
-                        src={user.avatarUrl}
-                        name={user.name}
-                        className="h-20 w-20"
-                        textClassName="text-headline-md"
-                    />
-                </View>
+            {/* Profile card — sits below the cover, avatar does not overlap */}
+            <View className="mx-4 mt-4 rounded-2xl bg-surface-lowest p-4 shadow-sm">
+                <Avatar
+                    src={user.avatarUrl}
+                    name={user.name}
+                    className="h-24 w-24"
+                    textClassName="text-headline-lg"
+                />
 
                 <View className="mt-2 flex-row items-center gap-2">
                     <Text className="text-headline-lg font-bold text-text-primary">

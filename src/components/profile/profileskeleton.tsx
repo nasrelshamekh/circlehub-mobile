@@ -10,8 +10,8 @@ export default function ProfileSkeleton() {
             <View className="h-44 w-full bg-surface-high" />
 
             <View className="px-4">
-                <View className="-mt-12 rounded-2xl bg-surface-lowest p-4 shadow-sm">
-                    <View className="-mt-14 h-20 w-20 rounded-full bg-surface-high" />
+                <View className="mt-4 rounded-2xl bg-surface-lowest p-4 shadow-sm">
+                    <View className="h-24 w-24 rounded-full bg-surface-high" />
 
                     <View style={{ gap: 10 }} className="mt-3">
                         <View className="h-6 w-1/2 rounded-md bg-surface-high" />
