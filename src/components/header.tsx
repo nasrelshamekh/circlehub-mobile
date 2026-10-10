@@ -14,16 +14,23 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 
 export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const { isDark, toggleTheme } = useTheme();
+    const { signOut } = useAuth();
 
     const colors = isDark
         ? themeColors.dark
         : themeColors.light;
+
+    async function handleSignOut() {
+        setMenuOpen(false);
+        await signOut();
+    }
 
     return (
         <SafeAreaView
@@ -141,7 +148,7 @@ export default function Header() {
 
                         {/* Logout */}
                         <Pressable
-                            onPress={() => setMenuOpen(false)}
+                            onPress={handleSignOut}
                             className="px-4 py-3.5"
                         >
                             <Text className="text-body-md text-text-primary">

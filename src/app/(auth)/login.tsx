@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
     AlertCircle,
@@ -21,9 +21,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { login } from "@/api/auth";
+import { resendVerification } from "@/api/auth";
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
-import { setToken } from "@/lib/session";
 import { ApiError } from "@/types/api";
 import { themeColors } from "@/theme/colors";
 
@@ -34,10 +34,14 @@ type FieldErrors = {
 
 export default function Login() {
     const { isDark } = useTheme();
+    const { signIn } = useAuth();
+    const params = useLocalSearchParams<{ email?: string }>();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    const [usernameOrEmail, setUsernameOrEmail] = useState("");
+    const [usernameOrEmail, setUsernameOrEmail] = useState(
+        typeof params.email === "string" ? params.email : ""
+    );
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -60,6 +64,31 @@ export default function Login() {
         return Object.keys(errors).length === 0;
     }
 
+    // Resend needs an email, but this field also accepts a username. Only offer
+    // "Resend" when we actually have something email-shaped (either what they
+    // typed or the email handed over from the register screen).
+    const trimmedIdentifier = usernameOrEmail.trim().toLowerCase();
+    const prefilledEmail =
+        typeof params.email === "string" ? params.email.toLowerCase() : "";
+    const resendEmail = trimmedIdentifier.includes("@")
+        ? trimmedIdentifier
+        : prefilledEmail;
+
+    async function handleResend(email: string) {
+        try {
+            const response = await resendVerification(email);
+
+            Alert.alert("Verification email sent", response.message);
+        } catch (error) {
+            Alert.alert(
+                "Couldn't resend email",
+                error instanceof ApiError
+                    ? error.message
+                    : "Please try again in a moment."
+            );
+        }
+    }
+
     async function onSubmit() {
         if (submitting) {
             return;
@@ -74,26 +103,25 @@ export default function Login() {
         setSubmitting(true);
 
         try {
-            const response = await login({
-                usernameOrEmail: usernameOrEmail.trim().toLowerCase(),
-                password,
-            });
-
-            await setToken(response.data.token);
+            await signIn(usernameOrEmail.trim().toLowerCase(), password);
 
             router.replace("/(tabs)");
         } catch (error) {
             if (error instanceof ApiError && error.isEmailUnverified) {
+                const email = resendEmail;
+
                 Alert.alert(
                     "Email not verified",
                     error.message,
-                    [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                            text: "Resend",
-                            onPress: () => router.push("/(auth)/register"),
-                        },
-                    ]
+                    email
+                        ? [
+                              { text: "Not now", style: "cancel" },
+                              {
+                                  text: "Resend email",
+                                  onPress: () => handleResend(email),
+                              },
+                          ]
+                        : [{ text: "OK" }]
                 );
 
                 return;

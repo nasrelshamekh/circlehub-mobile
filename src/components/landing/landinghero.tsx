@@ -166,15 +166,6 @@ export default function LandingHero() {
                                 I already have an account
                             </Text>
                         </Pressable>
-
-                        <Pressable
-                            onPress={() => router.push("/(tabs)")}
-                            className="items-center justify-center rounded-xl bg-surface-lowest px-5 py-4"
-                        >
-                            <Text className="text-body-md font-semibold text-text-primary">
-                                Go to feed
-                            </Text>
-                        </Pressable>
                     </View>
                 </View>
             </View>
