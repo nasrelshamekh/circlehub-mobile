@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { CalendarDays, MapPin, Pencil, Settings } from "lucide-react-native";
 import { Image, Pressable, Text, View } from "react-native";
 
@@ -72,11 +73,28 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                             <Settings size={18} color={colors.textPrimary} />
                         </Pressable>
 
-                        <Pressable className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2">
-                            <Pencil size={16} color={colors.buttonGradientText} />
-                            <Text className="text-label-md font-semibold text-on-primary">
-                                Edit Profile
-                            </Text>
+                        <Pressable className="flex-1 overflow-hidden rounded-xl">
+                            <LinearGradient
+                                colors={[
+                                    colors.primaryGradientStart,
+                                    colors.primaryGradientEnd,
+                                ]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 8,
+                                    minHeight: 40,
+                                    paddingHorizontal: 16,
+                                }}
+                            >
+                                <Pencil size={16} color={colors.textPrimary} />
+                                <Text className="text-label-md font-semibold text-text-primary">
+                                    Edit Profile
+                                </Text>
+                            </LinearGradient>
                         </Pressable>
                     </View>
                 ) : null}
