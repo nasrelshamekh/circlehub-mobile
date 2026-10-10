@@ -105,9 +105,6 @@ export default function Header() {
 
                     {/* Dropdown */}
                     <View className="absolute right-4 top-[62px] w-[200px] rounded-lg bg-surface-lowest py-1 shadow-lg">
-                        <Text className="px-4 pb-1 pt-3 text-label-md font-semibold text-text-secondary">
-                            My Account
-                        </Text>
 
                         {/* Profile */}
                         <Pressable

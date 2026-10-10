@@ -24,3 +24,11 @@ export class ApiError extends Error {
         return this.status === 403;
     }
 }
+
+export type PageMeta = {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+};

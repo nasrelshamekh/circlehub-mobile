@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState } from "react";
 
 import {
@@ -22,6 +23,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const queryClient = useQueryClient();
     const [status, setStatus] = useState<AuthStatus>("loading");
     const [user, setUser] = useState<User | null>(null);
 
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch {
                 // Token is missing/expired/invalid — start a clean session.
                 await clearToken();
+                queryClient.clear();
 
                 if (!active) {
                     return;
@@ -65,12 +68,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             active = false;
         };
-    }, []);
+    }, [queryClient]);
 
     async function signIn(usernameOrEmail: string, password: string) {
         const response = await loginRequest({ usernameOrEmail, password });
 
         await setToken(response.data.token);
+
+        queryClient.clear();
 
         setUser(response.data.user);
         setStatus("authenticated");
@@ -86,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function signOut() {
         await clearToken();
+        queryClient.clear();
         setUser(null);
         setStatus("unauthenticated");
     }

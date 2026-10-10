@@ -5,7 +5,7 @@ import {
     Home,
     Users,
 } from "lucide-react-native";
-import { Tabs } from "expo-router";
+import { router, Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/context/themecontext";
@@ -68,6 +68,14 @@ export default function TabsLayout() {
                     tabBarIcon: ({ color, size }) => (
                         <CirclePlus size={size} color={color} />
                     ),
+                }}
+                listeners={{
+                    tabPress: (event) => {
+                        // Present the composer as a bottom-up modal instead of
+                        // switching to the (placeholder) create tab.
+                        event.preventDefault();
+                        router.push("/compose");
+                    },
                 }}
             />
 

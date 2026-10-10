@@ -1,9 +1,30 @@
 import { apiFetch } from "./client";
 import { UploadImage } from "@/lib/imageUpload";
-import { Post } from "@/types/post";
+import { PageMeta } from "@/types/api";
+import { Post, PostComment, PostDetails } from "@/types/post";
 
-export function getPosts() {
-    return apiFetch<{ data: Post[] }>("/api/Posts");
+export function getPosts(page = 1, pageSize = 10) {
+    return apiFetch<{ data: Post[]; meta: PageMeta }>(
+        `/api/Posts?page=${page}&pageSize=${pageSize}`
+    );
+}
+
+export type ToggleLikeResult = {
+    postId: string;
+    likesCount: number;
+    isLikedByMe: boolean;
+};
+
+/**
+ * Toggles the current user's like on a post. The API responds with the
+ * authoritative count + state for that post, which callers can reconcile
+ * against after an optimistic update.
+ */
+export function toggleLike(postId: string) {
+    return apiFetch<{ message: string; data: ToggleLikeResult }>(
+        `/api/Posts/${postId}/like`,
+        { method: "PATCH" }
+    );
 }
 
 /**
@@ -33,4 +54,29 @@ export function createPost(content: string, image?: UploadImage | null) {
         method: "POST",
         body: formData,
     });
+}
+
+/**
+ * Loads a single post with its comments. Callers get the post via the shared
+ * `["post", id]` query key so comments reconcile with likes and the feed.
+ */
+export function getPostById(postId: string) {
+    return apiFetch<{ message: string; data: PostDetails }>(
+        `/api/Posts/${postId}`
+    );
+}
+
+/**
+ * Adds a comment to a post and returns the created comment so callers can
+ * prepend it to the post-details cache.
+ */
+export function addPostComment(postId: string, content: string) {
+    return apiFetch<{ message: string; data: { comment: PostComment } }>(
+        `/api/Posts/${postId}/comments`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+        }
+    );
 }

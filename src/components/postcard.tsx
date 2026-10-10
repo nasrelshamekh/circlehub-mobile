@@ -4,16 +4,31 @@ import {
     MoreHorizontal,
     Send,
 } from "lucide-react-native";
+import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/context/themecontext";
+import useToggleLike from "@/hooks/mutations/useToggleLike";
 import { themeColors } from "@/theme/colors";
 import { Post } from "@/types/post";
 import { getImageUrl } from "@/lib/imageUrl";
 import { formatPostDate } from "@/lib/formatPostDate";
 
-export default function PostCard({ post }: { post: Post }) {
+export default function PostCard({
+    post,
+    onPressComments,
+}: {
+    post: Post;
+
+    /**
+     * Overrides the default navigate-to-details behavior of the comment button.
+     * The post-details screen passes this so tapping the button there doesn't
+     * push a duplicate copy of itself.
+     */
+    onPressComments?: () => void;
+}) {
     const { isDark } = useTheme();
+    const toggleLike = useToggleLike();
 
     const colors = isDark
         ? themeColors.dark
@@ -82,7 +97,18 @@ export default function PostCard({ post }: { post: Post }) {
 
             {/* Post Actions */}
             <View className="flex-row items-center gap-2 pt-3">
-                <Pressable className="flex-row items-center gap-2 rounded-full px-4 py-3">
+                <Pressable
+                    onPress={() => toggleLike.mutate(post.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                        isLiked
+                            ? `Unlike post. ${post.likesCount} likes`
+                            : `Like post. ${post.likesCount} likes`
+                    }
+                    accessibilityState={{ selected: isLiked }}
+                    hitSlop={6}
+                    className="flex-row items-center gap-2 rounded-full px-4 py-3"
+                >
                     <Heart
                         size={20}
                         color={isLiked ? colors.primary : colors.textSecondary}
@@ -100,7 +126,17 @@ export default function PostCard({ post }: { post: Post }) {
                     </Text>
                 </Pressable>
 
-                <Pressable className="flex-row items-center gap-2 rounded-full px-4 py-3">
+                <Pressable
+                    onPress={() =>
+                        onPressComments
+                            ? onPressComments()
+                            : router.push(`/post/${post.id}`)
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`View comments. ${post.commentsCount} comments`}
+                    hitSlop={6}
+                    className="flex-row items-center gap-2 rounded-full px-4 py-3"
+                >
                     <MessageCircle
                         size={20}
                         color={colors.textSecondary}

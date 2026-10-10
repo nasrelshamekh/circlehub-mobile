@@ -1,20 +1,24 @@
 import "../global.css";
 
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useColorScheme } from "nativewind";
 
 import { AuthProvider, useAuth } from "@/context/authcontext";
 import { ThemeProvider } from "@/context/themecontext";
+import { queryClient } from "@/lib/queryClient";
 import { themes } from "@/theme/themes";
 
 export default function RootLayout() {
     return (
-        <ThemeProvider>
-            <AuthProvider>
-                <RootNavigator />
-            </AuthProvider>
-        </ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <AuthProvider>
+                    <RootNavigator />
+                </AuthProvider>
+            </ThemeProvider>
+        </QueryClientProvider>
     );
 }
 
@@ -47,6 +51,23 @@ function RootNavigator() {
 
                 <Stack.Protected guard={status === "authenticated"}>
                     <Stack.Screen name="(tabs)" />
+                    {/* Post details: pushed as a regular card over the tabs from
+                        any post's comment button. */}
+                    <Stack.Screen name="post/[id]" />
+                    {/* The post composer is presented as a bottom sheet so it
+                        slides up from the bottom on open and slides back down
+                        on dismiss (Cancel / back button / swipe). A plain
+                        `modal` skips its exit animation on some platforms,
+                        which reads as a flash. */}
+                    <Stack.Screen
+                        name="compose"
+                        options={{
+                            presentation: "formSheet",
+                            sheetAllowedDetents: [1],
+                            sheetInitialDetentIndex: 0,
+                            sheetGrabberVisible: true,
+                        }}
+                    />
                 </Stack.Protected>
             </Stack>
         </View>

@@ -30,7 +30,7 @@ export default function CreatePost() {
 
                 {/* Post input */}
                 <Pressable
-                    onPress={() => router.push("/(tabs)/create")}
+                    onPress={() => router.push("/compose")}
                     className="flex-1 rounded-full bg-surface-low px-4 py-3"
                 >
                     <Text className="text-body-sm text-text-secondary">
@@ -42,7 +42,7 @@ export default function CreatePost() {
 
                 {/* Add photo */}
                 <Pressable
-                    onPress={() => router.push("/(tabs)/create")}
+                    onPress={() => router.push("/compose")}
                     className="ml-3 items-center justify-center"
                 >
                     <ImageIcon size={22} color={colors.primary} />
