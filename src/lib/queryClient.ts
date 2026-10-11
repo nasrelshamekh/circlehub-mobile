@@ -1,9 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import {
-    focusManager,
-    onlineManager,
-    QueryClient,
-} from "@tanstack/react-query";
+import { focusManager, onlineManager, QueryClient } from "@tanstack/react-query";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 
 export const queryClient = new QueryClient({
@@ -18,9 +14,7 @@ export const queryClient = new QueryClient({
     },
 });
 
-// React Native has no `window` focus events. Wire React Query's focus
-// manager to AppState: the app is "focused" while in the foreground. On web the
-// default (window focus) already applies.
+// React Native has no window focus events; treat foreground as focused.
 if (Platform.OS !== "web") {
     focusManager.setEventListener((handleFocus) => {
         const subscription = AppState.addEventListener(
@@ -34,8 +28,7 @@ if (Platform.OS !== "web") {
     });
 }
 
-// NetInfo drives `onlineManager` so queries pause while the device is offline
-// and resume/refetch when connectivity returns. On web the default is fine.
+// NetInfo drives onlineManager so queries pause offline and refetch on reconnect.
 if (Platform.OS !== "web") {
     onlineManager.setEventListener((setOnline) =>
         NetInfo.addEventListener((state) => {

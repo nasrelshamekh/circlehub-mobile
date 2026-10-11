@@ -1,8 +1,3 @@
-/**
- * Central query-key factory, mirroring circlehub-web's src/lib/queryKeys.js so
- * the two apps invalidate the same logical resources.
- */
-
 export const queryKeys = {
     me: () => ["users", "me"],
     feed: () => ["feed"],

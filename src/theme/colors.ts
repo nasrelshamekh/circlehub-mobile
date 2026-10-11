@@ -7,6 +7,7 @@ export const themeColors = {
         primaryGradientStart: "#6366f1",
         primaryGradientEnd: "#8b5cf6",
         buttonGradientText: "#ffffff",
+        error: "#ba1a1a",
     },
 
     dark: {
@@ -17,5 +18,6 @@ export const themeColors = {
         primaryGradientStart: "#818cf8",
         primaryGradientEnd: "#a78bfa",
         buttonGradientText: "#0b1326",
+        error: "#ffb4ab",
     },
 };

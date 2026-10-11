@@ -3,8 +3,7 @@ import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "auth_token";
 
-// Expo SecureStore has no web implementation, so fall back to localStorage
-// there. Native (the actual target) stays on the encrypted keychain/keystore.
+// SecureStore has no web implementation, so fall back to localStorage there.
 export async function getToken() {
     if (Platform.OS === "web") {
         try {
@@ -22,7 +21,7 @@ export async function setToken(token: string) {
         try {
             localStorage.setItem(TOKEN_KEY, token);
         } catch {
-            // storage unavailable (private mode, etc.) — nothing we can do
+            // storage unavailable
         }
         return;
     }
@@ -35,7 +34,7 @@ export async function clearToken() {
         try {
             localStorage.removeItem(TOKEN_KEY);
         } catch {
-            // storage unavailable — nothing we can do
+            // storage unavailable
         }
         return;
     }
