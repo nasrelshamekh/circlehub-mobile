@@ -18,6 +18,7 @@ type AuthContextType = {
     signIn: (usernameOrEmail: string, password: string) => Promise<void>;
     signUp: (data: RegisterData) => Promise<string>;
     signOut: () => Promise<void>;
+    updateUser: (user: User) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,18 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = await getToken();
 
             if (!token) {
-                if (active) {
-                    setStatus("unauthenticated");
-                }
+                if (active) setStatus("unauthenticated");
                 return;
             }
 
             try {
                 const response = await meRequest();
 
-                if (!active) {
-                    return;
-                }
+                if (!active) return;
 
                 setUser(response.data);
                 setStatus("authenticated");
@@ -54,9 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 await clearToken();
                 queryClient.clear();
 
-                if (!active) {
-                    return;
-                }
+                if (!active) return;
 
                 setUser(null);
                 setStatus("unauthenticated");
@@ -84,8 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function signUp(data: RegisterData) {
         const response = await registerRequest(data);
 
-        // Registration never authenticates the user — the account is unverified
-        // until they open the emailed link. Hand the message back to the caller.
+        // Registration doesn't sign the user in — the account stays unverified
+        // until the emailed link is opened. Hand the message back to the caller.
         return response.message;
     }
 
@@ -96,8 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStatus("unauthenticated");
     }
 
+    function updateUser(updated: User) {
+        setUser(updated);
+    }
+
     return (
-        <AuthContext.Provider value={{ status, user, signIn, signUp, signOut }}>
+        <AuthContext.Provider
+            value={{ status, user, signIn, signUp, signOut, updateUser }}
+        >
             {children}
         </AuthContext.Provider>
     );

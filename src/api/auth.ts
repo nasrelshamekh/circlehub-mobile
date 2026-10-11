@@ -28,9 +28,7 @@ export function login(data: LoginData) {
     });
 }
 
-// Registering does NOT mint a token — the account stays unverified until the
-// user opens the link we email them, so the response carries a User, not an
-// AuthResponse.
+// Registration doesn't mint a token; the account needs email verification.
 export function register(data: RegisterData) {
     return apiFetch<{ message: string; data: User }>("/api/Auth/register", {
         method: "POST",
@@ -42,7 +40,7 @@ export function register(data: RegisterData) {
 }
 
 export function verifyEmail(userId: string, token: string) {
-    return apiFetch<{ message: string }>("/api/Auth/verify-email", {
+    return apiFetch<{ success?: boolean; message: string }>("/api/Auth/verify-email", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -59,6 +57,45 @@ export function resendVerification(email: string) {
         },
         body: JSON.stringify({ email }),
     });
+}
+
+export function forgotPassword(email: string) {
+    return apiFetch<{ success?: boolean; message: string }>(
+        "/api/Auth/forgot-password",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email }),
+        }
+    );
+}
+
+export function resetPassword(userId: string, token: string, password: string) {
+    return apiFetch<{ success?: boolean; message: string }>(
+        "/api/Auth/reset-password",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ userId, token, password }),
+        }
+    );
+}
+
+export function changePassword(currentPassword: string, newPassword: string) {
+    return apiFetch<{ success?: boolean; message: string }>(
+        "/api/Auth/change-password",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ currentPassword, newPassword }),
+        }
+    );
 }
 
 export function me() {

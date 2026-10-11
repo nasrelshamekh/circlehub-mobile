@@ -16,8 +16,7 @@ function messageFromBody(body: ApiErrorBody | null, status: number): string {
         return body.message;
     }
 
-    // ASP.NET validation problems don't set `message`; surface the first field
-    // error instead of a generic status string.
+    // ASP.NET validation problems omit `message`; surface the first field error.
     if (body?.errors) {
         const first = Object.values(body.errors)
             .flat()
@@ -52,8 +51,7 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
     }
 
     if (!response.ok) {
-        // An expired/invalid token can't be recovered from — drop it so the
-        // auth provider falls back to unauthenticated instead of looping.
+        // A dead token can't be recovered from; drop it so auth logs out.
         if (response.status === 401) {
             await clearToken();
         }

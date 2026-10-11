@@ -7,15 +7,26 @@ import {
     Stack,
     ThemeProvider as NavigationThemeProvider,
 } from "expo-router";
+import type { ErrorBoundaryProps } from "expo-router";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useColorScheme } from "nativewind";
 
+import ErrorFallback from "@/components/errors/errorfallback";
 import { AuthProvider, useAuth } from "@/context/authcontext";
 import { ThemeProvider } from "@/context/themecontext";
 import { queryClient } from "@/lib/queryClient";
 import { themes } from "@/theme/themes";
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+    return <ErrorFallback error={error} retry={retry} />;
+}
+
+// Keeps the tab bar and headers mounted when a screen throws.
+export const unstable_settings = {
+    screenErrorBoundary: ErrorFallback,
+};
 
 export default function RootLayout() {
     return (
@@ -38,11 +49,7 @@ function RootNavigator() {
     // --surface-low: the background the feed/post-detail screens actually paint.
     const stackBackground = isDark ? "#131b2e" : "#f2f3ff";
 
-    // Navigation theme: paint the stack container (the layer behind every
-    // screen) with the app's surface color instead of the default near-white.
-    // That layer peeks through for a frame when a screen pops (e.g. post
-    // details back to the feed) while the underlying screen is being
-    // re-attached and re-rendered.
+    // Paint the layer behind every screen so it doesn't flash white on pop.
     const navTheme = useMemo(
         () => ({
             ...(isDark ? DarkTheme : DefaultTheme),
@@ -54,21 +61,12 @@ function RootNavigator() {
         [isDark, stackBackground],
     );
 
-    // Paint the app's root view (the window layer beneath the whole
-    // navigation stack). On Android, when a pushed screen pops (e.g. post
-    // details back to the feed), the underlying screen's native view can be
-    // momentarily blank while it re-attaches — that gap shows this window
-    // layer, whose default color is white. Painting it with the app's surface
-    // color makes that gap blend with the screens instead. (This layer also
-    // shows through the transparent system navigation bar at the bottom of
-    // edge-to-edge Android, so it doubles as the strip behind the back/home
-    // buttons.)
+    // Root window layer; shows during pop gaps and behind the Android nav bar.
     useEffect(() => {
         SystemUI.setBackgroundColorAsync(stackBackground).catch(() => {});
     }, [stackBackground]);
 
-    // Hold on a splash view until we know whether the stored token is valid —
-    // rendering the Stack first would flash the wrong screen.
+    // Wait for the token check; rendering Stack first flashes the wrong screen.
     if (status === "loading") {
         return (
             <View
@@ -89,23 +87,24 @@ function RootNavigator() {
                         contentStyle: { backgroundColor: stackBackground },
                     }}
                 >
-                {/* Anchor: the landing screen is the first available route, so
-                    denied navigation (e.g. a guest hitting /(tabs)) lands here. */}
+                {/* Anchor for denied navigations, e.g. a guest hitting /(tabs). */}
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
 
                 <Stack.Protected guard={status === "authenticated"}>
                     <Stack.Screen name="(tabs)" />
-                    {/* Post details: pushed as a regular card over the tabs from
-                        any post's comment button. */}
-                    <Stack.Screen name="post/[id]" />
-                    {/* The post composer is presented as a bottom sheet so it
-                        slides up from the bottom on open and slides back down
-                        on dismiss (Cancel / back button / swipe). A plain
-                        `modal` skips its exit animation on some platforms,
-                        which reads as a flash. */}
+                    {/* formSheet gives an exit animation; a plain modal flashes. */}
                     <Stack.Screen
                         name="compose"
+                        options={{
+                            presentation: "formSheet",
+                            sheetAllowedDetents: [1],
+                            sheetInitialDetentIndex: 0,
+                            sheetGrabberVisible: true,
+                        }}
+                    />
+                    <Stack.Screen
+                        name="create-community"
                         options={{
                             presentation: "formSheet",
                             sheetAllowedDetents: [1],
