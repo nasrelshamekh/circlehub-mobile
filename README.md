@@ -1,5 +1,7 @@
 # CircleHub Mobile
 
+> Join hubs, post updates, and follow people — the CircleHub community network, on mobile.
+
 The Expo client for CircleHub — a community network where people join hubs, post updates,
 and follow each other. Built with [Expo Router](https://docs.expo.dev/router/introduction)
 and [NativeWind](https://www.nativewind.dev).
