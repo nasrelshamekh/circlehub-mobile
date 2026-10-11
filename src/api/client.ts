@@ -1,5 +1,5 @@
 import { API_URL } from "@/config/env";
-import { clearToken, getToken } from "@/lib/session";
+import { expireTokenIfCurrent, getToken } from "@/lib/session";
 import { ApiError, ApiErrorBody } from "../types/api";
 
 async function readErrorBody(response: Response): Promise<ApiErrorBody | null> {
@@ -51,9 +51,14 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
     }
 
     if (!response.ok) {
-        // A dead token can't be recovered from; drop it so auth logs out.
-        if (response.status === 401) {
-            await clearToken();
+        // Invalid credentials at login are also 401s, so only expire a session
+        // for requests that actually used a bearer token and aren't login calls.
+        if (
+            response.status === 401 &&
+            token &&
+            !endpoint.toLowerCase().includes("/auth/login")
+        ) {
+            await expireTokenIfCurrent(token);
         }
 
         const body = await readErrorBody(response);

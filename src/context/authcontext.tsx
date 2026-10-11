@@ -7,7 +7,7 @@ import {
     me as meRequest,
     register as registerRequest,
 } from "@/api/auth";
-import { clearToken, getToken, setToken } from "@/lib/session";
+import { clearToken, getToken, onSessionExpired, setToken } from "@/lib/session";
 import { User } from "@/types/user";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -27,6 +27,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const queryClient = useQueryClient();
     const [status, setStatus] = useState<AuthStatus>("loading");
     const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        return onSessionExpired(() => {
+            queryClient.clear();
+            setUser(null);
+            setStatus("unauthenticated");
+        });
+    }, [queryClient]);
 
     useEffect(() => {
         let active = true;
