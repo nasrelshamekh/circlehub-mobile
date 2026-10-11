@@ -7,6 +7,7 @@ import {
     Shield,
     ShieldUser,
 } from "lucide-react-native";
+import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 
@@ -15,7 +16,7 @@ import { useTheme } from "@/context/themecontext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { themeColors } from "@/theme/colors";
 import { UserCommunity } from "@/types/community";
-import { User, UserProfile } from "@/types/user";
+import { FollowUser, UserProfile } from "@/types/user";
 
 const CONNECTIONS_PREVIEW_LIMIT = 5;
 
@@ -36,10 +37,6 @@ function PanelCard({
     );
 }
 
-/**
- * Side-panel cards (skills, connections, communities) for the profile page,
- * mirroring the web app's ProfileInfoPanels.
- */
 export default function ProfileInfoPanels({
     user,
     connections = [],
@@ -47,7 +44,7 @@ export default function ProfileInfoPanels({
     communities = [],
 }: {
     user: UserProfile;
-    connections?: User[];
+    connections?: FollowUser[];
     connectionsTitle?: string;
     communities?: UserCommunity[];
 }) {
@@ -62,8 +59,7 @@ export default function ProfileInfoPanels({
     const visibleConnections = showAllConnections ? connections : previewConnections;
 
     return (
-        <View style={{ gap: 16 }}>
-            {/* Skills & Interests */}
+        <View className="gap-4">
             <PanelCard title="Skills & Interests">
                 {skills.length > 0 ? (
                     <View className="mt-4 flex-row flex-wrap gap-2">
@@ -84,7 +80,7 @@ export default function ProfileInfoPanels({
                     </Text>
                 )}
 
-                <View className="mt-5" style={{ gap: 12 }}>
+                <View className="mt-5 gap-3">
                     {user.location ? (
                         <View className="flex-row items-center gap-2">
                             <MapPin size={16} color={colors.textSecondary} />
@@ -103,17 +99,27 @@ export default function ProfileInfoPanels({
                 </View>
             </PanelCard>
 
-            {/* Connections */}
             <PanelCard title={connectionsTitle}>
                 {connections.length > 0 ? (
                     <View className="mt-4">
                         <View className="flex-row items-center gap-4">
                             <View className="flex-row">
                                 {visibleConnections.map((connection, index) => (
-                                    <View
+                                    <Pressable
                                         key={connection.id}
+                                        onPress={() =>
+                                            router.push({
+                                                pathname: "/profile/[username]",
+                                                params: {
+                                                    username:
+                                                        connection.username,
+                                                },
+                                            })
+                                        }
                                         style={
-                                            index > 0 ? { marginLeft: -12 } : undefined
+                                            index > 0
+                                                ? { marginLeft: -12 }
+                                                : undefined
                                         }
                                     >
                                         <Avatar
@@ -121,7 +127,7 @@ export default function ProfileInfoPanels({
                                             name={connection.name}
                                             className="h-10 w-10"
                                         />
-                                    </View>
+                                    </Pressable>
                                 ))}
                             </View>
 
@@ -137,14 +143,26 @@ export default function ProfileInfoPanels({
                             <View className="mt-3 flex-row flex-wrap gap-2">
                                 {showAllConnections
                                     ? extraConnections.map((connection) => (
-                                          <View key={connection.id}>
-                                              <Avatar
-                                                  src={connection.avatarUrl}
-                                                  name={connection.name}
-                                                  className="h-10 w-10"
-                                              />
-                                          </View>
-                                      ))
+                                        <Pressable
+                                            key={connection.id}
+                                            onPress={() =>
+                                                router.push({
+                                                    pathname:
+                                                        "/profile/[username]",
+                                                    params: {
+                                                        username:
+                                                            connection.username,
+                                                    },
+                                                })
+                                            }
+                                        >
+                                            <Avatar
+                                                src={connection.avatarUrl}
+                                                name={connection.name}
+                                                className="h-10 w-10"
+                                            />
+                                        </Pressable>
+                                    ))
                                     : null}
                             </View>
                         )}
@@ -176,10 +194,9 @@ export default function ProfileInfoPanels({
                 )}
             </PanelCard>
 
-            {/* Communities */}
             <PanelCard title="Communities">
                 {communities.length > 0 ? (
-                    <View className="mt-4" style={{ gap: 12 }}>
+                    <View className="mt-4 gap-3">
                         {communities.map((community) => (
                             <CommunityRow key={community.id} community={community} />
                         ))}
@@ -209,7 +226,17 @@ function CommunityRow({ community }: { community: UserCommunity }) {
     const isModerator = community.userRole === "moderator";
 
     return (
-        <View className="flex-row items-center gap-3">
+        <Pressable
+            onPress={() =>
+                router.push({
+                    pathname: "/community/[slug]",
+                    params: { slug: community.slug },
+                })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${community.name}`}
+            className="flex-row items-center gap-3"
+        >
             {community.imageUrl || community.coverImageUrl ? (
                 <Image
                     source={{
@@ -249,6 +276,6 @@ function CommunityRow({ community }: { community: UserCommunity }) {
                     </Text>
                 </View>
             ) : null}
-        </View>
+        </Pressable>
     );
 }

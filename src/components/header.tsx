@@ -1,17 +1,7 @@
-import {
-    Bell,
-    MessageCircle,
-    Moon,
-    Network,
-} from "lucide-react-native";
+import { Bell, MessageCircle, Moon, Network } from "lucide-react-native";
+import { router } from "expo-router";
 import { useState } from "react";
-import {
-    Image,
-    Modal,
-    Pressable,
-    Text,
-    View,
-} from "react-native";
+import { Image, Modal, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
@@ -24,57 +14,42 @@ export default function Header() {
     const { isDark, toggleTheme } = useTheme();
     const { signOut, user } = useAuth();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     async function handleSignOut() {
         setMenuOpen(false);
         await signOut();
+        router.replace("/(auth)/login");
     }
 
     return (
-        <SafeAreaView
-            edges={["top"]}
-            className="bg-background"
-        >
-            {/* Header */}
+        <SafeAreaView edges={["top"]} className="bg-background">
             <View className="relative z-50">
                 <View className="h-20 flex-row items-center justify-between px-6">
-                    {/* CircleHub Logo */}
                     <Image
                         source={require("@/assets/images/circlehub-logo.png")}
                         className="h-12 w-[145px]"
                         resizeMode="contain"
                     />
 
-                    {/* Right side */}
                     <View className="flex-row items-center gap-3">
-                        {/* Messages */}
                         <Pressable className="items-center justify-center">
-                            <MessageCircle
-                                size={22}
-                                color={colors.textPrimary}
-                            />
+                            <MessageCircle size={22} color={colors.textPrimary} />
                         </Pressable>
 
-                        {/* Notifications */}
                         <Pressable className="items-center justify-center">
-                            <Bell
-                                size={22}
-                                color={colors.textPrimary}
-                            />
+                            <Bell size={22} color={colors.textPrimary} />
                         </Pressable>
 
-                        {/* Communities */}
-                        <Pressable className="items-center justify-center">
-                            <Network
-                                size={22}
-                                color={colors.textPrimary}
-                            />
+                        <Pressable
+                            onPress={() => router.push("/communities")}
+                            accessibilityRole="button"
+                            accessibilityLabel="Communities"
+                            className="items-center justify-center"
+                        >
+                            <Network size={22} color={colors.textPrimary} />
                         </Pressable>
 
-                        {/* Avatar */}
                         <Pressable
                             onPress={() => setMenuOpen((prev) => !prev)}
                             className="items-center justify-center"
@@ -89,7 +64,6 @@ export default function Header() {
                 </View>
             </View>
 
-            {/* Dropdown */}
             <Modal
                 visible={menuOpen}
                 transparent
@@ -97,36 +71,43 @@ export default function Header() {
                 onRequestClose={() => setMenuOpen(false)}
             >
                 <View className="flex-1">
-                    {/* Outside touch area */}
                     <Pressable
                         className="absolute inset-0"
                         onPress={() => setMenuOpen(false)}
                     />
 
-                    {/* Dropdown */}
                     <View className="absolute right-4 top-[62px] w-[200px] rounded-lg bg-surface-lowest py-1 shadow-lg">
+                        <Text className="px-4 pb-1 pt-3 text-body-md font-bold text-text-secondary">
+                            My Account
+                        </Text>
 
-                        {/* Profile */}
                         <Pressable
-                            onPress={() => setMenuOpen(false)}
+                            onPress={() => {
+                                setMenuOpen(false);
+                                router.navigate("/profile");
+                            }}
                             className="px-4 py-3.5"
                         >
-                            <Text className="text-body-md text-text-primary">
+                            <Text className="text-label-md text-text-primary">
                                 Profile
                             </Text>
                         </Pressable>
 
-                        {/* Settings */}
                         <Pressable
-                            onPress={() => setMenuOpen(false)}
+                            onPress={() => {
+                                setMenuOpen(false);
+                                router.navigate({
+                                    pathname: "/edit-profile",
+                                    params: { tab: "profile" },
+                                });
+                            }}
                             className="px-4 py-3.5"
                         >
-                            <Text className="text-body-md text-text-primary">
+                            <Text className="text-label-md text-text-primary">
                                 Settings
                             </Text>
                         </Pressable>
 
-                        {/* Theme */}
                         <Pressable
                             onPress={() => {
                                 toggleTheme();
@@ -134,22 +115,15 @@ export default function Header() {
                             }}
                             className="flex-row items-center justify-between px-4 py-3.5"
                         >
-                            <Text className="text-body-md text-text-primary">
+                            <Text className="text-label-md text-text-primary">
                                 {isDark ? "Light mode" : "Dark mode"}
                             </Text>
 
-                            <Moon
-                                size={18}
-                                color={colors.textPrimary}
-                            />
+                            <Moon size={18} color={colors.textPrimary} />
                         </Pressable>
 
-                        {/* Logout */}
-                        <Pressable
-                            onPress={handleSignOut}
-                            className="px-4 py-3.5"
-                        >
-                            <Text className="text-body-md text-text-primary">
+                        <Pressable onPress={handleSignOut} className="px-4 py-3.5">
+                            <Text className="text-label-md text-text-primary">
                                 Sign Out
                             </Text>
                         </Pressable>

@@ -28,13 +28,10 @@ const features = [
 export default function LandingFeatures() {
     const { isDark } = useTheme();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     return (
         <View className="bg-surface-low px-6 py-16">
-            {/* Section heading */}
             <View className="items-center">
                 <View className="flex-row items-center gap-2 rounded-full bg-active px-4 py-2">
                     <Sparkles size={16} color={colors.primary} />
@@ -53,7 +50,6 @@ export default function LandingFeatures() {
                 </Text>
             </View>
 
-            {/* Feature cards */}
             <View className="mt-10 gap-5">
                 {features.map((feature) => {
                     const Icon = feature.icon;

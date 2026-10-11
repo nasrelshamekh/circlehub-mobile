@@ -3,15 +3,14 @@ import { ImageBackground, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import LandingStats from "./landingstats";
 import { LinearGradient } from "expo-linear-gradient";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 
 export default function LandingHero() {
     const { isDark } = useTheme();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     const overlayColors: readonly [string, string, string] = isDark
         ? [
@@ -35,7 +34,6 @@ export default function LandingHero() {
             className="min-h-screen"
             resizeMode="cover"
         >
-            {/* Overlay */}
             <LinearGradient
                 colors={overlayColors}
                 locations={overlayLocations}
@@ -52,7 +50,6 @@ export default function LandingHero() {
             />
 
             <View className="flex-1 px-6 py-4">
-                {/* Header */}
                 <View className="flex-row items-center justify-between">
                     <ImageBackground
                         source={require("@/assets/images/circlehub-logo.png")}
@@ -70,38 +67,16 @@ export default function LandingHero() {
                             </Text>
                         </Pressable>
 
-                        <Pressable
+                        <GradientButton
                             onPress={() => router.push("/(auth)/register")}
-                            className="overflow-hidden rounded-xl"
-                        >
-                            <LinearGradient
-                                colors={[
-                                    colors.primaryGradientStart,
-                                    colors.primaryGradientEnd,
-                                ]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={{
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    paddingHorizontal: 16,
-                                    paddingVertical: 8,
-                                }}
-                            >
-                                <Text
-                                    className="text-body-sm font-medium"
-                                    style={{
-                                        color: colors.buttonGradientText,
-                                    }}
-                                >
-                                    Sign up
-                                </Text>
-                            </LinearGradient>
-                        </Pressable>
+                            label="Sign up"
+                            className="rounded-xl"
+                            contentStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+                            textClassName="text-body-sm font-medium"
+                        />
                     </View>
                 </View>
 
-                {/* Hero content */}
                 <View className="mt-2 flex-1 justify-center">
                     <View className="self-start flex-row items-center gap-2 rounded-full bg-surface-lowest px-4 py-2">
                         <Sparkles size={16} color={colors.primary} />
@@ -122,41 +97,16 @@ export default function LandingHero() {
                     </Text>
 
                     <View className="mt-7 gap-3">
-                        <Pressable
+                        <GradientButton
                             onPress={() => router.push("/(auth)/register")}
-                            className="overflow-hidden rounded-xl"
-                        >
-                            <LinearGradient
-                                colors={[
-                                    colors.primaryGradientStart,
-                                    colors.primaryGradientEnd,
-                                ]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={{
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: 8,
-                                    paddingHorizontal: 20,
-                                    paddingVertical: 16,
-                                }}
-                            >
-                                <Text
-                                    className="text-body-md font-semibold"
-                                    style={{
-                                        color: colors.buttonGradientText,
-                                    }}
-                                >
-                                    Create an account
-                                </Text>
-
-                                <ArrowRight
-                                    size={18}
-                                    color={colors.buttonGradientText}
-                                />
-                            </LinearGradient>
-                        </Pressable>
+                            label="Create an account"
+                            trailingIcon={
+                                <ArrowRight size={18} color={colors.buttonGradientText} />
+                            }
+                            className="rounded-xl"
+                            contentStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
+                            textClassName="text-body-md font-semibold"
+                        />
 
                         <Pressable
                             onPress={() => router.push("/(auth)/login")}

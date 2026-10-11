@@ -1,17 +1,15 @@
-import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { CalendarDays, MapPin, Pencil, Settings } from "lucide-react-native";
 import { Image, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import FollowButton from "@/components/followers/followbutton";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { themeColors } from "@/theme/colors";
 import { UserProfile } from "@/types/user";
 
-/**
- * Profile hero — cover image, avatar, name, bio and stats — mirroring the
- * web app's ProfileHeader.
- */
 export default function ProfileHeader({ user }: { user: UserProfile }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -21,9 +19,22 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
         year: "numeric",
     });
 
+    function openNetwork(tab: "followers" | "following") {
+        if (user.isCurrentUser) {
+            router.navigate({
+                pathname: "/(tabs)/followers",
+                params: { tab },
+            });
+        } else {
+            router.push({
+                pathname: "/followers/[username]",
+                params: { username: user.username, tab },
+            });
+        }
+    }
+
     return (
         <View>
-            {/* Cover image */}
             <View className="relative h-56 w-full">
                 {user.coverImageUrl ? (
                     <Image
@@ -37,7 +48,6 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 <View className="absolute inset-0 bg-black/25" />
             </View>
 
-            {/* Profile card — overlaps the cover; the avatar sits inside the card */}
             <View className="mx-4 -mt-8 rounded-2xl bg-surface-lowest p-4 shadow-sm">
                 <Avatar
                     src={user.avatarUrl}
@@ -65,39 +75,45 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 </Text>
 
                 {user.isCurrentUser ? (
-                    // Placeholder actions — no wiring yet, they do nothing on
-                    // press for now. Settings opens profile settings and Edit
-                    // Profile opens the profile editor once those screens exist.
                     <View className="mt-4 flex-row gap-2">
-                        <Pressable className="h-10 w-10 items-center justify-center rounded-xl bg-surface-low">
+                        <Pressable
+                            onPress={() =>
+                                router.navigate({
+                                    pathname: "/edit-profile",
+                                    params: { tab: "settings" },
+                                })
+                            }
+                            accessibilityRole="button"
+                            accessibilityLabel="Profile settings"
+                            className="h-10 w-10 items-center justify-center rounded-xl bg-surface-low"
+                        >
                             <Settings size={18} color={colors.textPrimary} />
                         </Pressable>
 
-                        <Pressable className="flex-1 overflow-hidden rounded-xl">
-                            <LinearGradient
-                                colors={[
-                                    colors.primaryGradientStart,
-                                    colors.primaryGradientEnd,
-                                ]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={{
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: 8,
-                                    minHeight: 40,
-                                    paddingHorizontal: 16,
-                                }}
-                            >
-                                <Pencil size={16} color={colors.textPrimary} />
-                                <Text className="text-label-md font-semibold text-text-primary">
-                                    Edit Profile
-                                </Text>
-                            </LinearGradient>
-                        </Pressable>
+                        <GradientButton
+                            onPress={() =>
+                                router.navigate({
+                                    pathname: "/edit-profile",
+                                    params: { tab: "profile" },
+                                })
+                            }
+                            icon={
+                                <Pencil
+                                    size={16}
+                                    color={colors.buttonGradientText}
+                                />
+                            }
+                            label="Edit Profile"
+                            className="flex-1 rounded-xl"
+                            contentStyle={{ minHeight: 40, paddingHorizontal: 16 }}
+                            textClassName="text-label-md font-semibold"
+                        />
                     </View>
-                ) : null}
+                ) : (
+                    <View className="mt-4 flex-row gap-2">
+                        <FollowButton user={user} variant="text" />
+                    </View>
+                )}
 
                 {user.bio ? (
                     <Text className="mt-2 text-body-sm text-text-secondary">
@@ -105,7 +121,6 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                     </Text>
                 ) : null}
 
-                {/* Location / joined */}
                 <View className="mt-3 flex-row flex-wrap items-center gap-x-4 gap-y-1">
                     {user.location ? (
                         <View className="flex-row items-center gap-1.5">
@@ -124,7 +139,6 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                     </View>
                 </View>
 
-                {/* Stats */}
                 <View className="mt-4 flex-row gap-8">
                     <View>
                         <Text className="text-label-md font-bold text-text-primary">
@@ -134,22 +148,32 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                             Posts
                         </Text>
                     </View>
-                    <View>
+
+                    <Pressable
+                        onPress={() => openNetwork("followers")}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View followers. ${user.followersCount}`}
+                    >
                         <Text className="text-label-md font-bold text-text-primary">
                             {user.followersCount}
                         </Text>
                         <Text className="text-body-sm text-text-secondary">
                             Followers
                         </Text>
-                    </View>
-                    <View>
+                    </Pressable>
+
+                    <Pressable
+                        onPress={() => openNetwork("following")}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View following. ${user.followingCount}`}
+                    >
                         <Text className="text-label-md font-bold text-text-primary">
                             {user.followingCount}
                         </Text>
                         <Text className="text-body-sm text-text-secondary">
                             Following
                         </Text>
-                    </View>
+                    </Pressable>
                 </View>
             </View>
         </View>

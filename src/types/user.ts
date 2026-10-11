@@ -17,8 +17,6 @@ export type User = {
     updatedAt: string;
 };
 
-/** The user-profile payload from `/api/Users/{username}`, extending the base
- *  user with the counters and relation flags the profile page renders. */
 export type UserProfile = User & {
     postsCount: number;
     followersCount: number;
@@ -26,4 +24,17 @@ export type UserProfile = User & {
     isCurrentUser: boolean;
     isFollowedByMe: boolean;
     followsMe: boolean;
+};
+
+export type FollowUser = {
+    id: string;
+    name: string;
+    username: string;
+    jobTitle: string | null;
+    bio: string | null;
+    location: string | null;
+    avatarUrl: string | null;
+    followersCount: number;
+    isFollowedByMe: boolean;
+    isCurrentUser: boolean;
 };

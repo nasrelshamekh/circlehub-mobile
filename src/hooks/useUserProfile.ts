@@ -5,11 +5,6 @@ import { queryKeys } from "@/lib/queryKeys";
 import { ApiError } from "@/types/api";
 import { UserProfile } from "@/types/user";
 
-/**
- * Loads the profile for a username, mirroring the web app's useUserProfile.
- * A 404 resolves to null (profile not found) so the page can render its
- * not-found state instead of throwing.
- */
 export function useUserProfile(username: string) {
     const query = useQuery<UserProfile | null>({
         queryKey: queryKeys.user(username),
@@ -18,9 +13,7 @@ export function useUserProfile(username: string) {
                 const { data } = await getUserProfile(username);
                 return data;
             } catch (error) {
-                if (error instanceof ApiError && error.status === 404) {
-                    return null;
-                }
+                if (error instanceof ApiError && error.status === 404) return null;
                 throw error;
             }
         },

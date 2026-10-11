@@ -1,10 +1,4 @@
-import {
-    CirclePlus,
-    CircleUser,
-    Compass,
-    Home,
-    Users,
-} from "lucide-react-native";
+import { CirclePlus, CircleUser, Compass, Home, Users } from "lucide-react-native";
 import { router, Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,9 +9,7 @@ export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const { isDark } = useTheme();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     return (
         <Tabs
@@ -71,8 +63,7 @@ export default function TabsLayout() {
                 }}
                 listeners={{
                     tabPress: (event) => {
-                        // Present the composer as a bottom-up modal instead of
-                        // switching to the (placeholder) create tab.
+                        // Present the composer instead of the placeholder create tab.
                         event.preventDefault();
                         router.push("/compose");
                     },
@@ -98,6 +89,15 @@ export default function TabsLayout() {
                     ),
                 }}
             />
+
+            {/* Kept in the tab navigator for the bottom nav; href: null hides them. */}
+            <Tabs.Screen name="post/[id]" options={{ href: null }} />
+            <Tabs.Screen name="profile/[username]" options={{ href: null }} />
+            <Tabs.Screen name="followers/[username]" options={{ href: null }} />
+            <Tabs.Screen name="community/[slug]" options={{ href: null }} />
+            <Tabs.Screen name="community-manage" options={{ href: null }} />
+            <Tabs.Screen name="communities" options={{ href: null }} />
+            <Tabs.Screen name="edit-profile" options={{ href: null }} />
         </Tabs>
     );
 }

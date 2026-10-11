@@ -1,23 +1,15 @@
 import { ArrowRight, Sparkles } from "lucide-react-native";
 import { router } from "expo-router";
-import {
-    Image,
-    Linking,
-    Pressable,
-    Text,
-    View,
-} from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
-import { LinearGradient } from "expo-linear-gradient";
+import GradientButton from "@/components/ui/gradientbutton";
 
 export default function LandingFooter() {
     const { isDark } = useTheme();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     const openPortfolio = () => {
         Linking.openURL("https://portfolio-pearl-seven-23.vercel.app/");
@@ -25,10 +17,8 @@ export default function LandingFooter() {
 
     return (
         <View className="bg-surface-high px-6 py-10 dark:bg-surface-lowest">
-            {/* Top hairline */}
             <View className="absolute inset-x-0 top-0 h-px bg-black/10 dark:bg-white/10" />
 
-            {/* CTA */}
             <View>
                 <View className="self-start flex-row items-center gap-2 rounded-full bg-surface-lowest/70 px-4 py-2 dark:bg-white/10">
                     <Sparkles size={16} color={colors.primary} />
@@ -50,36 +40,19 @@ export default function LandingFooter() {
                 </Text>
 
                 <View className="mt-7 gap-3">
-                    <Pressable
+                    <GradientButton
                         onPress={() => router.push("/(auth)/register")}
-                        className="rounded-xl overflow-hidden"
-                    >
-                        <LinearGradient
-                            colors={[
-                                colors.primaryGradientStart,
-                                colors.primaryGradientEnd,
-                            ]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 8,
-                                paddingHorizontal: 20,
-                                paddingVertical: 16,
-                            }}
-                        >
-                            <Text
-                                className="text-body-md font-semibold"
-                                style={{ color: colors.buttonGradientText }}
-                            >
-                                Get started now
-                            </Text>
-
-                            <ArrowRight size={18} color={colors.buttonGradientText} />
-                        </LinearGradient>
-                    </Pressable>
+                        label="Get started now"
+                        trailingIcon={
+                            <ArrowRight
+                                size={18}
+                                color={colors.buttonGradientText}
+                            />
+                        }
+                        className="rounded-xl"
+                        contentStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
+                        textClassName="text-body-md font-semibold"
+                    />
 
                     <Pressable
                         onPress={() => router.push("/(auth)/login")}
@@ -92,7 +65,6 @@ export default function LandingFooter() {
                 </View>
             </View>
 
-            {/* Footer info */}
             <View className="mt-12 border-t border-black/10 pt-6 dark:border-white/10">
                 <Image
                     source={require("@/assets/images/circlehub-logo.png")}

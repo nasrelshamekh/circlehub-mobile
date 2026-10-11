@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 
 import PostCard from "@/components/postcard";
+import PostCardSkeleton from "@/components/skeletons/postcardskeleton";
 import { useTheme } from "@/context/themecontext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { themeColors } from "@/theme/colors";
@@ -40,11 +41,6 @@ function formatJoined(value: string) {
     });
 }
 
-/**
- * Posts / Media / Liked / About tabs for the profile page, mirroring the web
- * app's ProfileTabs. The tab switcher collapses to a 2x2 grid on narrow
- * screens, exactly like the responsive web layout.
- */
 export default function ProfileTabs({
     user,
     posts = [],
@@ -68,12 +64,8 @@ export default function ProfileTabs({
     );
 
     return (
-        <View style={{ gap: 20 }}>
-            {/* Tab switcher — 2 cols on narrow screens, matching the web */}
-            <View
-                className="flex-row flex-wrap rounded-lg bg-surface-lowest p-2 shadow-sm"
-                style={{ gap: 8 }}
-            >
+        <View className="gap-5">
+            <View className="flex-row flex-wrap rounded-lg bg-surface-lowest p-2 shadow-sm gap-2">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.value;
@@ -84,10 +76,9 @@ export default function ProfileTabs({
                             onPress={() => setActiveTab(tab.value)}
                             accessibilityRole="tab"
                             accessibilityState={{ selected: isActive }}
-                            className={`flex-row items-center justify-center gap-2 rounded-lg px-3 py-3 ${
+                            className={`flex-row items-center justify-center gap-2 rounded-lg px-3 py-3 basis-[48%] grow ${
                                 isActive ? "bg-active" : ""
                             }`}
-                            style={{ flexBasis: "48%", flexGrow: 1 }}
                         >
                             <Icon
                                 size={16}
@@ -113,12 +104,12 @@ export default function ProfileTabs({
 
             {activeTab === "posts" &&
                 (isLoadingPosts ? (
-                    <View style={{ gap: 16 }}>
-                        <PostSkeletonRow />
-                        <PostSkeletonRow />
+                    <View className="gap-4">
+                        <PostCardSkeleton />
+                        <PostCardSkeleton />
                     </View>
                 ) : userPosts.length > 0 ? (
-                    <View style={{ gap: 16 }}>
+                    <View className="gap-4">
                         {userPosts.map((post) => (
                             <PostCard key={post.id} post={post} />
                         ))}
@@ -148,8 +139,7 @@ export default function ProfileTabs({
                                 <Image
                                     key={post.id}
                                     source={{ uri: getImageUrl(post.imageUrl)! }}
-                                    style={{ width: "48%", aspectRatio: 1 }}
-                                    className="rounded-lg"
+                                    className="w-[48%] aspect-square rounded-lg"
                                     resizeMode="cover"
                                 />
                             ))}
@@ -165,12 +155,12 @@ export default function ProfileTabs({
 
             {activeTab === "liked" &&
                 (isLoadingLikedPosts ? (
-                    <View style={{ gap: 16 }}>
-                        <PostSkeletonRow />
-                        <PostSkeletonRow />
+                    <View className="gap-4">
+                        <PostCardSkeleton />
+                        <PostCardSkeleton />
                     </View>
                 ) : likedPosts.length > 0 ? (
-                    <View style={{ gap: 16 }}>
+                    <View className="gap-4">
                         {likedPosts.map((post) => (
                             <PostCard key={post.id} post={post} />
                         ))}
@@ -203,7 +193,7 @@ function AboutTab({ user }: { user: UserProfile }) {
                 </Text>
             ) : null}
 
-            <View className="mt-6" style={{ gap: 16 }}>
+            <View className="mt-6 gap-4">
                 <DetailRow label="Full Name:" value={user.name} />
                 <DetailRow label="Username:" value={`@${user.username}`} />
                 <DetailRow
@@ -282,25 +272,6 @@ function EmptyTabState({
             <Text className="mt-2 max-w-sm text-center text-body-sm text-text-secondary">
                 {subtitle}
             </Text>
-        </View>
-    );
-}
-
-function PostSkeletonRow() {
-    return (
-        <View className="rounded-2xl bg-surface-lowest p-4 shadow-sm">
-            <View className="flex-row items-center gap-3">
-                <View className="h-10 w-10 rounded-full bg-surface-high" />
-                <View style={{ gap: 6 }} className="flex-1">
-                    <View className="h-4 w-1/2 rounded-md bg-surface-high" />
-                    <View className="h-3 w-1/3 rounded-md bg-surface-high" />
-                </View>
-            </View>
-
-            <View style={{ gap: 8 }} className="mt-4">
-                <View className="h-3 w-full rounded-md bg-surface-high" />
-                <View className="h-3 w-5/6 rounded-md bg-surface-high" />
-            </View>
         </View>
     );
 }
