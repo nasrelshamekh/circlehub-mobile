@@ -1,7 +1,9 @@
-import { ActivityIndicator, FlatList, RefreshControl, Text, View } from "react-native";
+import { FlatList, RefreshControl, Text, View } from "react-native";
 
 import CreatePost from "@/components/createpost";
 import PostCard from "@/components/postcard";
+import FeedSkeleton from "@/components/skeletons/feedskeleton";
+import PostCardSkeleton from "@/components/skeletons/postcardskeleton";
 import { useTheme } from "@/context/themecontext";
 import useFeedPosts from "@/hooks/useFeedPosts";
 import { ApiError } from "@/types/api";
@@ -14,11 +16,7 @@ export default function Feed() {
     const { posts, isLoading, isLoadingMore, hasMore, loadMore, refetch, isRefetching, error } = useFeedPosts();
 
     if (isLoading) {
-        return (
-            <View className="flex-1 items-center justify-center">
-                <ActivityIndicator size="large" />
-            </View>
-        );
+        return <FeedSkeleton />;
     }
 
     if (error && posts.length === 0) {
@@ -57,7 +55,7 @@ export default function Feed() {
             ListFooterComponent={
                 isLoadingMore ? (
                     <View className="py-4">
-                        <ActivityIndicator />
+                        <PostCardSkeleton />
                     </View>
                 ) : null
             }

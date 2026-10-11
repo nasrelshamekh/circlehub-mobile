@@ -3,6 +3,17 @@ export type PostAuthor = {
     name: string;
     username: string;
     avatarUrl: string | null;
+
+    /** Only the search projection includes this; feed and profile posts omit it. */
+    jobTitle?: string | null;
+};
+
+export type PostCommunity = {
+    id: string;
+    name: string;
+    slug: string;
+    imageUrl: string | null;
+    visibility: string;
 };
 
 export type Post = {
@@ -15,6 +26,9 @@ export type Post = {
     commentsCount: number;
     isLikedByMe: boolean;
     author: PostAuthor;
+
+    /** Only the feed, search and post-details projections include this. */
+    community?: PostCommunity | null;
 };
 
 export type PostComment = {
@@ -24,7 +38,6 @@ export type PostComment = {
     author: PostAuthor;
 };
 
-/** A post with its comments loaded, as returned by the post-details endpoint. */
 export type PostDetails = Post & {
     comments: PostComment[];
 };

@@ -1,31 +1,29 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    Text,
-    View,
-} from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import CommentList from "@/components/comment/commentlist";
 import PostCard from "@/components/postcard";
+import PostDetailsSkeleton from "@/components/skeletons/postdetailsskeleton";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
+import { useCommunityDetails } from "@/hooks/useCommunityDetails";
 import { usePostDetails } from "@/hooks/usePostDetails";
 import { themeColors } from "@/theme/colors";
 
-/**
- * Post details: the full post card with a comment composer and the comment
- * thread. Pushed onto the root stack (see src/app/_layout.tsx) from the
- * comment button on any post, so it slides in over the tabs.
- */
 export default function PostDetailsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { post, isLoading } = usePostDetails(id);
+    const { community } = useCommunityDetails(post?.community?.slug);
     const { isDark } = useTheme();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
+
+    // Community admins and moderators can delete posts they don't own.
+    const canManageCommunity =
+        community?.communityRole === "admin" ||
+        community?.communityRole === "moderator";
 
     function goBack() {
         if (router.canGoBack()) {
@@ -37,7 +35,6 @@ export default function PostDetailsScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>
-            {/* Header */}
             <View className="flex-row items-center gap-2 px-2 py-2">
                 <Pressable
                     onPress={goBack}
@@ -55,18 +52,20 @@ export default function PostDetailsScreen() {
             </View>
 
             {isLoading ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" />
-                </View>
+                <PostDetailsSkeleton />
             ) : post ? (
                 <ScrollView
                     className="flex-1"
                     contentContainerClassName="p-4 pb-10"
                     keyboardShouldPersistTaps="handled"
                 >
-                    {/* Already on the comment page, so the comment button on the
-                        card is a no-op here. */}
-                    <PostCard post={post} onPressComments={() => undefined} />
+                    {/* Already on the comment page, so this button is a no-op. */}
+                    <PostCard
+                        post={post}
+                        onPressComments={() => undefined}
+                        onDeleted={goBack}
+                        canDelete={canManageCommunity}
+                    />
                     <CommentList post={post} />
                 </ScrollView>
             ) : (
@@ -80,15 +79,13 @@ export default function PostDetailsScreen() {
                         followed is no longer available.
                     </Text>
 
-                    <Pressable
+                    <GradientButton
                         onPress={() => router.replace("/(tabs)")}
-                        accessibilityRole="button"
-                        className="rounded-full bg-primary px-5 py-3"
-                    >
-                        <Text className="text-body-sm font-semibold text-on-primary">
-                            Return to Home
-                        </Text>
-                    </Pressable>
+                        label="Return to Home"
+                        className="rounded-full"
+                        contentStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
+                        textClassName="text-body-sm font-semibold"
+                    />
                 </View>
             )}
         </SafeAreaView>

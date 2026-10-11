@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import { UploadImage } from "@/lib/imageUpload";
+import { appendImageToFormData, UploadImage } from "@/lib/imageUpload";
 import { PageMeta } from "@/types/api";
 import { Post, PostComment, PostDetails } from "@/types/post";
 
@@ -15,11 +15,6 @@ export type ToggleLikeResult = {
     isLikedByMe: boolean;
 };
 
-/**
- * Toggles the current user's like on a post. The API responds with the
- * authoritative count + state for that post, which callers can reconcile
- * against after an optimistic update.
- */
 export function toggleLike(postId: string) {
     return apiFetch<{ message: string; data: ToggleLikeResult }>(
         `/api/Posts/${postId}/like`,
@@ -27,49 +22,67 @@ export function toggleLike(postId: string) {
     );
 }
 
-/**
- * Creates a post. The API binds `[FromForm] CreatePostDto` (content + optional
- * image), so we send multipart/form-data. We must NOT set the Content-Type
- * header ourselves — the runtime adds the multipart boundary.
- */
-export function createPost(content: string, image?: UploadImage | null) {
+// Don't set Content-Type — the runtime adds the multipart boundary.
+export function createPost(
+    content: string,
+    image?: UploadImage | null,
+    communityId?: string
+) {
     const formData = new FormData();
 
     formData.append("content", content);
+    appendImageToFormData(formData, "image", image);
 
-    if (image) {
-        if (image.file) {
-            formData.append("image", image.file);
-        } else {
-            // React Native's fetch accepts a { uri, name, type } file object.
-            formData.append("image", {
-                uri: image.uri,
-                name: image.name,
-                type: image.type,
-            } as unknown as Blob);
-        }
-    }
+    const endpoint = communityId
+        ? `/api/Communities/${communityId}/posts`
+        : "/api/Posts";
 
-    return apiFetch<{ message: string; data: Post }>("/api/Posts", {
+    return apiFetch<{ message: string; data: Post }>(endpoint, {
         method: "POST",
         body: formData,
     });
 }
 
-/**
- * Loads a single post with its comments. Callers get the post via the shared
- * `["post", id]` query key so comments reconcile with likes and the feed.
- */
-export function getPostById(postId: string) {
-    return apiFetch<{ message: string; data: PostDetails }>(
-        `/api/Posts/${postId}`
+export function updatePost(
+    postId: string,
+    content: string,
+    image?: UploadImage | null
+) {
+    const formData = new FormData();
+
+    formData.append("content", content);
+    appendImageToFormData(formData, "image", image);
+
+    return apiFetch<{ message: string; data: Post }>(`/api/Posts/${postId}`, {
+        method: "PATCH",
+        body: formData,
+    });
+}
+
+export function deletePost(postId: string) {
+    return apiFetch<{ message: string }>(`/api/Posts/${postId}`, {
+        method: "DELETE",
+    });
+}
+
+// Community admins and moderators can delete posts they don't own here.
+export function deleteCommunityPost(communityId: string, postId: string) {
+    return apiFetch<{ message: string }>(
+        `/api/Communities/${communityId}/posts/${postId}`,
+        { method: "DELETE" }
     );
 }
 
-/**
- * Adds a comment to a post and returns the created comment so callers can
- * prepend it to the post-details cache.
- */
+export function getCommunityPosts(communityId: string) {
+    return apiFetch<{ message: string; count: number; data: Post[] }>(
+        `/api/Communities/${communityId}/posts`
+    );
+}
+
+export function getPostById(postId: string) {
+    return apiFetch<{ message: string; data: PostDetails }>(`/api/Posts/${postId}`);
+}
+
 export function addPostComment(postId: string, content: string) {
     return apiFetch<{ message: string; data: { comment: PostComment } }>(
         `/api/Posts/${postId}/comments`,
@@ -78,5 +91,12 @@ export function addPostComment(postId: string, content: string) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ content }),
         }
+    );
+}
+
+export function deletePostComment(postId: string, commentId: string) {
+    return apiFetch<{ message: string }>(
+        `/api/Posts/${postId}/comments/${commentId}`,
+        { method: "DELETE" }
     );
 }

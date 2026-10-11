@@ -11,17 +11,28 @@ type FeedPage = { data: Post[]; meta: PageMeta };
 type CreatePostInput = {
     content: string;
     image?: UploadImage | null;
+    communityId?: string;
 };
 
 export default function useCreatePost() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ content, image }: CreatePostInput) =>
-            createPost(content, image),
+        mutationFn: ({ content, image, communityId }: CreatePostInput) =>
+            createPost(content, image, communityId),
 
-        onSuccess: (response, _variables) => {
+        onSuccess: (response, variables) => {
             const post = response.data;
+
+            // A community post belongs to that community, not the main feed.
+            if (variables.communityId) {
+                queryClient.setQueryData<Post[]>(
+                    queryKeys.communityPosts(variables.communityId),
+                    (old) => (old ? [post, ...old] : old)
+                );
+                queryClient.invalidateQueries({ queryKey: ["community"] });
+                return;
+            }
 
             // Prepend to the first feed page so the new post shows instantly.
             queryClient.setQueryData<InfiniteData<FeedPage>>(

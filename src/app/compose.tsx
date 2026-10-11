@@ -1,6 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { CirclePlus, Images, LoaderCircle, X } from "lucide-react-native";
 import { useState } from "react";
 import {
@@ -16,25 +15,24 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useCreatePost from "@/hooks/mutations/useCreatePost";
-import {
-    imageFromAsset,
-    UploadImage,
-    validateUploadImage,
-} from "@/lib/imageUpload";
+import { imageFromAsset, UploadImage, validateUploadImage } from "@/lib/imageUpload";
 import { ApiError } from "@/types/api";
 import { themeColors } from "@/theme/colors";
 
-/**
- * Post composer. Presented as a root-level modal (see src/app/_layout.tsx) so
- * it slides up from the bottom instead of switching tabs.
- */
 export default function Create() {
     const { isDark } = useTheme();
     const { user } = useAuth();
     const createPost = useCreatePost();
+
+    // When opened from a community, the post is scoped to that community.
+    const { communityId, communityName } = useLocalSearchParams<{
+        communityId?: string;
+        communityName?: string;
+    }>();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
@@ -45,8 +43,7 @@ export default function Create() {
     const firstName = user?.name.split(" ")[0];
     const isSubmitting = createPost.isPending;
 
-    // Dismiss the modal, returning to whatever tab was underneath. Fall back to
-    // the feed if there's nothing to pop (e.g. the modal was deep-linked).
+    // Return to the tab underneath, or the feed when deep-linked with nothing to pop.
     function close() {
         if (router.canGoBack()) {
             router.back();
@@ -63,9 +60,7 @@ export default function Create() {
             quality: 0.8,
         });
 
-        if (result.canceled) {
-            return;
-        }
+        if (result.canceled) return;
 
         const asset = result.assets[0];
         const picked = imageFromAsset(asset);
@@ -81,9 +76,7 @@ export default function Create() {
     }
 
     async function handleSubmit() {
-        if (isSubmitting) {
-            return;
-        }
+        if (isSubmitting) return;
 
         const trimmed = content.trim();
 
@@ -95,7 +88,11 @@ export default function Create() {
         setError(null);
 
         try {
-            await createPost.mutateAsync({ content: trimmed, image });
+            await createPost.mutateAsync({
+                content: trimmed,
+                image,
+                communityId,
+            });
 
             setContent("");
             setImage(null);
@@ -111,17 +108,14 @@ export default function Create() {
     }
 
     return (
-        <SafeAreaView
-            className="flex-1 bg-surface-low"
-            edges={["top", "bottom"]}
-        >
+        <SafeAreaView className="flex-1 bg-surface-low" edges={["top", "bottom"]}>
             <KeyboardAvoidingView
                 className="flex-1"
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
                 <View className="flex-row items-center justify-between px-4 py-3">
                     <Text className="text-title-lg font-semibold text-text-primary">
-                        Create Post
+                        {communityId ? "Create Community Post" : "Create Post"}
                     </Text>
 
                     <Pressable
@@ -142,8 +136,9 @@ export default function Create() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <Text className="text-body-sm text-text-secondary">
-                        Share an update, thought, or photo with your CircleHub
-                        community.
+                        {communityName
+                            ? `Share an update, thought, or photo with ${communityName}.`
+                            : "Share an update, thought, or photo with your CircleHub community."}
                     </Text>
 
                     <View className="flex-row items-center gap-3">
@@ -159,7 +154,9 @@ export default function Create() {
                             </Text>
 
                             <Text className="text-label-sm text-text-secondary">
-                                Posting publicly
+                                {communityName
+                                    ? `Posting to ${communityName}`
+                                    : "Posting publicly"}
                             </Text>
                         </View>
                     </View>
@@ -186,7 +183,7 @@ export default function Create() {
                         <View className="overflow-hidden rounded-xl">
                             <Image
                                 source={{ uri: image.uri }}
-                                style={{ width: "100%", height: 260 }}
+                                className="w-full h-[260px]"
                                 resizeMode="cover"
                             />
 
@@ -218,29 +215,11 @@ export default function Create() {
                         </Pressable>
                     </View>
 
-                    <Pressable
+                    <GradientButton
                         onPress={handleSubmit}
                         disabled={isSubmitting}
-                        className="overflow-hidden rounded-xl"
-                    >
-                        <LinearGradient
-                            colors={[
-                                colors.primaryGradientStart,
-                                colors.primaryGradientEnd,
-                            ]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 8,
-                                paddingHorizontal: 20,
-                                paddingVertical: 16,
-                                opacity: isSubmitting ? 0.6 : 1,
-                            }}
-                        >
-                            {isSubmitting ? (
+                        icon={
+                            isSubmitting ? (
                                 <LoaderCircle
                                     size={18}
                                     color={colors.buttonGradientText}
@@ -250,16 +229,13 @@ export default function Create() {
                                     size={20}
                                     color={colors.buttonGradientText}
                                 />
-                            )}
-
-                            <Text
-                                className="text-body-md font-semibold"
-                                style={{ color: colors.buttonGradientText }}
-                            >
-                                {isSubmitting ? "Posting..." : "Post"}
-                            </Text>
-                        </LinearGradient>
-                    </Pressable>
+                            )
+                        }
+                        label={isSubmitting ? "Posting..." : "Post"}
+                        className="rounded-xl"
+                        contentStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
+                        textClassName="text-body-md font-semibold"
+                    />
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>

@@ -11,24 +11,18 @@ export default function CreatePost() {
     const { isDark } = useTheme();
     const { user } = useAuth();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
-
+    const colors = isDark ? themeColors.dark : themeColors.light;
     const firstName = user?.name.split(" ")[0];
 
     return (
         <View className="my-2 rounded-lg bg-surface-lowest p-4">
-            {/* Avatar + input */}
             <View className="flex-row items-center">
-                {/* Avatar */}
                 <Avatar
                     src={user?.avatarUrl}
                     name={user?.name ?? ""}
                     className="mr-3 h-11 w-11"
                 />
 
-                {/* Post input */}
                 <Pressable
                     onPress={() => router.push("/compose")}
                     className="flex-1 rounded-full bg-surface-low px-4 py-3"
@@ -40,7 +34,6 @@ export default function CreatePost() {
                     </Text>
                 </Pressable>
 
-                {/* Add photo */}
                 <Pressable
                     onPress={() => router.push("/compose")}
                     className="ml-3 items-center justify-center"

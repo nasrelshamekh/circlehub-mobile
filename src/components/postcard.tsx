@@ -1,159 +1,159 @@
-import {
-    Heart,
-    MessageCircle,
-    MoreHorizontal,
-    Send,
-} from "lucide-react-native";
 import { router } from "expo-router";
-import { Image, Pressable, Text, View } from "react-native";
+import { MoreHorizontal } from "lucide-react-native";
+import { useState } from "react";
+import { Alert, Image, Pressable, Text, View } from "react-native";
 
+import Avatar from "@/components/avatar";
+import EditPostModal from "@/components/editpostmodal";
+import PostActions from "@/components/postactions";
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
-import useToggleLike from "@/hooks/mutations/useToggleLike";
-import { themeColors } from "@/theme/colors";
-import { Post } from "@/types/post";
-import { getImageUrl } from "@/lib/imageUrl";
+import useDeletePost from "@/hooks/mutations/useDeletePost";
 import { formatPostDate } from "@/lib/formatPostDate";
+import { getImageUrl } from "@/lib/imageUrl";
+import { themeColors } from "@/theme/colors";
+import { ApiError } from "@/types/api";
+import { Post } from "@/types/post";
+
+import type { AlertButton } from "react-native";
 
 export default function PostCard({
     post,
     onPressComments,
+    onDeleted,
+    canDelete,
+    community,
 }: {
     post: Post;
 
-    /**
-     * Overrides the default navigate-to-details behavior of the comment button.
-     * The post-details screen passes this so tapping the button there doesn't
-     * push a duplicate copy of itself.
-     */
+    // Post-details passes this so it doesn't push a duplicate of itself.
     onPressComments?: () => void;
+    onDeleted?: () => void;
+
+    // Community admins and moderators delete posts they don't own.
+    canDelete?: boolean;
+
+    // Community screens pass this because their posts omit the community field.
+    community?: { id: string; slug: string };
 }) {
     const { isDark } = useTheme();
-    const toggleLike = useToggleLike();
+    const { user } = useAuth();
+    const deletePost = useDeletePost();
 
-    const colors = isDark
-        ? themeColors.dark
-        : themeColors.light;
+    const [editOpen, setEditOpen] = useState(false);
 
-    const isLiked = post.isLikedByMe;
+    const colors = isDark ? themeColors.dark : themeColors.light;
+    const imageUri = getImageUrl(post.imageUrl);
+
+    const isOwner = user?.id === post.author.id;
+    const canDeletePost = isOwner || Boolean(canDelete);
+
+    async function handleDelete() {
+        try {
+            await deletePost.mutateAsync({ post, community });
+            onDeleted?.();
+        } catch (caught) {
+            Alert.alert(
+                "Could not delete post",
+                caught instanceof ApiError
+                    ? caught.message
+                    : "Please try again."
+            );
+        }
+    }
+
+    function openMenu() {
+        const buttons: AlertButton[] = [];
+
+        if (isOwner) {
+            buttons.push({ text: "Edit post", onPress: () => setEditOpen(true) });
+        }
+
+        if (canDeletePost) {
+            buttons.push({
+                text: "Delete post",
+                style: "destructive",
+                onPress: handleDelete,
+            });
+        }
+
+        buttons.push({ text: "Cancel", style: "cancel" });
+
+        Alert.alert("Post options", undefined, buttons);
+    }
 
     return (
-        <View
-            className="my-2 rounded-lg bg-surface-lowest p-5"
-            style={{ gap: 16 }}
-        >
-            {/* Post Header */}
-            <View className="flex-row items-start justify-between">
-                <View className="flex-row items-center gap-3">
-                    {post.author.avatarUrl ? (
-                        <Image
-                            source={{ uri: post.author.avatarUrl }}
-                            className="h-11 w-11 rounded-full"
+        <>
+            <View className="my-2 rounded-lg bg-surface-lowest p-5 gap-4">
+                <View className="flex-row items-start justify-between">
+                    <Pressable
+                        onPress={() =>
+                            router.push({
+                                pathname: "/profile/[username]",
+                                params: { username: post.author.username },
+                            })
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${post.author.name}'s profile`}
+                        className="flex-row items-center gap-3"
+                    >
+                        <Avatar
+                            src={post.author.avatarUrl}
+                            name={post.author.name}
+                            className="h-11 w-11"
                         />
-                    ) : (
-                        <View className="h-11 w-11 items-center justify-center rounded-full bg-surface-highest">
-                            <Text className="text-label-md text-text-secondary">
-                                {post.author.name.charAt(0)}
+
+                        <View>
+                            <Text className="text-label-md font-semibold text-text-primary">
+                                {post.author.name}
+                            </Text>
+
+                            <Text className="text-body-sm text-text-secondary">
+                                {formatPostDate(post.createdAt)}
                             </Text>
                         </View>
+                    </Pressable>
+
+                    {(isOwner || canDeletePost) && (
+                        <Pressable
+                            onPress={openMenu}
+                            accessibilityRole="button"
+                            accessibilityLabel="Open post actions"
+                            className="h-10 w-10 items-center justify-center rounded-full"
+                        >
+                            <MoreHorizontal size={18} color={colors.textSecondary} />
+                        </Pressable>
                     )}
+                </View>
 
+                {post.content && (
                     <View>
-                        <Text className="text-label-md font-semibold text-text-primary">
-                            {post.author.name}
-                        </Text>
-
-                        <Text className="text-body-sm text-text-secondary">
-                            {formatPostDate(post.createdAt)}
+                        <Text className="text-body-md text-text-secondary">
+                            {post.content}
                         </Text>
                     </View>
-                </View>
+                )}
 
-                <Pressable className="h-10 w-10 items-center justify-center rounded-full">
-                    <MoreHorizontal
-                        size={18}
-                        color={colors.textSecondary}
+                {imageUri && (
+                    <Image
+                        source={{ uri: imageUri }}
+                        className="h-[200px] w-full rounded-2xl"
+                        resizeMode="cover"
                     />
-                </Pressable>
+                )}
+
+                <View className="flex-row items-center gap-2 pt-3">
+                    <PostActions
+                        post={post}
+                        onPressComments={onPressComments}
+                        showShare
+                    />
+                </View>
             </View>
 
-            {/* Post Content */}
-            {post.content && (
-                <View>
-                    <Text className="text-body-md text-text-secondary">
-                        {post.content}
-                    </Text>
-                </View>
+            {editOpen && (
+                <EditPostModal post={post} onClose={() => setEditOpen(false)} />
             )}
-
-            {/* Post Image */}
-            {post.imageUrl && (
-                <Image
-                    source={{ uri: getImageUrl(post.imageUrl)! }}
-                    className="w-full rounded-2xl"
-                    style={{ height: 200 }}
-                    resizeMode="cover"
-                />
-            )}
-
-            {/* Post Actions */}
-            <View className="flex-row items-center gap-2 pt-3">
-                <Pressable
-                    onPress={() => toggleLike.mutate(post.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                        isLiked
-                            ? `Unlike post. ${post.likesCount} likes`
-                            : `Like post. ${post.likesCount} likes`
-                    }
-                    accessibilityState={{ selected: isLiked }}
-                    hitSlop={6}
-                    className="flex-row items-center gap-2 rounded-full px-4 py-3"
-                >
-                    <Heart
-                        size={20}
-                        color={isLiked ? colors.primary : colors.textSecondary}
-                        fill={isLiked ? colors.primary : "transparent"}
-                    />
-
-                    <Text
-                        className={
-                            isLiked
-                                ? "text-body-sm font-semibold text-primary"
-                                : "text-body-sm text-text-secondary"
-                        }
-                    >
-                        {post.likesCount}
-                    </Text>
-                </Pressable>
-
-                <Pressable
-                    onPress={() =>
-                        onPressComments
-                            ? onPressComments()
-                            : router.push(`/post/${post.id}`)
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={`View comments. ${post.commentsCount} comments`}
-                    hitSlop={6}
-                    className="flex-row items-center gap-2 rounded-full px-4 py-3"
-                >
-                    <MessageCircle
-                        size={20}
-                        color={colors.textSecondary}
-                    />
-
-                    <Text className="text-body-sm text-text-secondary">
-                        {post.commentsCount}
-                    </Text>
-                </Pressable>
-
-                <Pressable className="flex-row items-center gap-2 rounded-full px-4 py-3">
-                    <Send
-                        size={20}
-                        color={colors.textSecondary}
-                    />
-                </Pressable>
-            </View>
-        </View>
+        </>
     );
 }
