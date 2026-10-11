@@ -1,9 +1,13 @@
-import { View, Text } from "react-native";
+import { View } from "react-native";
+
+import ExploreScreen from "@/components/explore/explorescreen";
+import Header from "@/components/header";
 
 export default function Explore() {
-  return (
-    <View>
-      <Text>Explore</Text>
-    </View>
-  );
+    return (
+        <View className="flex-1 bg-surface-low">
+            <Header />
+            <ExploreScreen />
+        </View>
+    );
 }
