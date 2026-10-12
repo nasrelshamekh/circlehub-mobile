@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { Pressable, Text } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 
-import { useColorScheme } from "nativewind";
-
+import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 
 type GradientButtonProps = {
@@ -30,8 +29,8 @@ export default function GradientButton({
     textClassName = "text-body-sm font-semibold",
     accessibilityLabel,
 }: GradientButtonProps) {
-    const { colorScheme } = useColorScheme();
-    const colors = colorScheme === "dark" ? themeColors.dark : themeColors.light;
+    const { isDark } = useTheme();
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     return (
         <Pressable

@@ -11,11 +11,10 @@ import type { ErrorBoundaryProps } from "expo-router";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { useColorScheme } from "nativewind";
 
 import ErrorFallback from "@/components/errors/errorfallback";
 import { AuthProvider, useAuth } from "@/context/authcontext";
-import { ThemeProvider } from "@/context/themecontext";
+import { ThemeProvider, useTheme } from "@/context/themecontext";
 import { queryClient } from "@/lib/queryClient";
 import { themes } from "@/theme/themes";
 
@@ -41,11 +40,10 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-    const { colorScheme } = useColorScheme();
+    const { isDark } = useTheme();
     const { status } = useAuth();
 
-    const theme = colorScheme === "dark" ? themes.dark : themes.light;
-    const isDark = colorScheme === "dark";
+    const theme = isDark ? themes.dark : themes.light;
     // --surface-low: the background the feed/post-detail screens actually paint.
     const stackBackground = isDark ? "#131b2e" : "#f2f3ff";
 
