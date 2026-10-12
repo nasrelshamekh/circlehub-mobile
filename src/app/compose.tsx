@@ -18,6 +18,7 @@ import GradientButton from "@/components/ui/gradientbutton";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useCreatePost from "@/hooks/mutations/useCreatePost";
+import { requestFeedScrollToTop } from "@/lib/feedScroll";
 import { imageFromAsset, UploadImage, validateUploadImage } from "@/lib/imageUpload";
 import { ApiError } from "@/types/api";
 import { themeColors } from "@/theme/colors";
@@ -54,6 +55,9 @@ export default function Create() {
     // Close the composer and land on the Home feed so the new post is visible,
     // no matter which tab the composer was opened from.
     function showInFeed() {
+        // Jump the feed back to the top so the new post is visible.
+        requestFeedScrollToTop();
+
         if (router.canDismiss()) {
             router.dismissAll();
         }

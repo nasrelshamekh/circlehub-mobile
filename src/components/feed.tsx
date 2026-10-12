@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, Text, View } from "react-native";
 
 import CreatePost from "@/components/createpost";
@@ -6,7 +7,9 @@ import FeedSkeleton from "@/components/skeletons/feedskeleton";
 import PostCardSkeleton from "@/components/skeletons/postcardskeleton";
 import { useTheme } from "@/context/themecontext";
 import useFeedPosts from "@/hooks/useFeedPosts";
+import { subscribeFeedScrollToTop } from "@/lib/feedScroll";
 import { ApiError } from "@/types/api";
+import { Post } from "@/types/post";
 import { themeColors } from "@/theme/colors";
 
 export default function Feed() {
@@ -14,6 +17,24 @@ export default function Feed() {
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     const { posts, isLoading, isLoadingMore, hasMore, loadMore, refetch, isRefetching, error } = useFeedPosts();
+
+    const listRef = useRef<FlatList<Post>>(null);
+    const [scrollToTopPending, setScrollToTopPending] = useState(false);
+
+    // Scroll back to the top after a post is published, even when the feed was
+    // scrolled down before the composer was opened.
+    useEffect(() => {
+        return subscribeFeedScrollToTop(() => setScrollToTopPending(true));
+    }, []);
+
+    useEffect(() => {
+        if (!scrollToTopPending || isLoading || posts.length === 0) return;
+
+        requestAnimationFrame(() => {
+            listRef.current?.scrollToOffset({ offset: 0, animated: true });
+            setScrollToTopPending(false);
+        });
+    }, [scrollToTopPending, isLoading, posts.length]);
 
     if (isLoading) {
         return <FeedSkeleton />;
@@ -33,6 +54,7 @@ export default function Feed() {
 
     return (
         <FlatList
+            ref={listRef}
             data={posts}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
