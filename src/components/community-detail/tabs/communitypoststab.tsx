@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { FileText, Lock } from "lucide-react-native";
+import { FileText, Image as ImageIcon, Lock } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
@@ -7,6 +7,8 @@ import PostCard from "@/components/postcard";
 import PostCardSkeleton from "@/components/skeletons/postcardskeleton";
 import EmptyState from "@/components/ui/emptystate";
 import { useAuth } from "@/context/authcontext";
+import { useTheme } from "@/context/themecontext";
+import { themeColors } from "@/theme/colors";
 import { CommunityDetails } from "@/types/community";
 import { Post } from "@/types/post";
 
@@ -28,6 +30,9 @@ export default function CommunityPostsTab({
     isLoadingPosts,
 }: CommunityPostsTabProps) {
     const { user } = useAuth();
+    const { isDark } = useTheme();
+
+    const colors = isDark ? themeColors.dark : themeColors.light;
 
     return (
         <View className="gap-3">
@@ -58,6 +63,8 @@ export default function CommunityPostsTab({
                     >
                         Share something with {community.name}...
                     </Text>
+
+                    <ImageIcon size={22} color={colors.textPrimary} />
                 </Pressable>
             ) : null}
 

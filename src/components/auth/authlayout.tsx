@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import {
     Image,
     KeyboardAvoidingView,
-    Platform,
     ScrollView,
     Text,
     View,
@@ -14,7 +13,8 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <SafeAreaView className="flex-1 bg-surface-low">
             <KeyboardAvoidingView
                 className="flex-1"
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                behavior="padding"
+                keyboardVerticalOffset={16}
             >
                 <ScrollView
                     className="flex-1"

@@ -1,6 +1,12 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+    KeyboardAvoidingView,
+    Pressable,
+    ScrollView,
+    Text,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import CommentList from "@/components/comment/commentlist";
@@ -54,20 +60,26 @@ export default function PostDetailsScreen() {
             {isLoading ? (
                 <PostDetailsSkeleton />
             ) : post ? (
-                <ScrollView
+                <KeyboardAvoidingView
                     className="flex-1"
-                    contentContainerClassName="p-4 pb-10"
-                    keyboardShouldPersistTaps="handled"
+                    behavior="padding"
+                    keyboardVerticalOffset={16}
                 >
-                    {/* Already on the comment page, so this button is a no-op. */}
-                    <PostCard
-                        post={post}
-                        onPressComments={() => undefined}
-                        onDeleted={goBack}
-                        canDelete={canManageCommunity}
-                    />
-                    <CommentList post={post} />
-                </ScrollView>
+                    <ScrollView
+                        className="flex-1"
+                        contentContainerClassName="p-4 pb-10"
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {/* Already on the comment page, so this button is a no-op. */}
+                        <PostCard
+                            post={post}
+                            onPressComments={() => undefined}
+                            onDeleted={goBack}
+                            canDelete={canManageCommunity}
+                        />
+                        <CommentList post={post} />
+                    </ScrollView>
+                </KeyboardAvoidingView>
             ) : (
                 <View className="flex-1 items-center justify-center gap-4 p-10">
                     <Text className="text-headline-md font-semibold text-text-primary">

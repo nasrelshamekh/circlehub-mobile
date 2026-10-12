@@ -30,6 +30,8 @@ export default function TabsLayout() {
                     fontWeight: "500",
                 },
 
+                tabBarHideOnKeyboard: true,
+
                 headerShown: false,
             }}
         >

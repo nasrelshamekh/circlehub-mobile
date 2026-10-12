@@ -5,7 +5,6 @@ import { useState } from "react";
 import {
     Image,
     KeyboardAvoidingView,
-    Platform,
     Pressable,
     ScrollView,
     Text,
@@ -111,7 +110,8 @@ export default function Create() {
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top", "bottom"]}>
             <KeyboardAvoidingView
                 className="flex-1"
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                behavior="padding"
+                keyboardVerticalOffset={16}
             >
                 <View className="flex-row items-center justify-between px-4 py-3">
                     <Text className="text-title-lg font-semibold text-text-primary">

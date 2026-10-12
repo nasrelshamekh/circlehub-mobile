@@ -38,7 +38,7 @@ export default function CreatePost() {
                     onPress={() => router.push("/compose")}
                     className="ml-3 items-center justify-center"
                 >
-                    <ImageIcon size={22} color={colors.primary} />
+                    <ImageIcon size={22} color={colors.textPrimary} />
                 </Pressable>
             </View>
         </View>

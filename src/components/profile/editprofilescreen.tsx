@@ -3,7 +3,6 @@ import { Settings, UserRound } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import {
     KeyboardAvoidingView,
-    Platform,
     Pressable,
     ScrollView,
     Text,
@@ -33,7 +32,8 @@ export default function EditProfileScreen() {
     return (
         <KeyboardAvoidingView
             className="flex-1"
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior="padding"
+            keyboardVerticalOffset={16}
         >
             <View className="px-4 py-3">
                 <View className="flex-row rounded-2xl bg-surface-low p-1">
