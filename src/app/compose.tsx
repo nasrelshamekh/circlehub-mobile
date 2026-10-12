@@ -51,6 +51,16 @@ export default function Create() {
         }
     }
 
+    // Close the composer and land on the Home feed so the new post is visible,
+    // no matter which tab the composer was opened from.
+    function showInFeed() {
+        if (router.canDismiss()) {
+            router.dismissAll();
+        }
+
+        router.navigate("/(tabs)");
+    }
+
     async function pickImage() {
         setError(null);
 
@@ -96,7 +106,13 @@ export default function Create() {
             setContent("");
             setImage(null);
 
-            close();
+            if (communityId) {
+                // Community posts stay in their own community feed.
+                close();
+            } else {
+                // Public posts always land in the Home feed.
+                showInFeed();
+            }
         } catch (caught) {
             setError(
                 caught instanceof ApiError
