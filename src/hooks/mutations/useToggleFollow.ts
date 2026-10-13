@@ -33,17 +33,28 @@ export default function useToggleFollow() {
 
             queryClient.setQueryData<UserProfile | null>(
                 queryKeys.user(targetUsername),
-                (old) =>
-                    old
-                        ? {
-                              ...old,
-                              isFollowedByMe: shouldFollow,
-                              followersCount: Math.max(
-                                  0,
-                                  old.followersCount + delta
-                              ),
-                          }
-                        : old
+                (old) => {
+                    if (!old) return old;
+
+                    // Following a followers-only account unlocks its content
+                    // right away; unfollowing locks it again. Private accounts
+                    // stay locked either way.
+                    let isProfileLocked = old.isProfileLocked;
+
+                    if (
+                        old.profileVisibility === "followers" &&
+                        !old.isCurrentUser
+                    ) {
+                        isProfileLocked = !shouldFollow;
+                    }
+
+                    return {
+                        ...old,
+                        isFollowedByMe: shouldFollow,
+                        isProfileLocked,
+                        followersCount: Math.max(0, old.followersCount + delta),
+                    };
+                }
             );
 
             if (myUsername) {
@@ -138,6 +149,20 @@ export default function useToggleFollow() {
         },
 
         onSettled: (_data, _error, { targetUsername }) => {
+            // Refetch the profile and its content so a newly-unlocked
+            // (or newly-locked) account shows the right posts immediately.
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.user(targetUsername),
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.userPosts(targetUsername),
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.userLikedPosts(targetUsername),
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.userCommunities(targetUsername),
+            });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.userFollowers(targetUsername),
             });
