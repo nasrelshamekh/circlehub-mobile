@@ -13,6 +13,10 @@ export type User = {
     website: string | null;
     skills: string[];
     emailVerified: boolean;
+    profileVisibility: string;
+    messagesFrom: string;
+    emailNotifications: boolean;
+    communityUpdates: boolean;
     createdAt: string;
     updatedAt: string;
 };
@@ -24,6 +28,7 @@ export type UserProfile = User & {
     isCurrentUser: boolean;
     isFollowedByMe: boolean;
     followsMe: boolean;
+    isProfileLocked: boolean;
 };
 
 export type FollowUser = {

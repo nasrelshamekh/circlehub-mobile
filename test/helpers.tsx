@@ -114,6 +114,10 @@ export function makeUser(overrides: Partial<User> = {}): User {
         bio: null,
         website: null,
         skills: [],
+        profileVisibility: "public",
+        messagesFrom: "followers",
+        emailNotifications: true,
+        communityUpdates: true,
         emailVerified: true,
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
@@ -132,6 +136,7 @@ export function makeUserProfile(
         isCurrentUser: false,
         isFollowedByMe: false,
         followsMe: false,
+        isProfileLocked: false,
         ...overrides,
     };
 }

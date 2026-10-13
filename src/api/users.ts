@@ -94,3 +94,21 @@ export function updateProfile(input: UpdateProfileInput) {
         body: formData,
     });
 }
+
+export type UpdateSettingsInput = {
+    profileVisibility: string;
+    messagesFrom: string;
+    emailNotifications: boolean;
+    communityUpdates: boolean;
+};
+
+export function updateSettings(input: UpdateSettingsInput) {
+    return apiFetch<{ message: string; data: User }>(
+        "/api/Users/me/settings",
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+        }
+    );
+}

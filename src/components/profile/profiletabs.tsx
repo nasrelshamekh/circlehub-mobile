@@ -3,6 +3,7 @@ import {
     Heart,
     Image as ImageIcon,
     Info,
+    Lock,
 } from "lucide-react-native";
 import { useState } from "react";
 import { Image, Linking, Pressable, Text, View } from "react-native";
@@ -62,6 +63,22 @@ export default function ProfileTabs({
     const mediaPosts = posts.filter(
         (post) => post.author.id === user.id && post.imageUrl
     );
+
+    if (user.isProfileLocked) {
+        const isFollowersOnly = user.profileVisibility === "followers";
+
+        return (
+            <EmptyTabState
+                icon={Lock}
+                title={isFollowersOnly ? "Followers only" : "This account is private"}
+                subtitle={
+                    isFollowersOnly
+                        ? "Follow this account to see their posts and activity."
+                        : "This account only shares their posts with themselves."
+                }
+            />
+        );
+    }
 
     return (
         <View className="gap-5">

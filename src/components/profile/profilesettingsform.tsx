@@ -1,11 +1,16 @@
+import { useFocusEffect } from "expo-router";
 import { Save } from "lucide-react-native";
-import { useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Alert, Pressable, Switch, Text, View } from "react-native";
 
 import Field from "@/components/ui/formfield";
+import FormError from "@/components/ui/formerror";
 import GradientButton from "@/components/ui/gradientbutton";
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
+import useUpdateSettings from "@/hooks/mutations/useUpdateSettings";
 import { themeColors } from "@/theme/colors";
+import { ApiError } from "@/types/api";
 
 const profileVisibilityOptions = [
     { value: "public", label: "Public" },
@@ -99,15 +104,65 @@ function ToggleRow({
     );
 }
 
-// Appearance-only for now: mirrors the web Settings tab, which does not persist yet.
 export default function ProfileSettingsForm() {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
+    const { user } = useAuth();
+    const updateSettings = useUpdateSettings();
 
-    const [profileVisibility, setProfileVisibility] = useState("public");
-    const [messagesFrom, setMessagesFrom] = useState("followers");
-    const [emailNotifications, setEmailNotifications] = useState(true);
-    const [communityUpdates, setCommunityUpdates] = useState(true);
+    const [profileVisibility, setProfileVisibility] = useState(
+        user?.profileVisibility ?? "public"
+    );
+    const [messagesFrom, setMessagesFrom] = useState(
+        user?.messagesFrom ?? "followers"
+    );
+    const [emailNotifications, setEmailNotifications] = useState(
+        user?.emailNotifications ?? true
+    );
+    const [communityUpdates, setCommunityUpdates] = useState(
+        user?.communityUpdates ?? true
+    );
+    const [error, setError] = useState<string | null>(null);
+
+    // The Settings tab stays mounted behind the Profile tab, so re-sync the
+    // fields from the signed-in user whenever the screen regains focus.
+    useFocusEffect(
+        useCallback(() => {
+            if (!user) return;
+
+            setProfileVisibility(user.profileVisibility ?? "public");
+            setMessagesFrom(user.messagesFrom ?? "followers");
+            setEmailNotifications(user.emailNotifications ?? true);
+            setCommunityUpdates(user.communityUpdates ?? true);
+            setError(null);
+        }, [user])
+    );
+
+    async function handleSave() {
+        if (updateSettings.isPending) return;
+
+        setError(null);
+
+        try {
+            await updateSettings.mutateAsync({
+                profileVisibility,
+                messagesFrom,
+                emailNotifications,
+                communityUpdates,
+            });
+
+            Alert.alert(
+                "Settings saved",
+                "Your preferences have been updated."
+            );
+        } catch (caught) {
+            setError(
+                caught instanceof ApiError
+                    ? caught.message
+                    : "Could not save your settings."
+            );
+        }
+    }
 
     return (
         <View className="gap-6 rounded-2xl bg-surface-lowest p-4">
@@ -153,9 +208,13 @@ export default function ProfileSettingsForm() {
                 />
             </View>
 
+            {error ? <FormError message={error} /> : null}
+
             <GradientButton
+                onPress={handleSave}
+                disabled={updateSettings.isPending}
                 icon={<Save size={18} color={colors.buttonGradientText} />}
-                label="Save Changes"
+                label={updateSettings.isPending ? "Saving..." : "Save Changes"}
                 className="rounded-xl"
                 contentStyle={{ paddingVertical: 14 }}
                 textClassName="text-body-md font-semibold"
