@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { getPosts } from "@/api/posts";
 import { queryKeys } from "@/lib/queryKeys";
+import { Post } from "@/types/post";
 
 const PAGE_SIZE = 10;
 
@@ -14,7 +15,20 @@ export default function useFeedPosts() {
             lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
     });
 
-    const posts = query.data?.pages.flatMap((page) => page.data) ?? [];
+    // Pages are fetched by offset, so a post created while the feed is open
+    // shifts the window and one post can land in two pages at once. Keep the
+    // first occurrence so list keys stay unique and nothing renders twice.
+    const seen = new Set<string>();
+    const posts: Post[] = [];
+
+    for (const page of query.data?.pages ?? []) {
+        for (const post of page.data) {
+            if (seen.has(post.id)) continue;
+
+            seen.add(post.id);
+            posts.push(post);
+        }
+    }
 
     return {
         posts,
