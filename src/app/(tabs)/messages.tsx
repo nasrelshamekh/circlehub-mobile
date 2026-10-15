@@ -1,15 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import { useCallback } from "react";
 import {
     ActivityIndicator,
+    Pressable,
     RefreshControl,
     ScrollView,
     Text,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import Header from "@/components/header";
 import ConversationList from "@/components/messages/conversationlist";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
@@ -38,9 +40,37 @@ export default function Messages() {
         }, [queryClient])
     );
 
+    // The inbox is a hidden tab reached from the header's messages icon, so
+    // there is no stack entry to pop: fall back to the feed when back would
+    // land on whichever tab was focused before.
+    function goBack() {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace("/(tabs)");
+        }
+    }
+
     return (
-        <View className="flex-1 bg-surface-low">
-            <Header />
+        <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>
+            <View className="flex-row items-center gap-2 px-2 py-2">
+                <Pressable
+                    onPress={goBack}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                    hitSlop={8}
+                    className="h-10 w-10 items-center justify-center rounded-full"
+                >
+                    <ChevronLeft size={24} color={colors.textPrimary} />
+                </Pressable>
+
+                <Text
+                    numberOfLines={1}
+                    className="flex-1 text-title-lg font-semibold text-text-primary"
+                >
+                    Messages
+                </Text>
+            </View>
 
             {isLoading ? (
                 <View className="flex-1 items-center justify-center">
@@ -70,6 +100,6 @@ export default function Messages() {
                     <ConversationList conversations={conversations} />
                 </ScrollView>
             )}
-        </View>
+        </SafeAreaView>
     );
 }

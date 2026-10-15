@@ -7,12 +7,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
+import { useConversations } from "@/hooks/useConversations";
 import { themeColors } from "@/theme/colors";
 
 export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const { isDark, toggleTheme } = useTheme();
     const { signOut, user } = useAuth();
+    const { conversations } = useConversations();
+
+    // Unread badge on the messages icon. The inbox is a pushed screen with no
+    // tab of its own, so this is the only place unread mail shows up while the
+    // user is on another screen. Shares the inbox's query and cache entry.
+    const unreadCount = conversations.reduce(
+        (total, conversation) => total + conversation.unreadCount,
+        0
+    );
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
@@ -36,10 +46,22 @@ export default function Header() {
                         <Pressable
                             onPress={() => router.push("/messages")}
                             accessibilityRole="button"
-                            accessibilityLabel="Messages"
-                            className="items-center justify-center"
+                            accessibilityLabel={
+                                unreadCount > 0
+                                    ? `Messages, ${unreadCount} unread`
+                                    : "Messages"
+                            }
+                            className="relative items-center justify-center"
                         >
                             <MessageCircle size={22} color={colors.textPrimary} />
+
+                            {unreadCount > 0 && (
+                                <View className="absolute -right-1.5 -top-1 min-w-5 items-center justify-center rounded-full bg-primary px-1 py-0.5">
+                                    <Text className="text-label-sm font-semibold text-on-primary">
+                                        {unreadCount}
+                                    </Text>
+                                </View>
+                            )}
                         </Pressable>
 
                         <Pressable className="items-center justify-center">
