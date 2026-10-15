@@ -3,11 +3,7 @@ import { ImagePlus, X } from "lucide-react-native";
 import { Image, Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/context/themecontext";
-import {
-    imageFromAsset,
-    UploadImage,
-    validateUploadImage,
-} from "@/lib/imageUpload";
+import { prepareUploadImage, UploadImage } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
 
 type ImageUploadFieldProps = {
@@ -39,10 +35,9 @@ export default function ImageUploadField({
 
         if (result.canceled) return;
 
-        const asset = result.assets[0];
-        const picked = imageFromAsset(asset);
-        const size = picked.file?.size ?? asset.fileSize;
-        const validationError = validateUploadImage(picked.type, size);
+        const { image: picked, error: validationError } = await prepareUploadImage(
+            result.assets[0]
+        );
 
         if (validationError) {
             onError(validationError);

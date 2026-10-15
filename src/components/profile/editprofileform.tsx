@@ -16,12 +16,11 @@ import { useTheme } from "@/context/themecontext";
 import useUpdateProfile from "@/hooks/mutations/useUpdateProfile";
 import { getImageUrl } from "@/lib/imageUrl";
 import {
-    imageFromAsset,
+    prepareUploadImage,
     UploadImage,
-    validateUploadImage,
+    uploadFailureMessage,
 } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
-import { ApiError } from "@/types/api";
 
 // Keep the calendar day stable regardless of the viewer's timezone.
 function parseDateOfBirth(value: string | null): Date | null {
@@ -114,10 +113,9 @@ export default function EditProfileForm() {
 
         if (result.canceled) return;
 
-        const asset = result.assets[0];
-        const picked = imageFromAsset(asset);
-        const size = picked.file?.size ?? asset.fileSize;
-        const validationError = validateUploadImage(picked.type, size);
+        const { image: picked, error: validationError } = await prepareUploadImage(
+            result.assets[0]
+        );
 
         if (validationError) {
             setError(validationError);
@@ -172,9 +170,11 @@ export default function EditProfileForm() {
             close();
         } catch (caught) {
             setError(
-                caught instanceof ApiError
-                    ? caught.message
-                    : "Could not update your profile."
+                uploadFailureMessage(
+                    caught,
+                    Boolean(avatarImage || coverImage),
+                    "Could not update your profile."
+                )
             );
         }
     }

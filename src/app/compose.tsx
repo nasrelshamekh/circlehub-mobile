@@ -19,8 +19,7 @@ import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useCreatePost from "@/hooks/mutations/useCreatePost";
 import { requestFeedScrollToTop } from "@/lib/feedScroll";
-import { imageFromAsset, UploadImage, validateUploadImage } from "@/lib/imageUpload";
-import { ApiError } from "@/types/api";
+import { prepareUploadImage, UploadImage, uploadFailureMessage } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
 
 export default function Create() {
@@ -75,10 +74,9 @@ export default function Create() {
 
         if (result.canceled) return;
 
-        const asset = result.assets[0];
-        const picked = imageFromAsset(asset);
-        const size = picked.file?.size ?? asset.fileSize;
-        const validationError = validateUploadImage(picked.type, size);
+        const { image: picked, error: validationError } = await prepareUploadImage(
+            result.assets[0]
+        );
 
         if (validationError) {
             setError(validationError);
@@ -118,11 +116,7 @@ export default function Create() {
                 showInFeed();
             }
         } catch (caught) {
-            setError(
-                caught instanceof ApiError
-                    ? caught.message
-                    : "Could not create the post."
-            );
+            setError(uploadFailureMessage(caught, Boolean(image), "Could not create the post."));
         }
     }
 

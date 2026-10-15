@@ -18,12 +18,11 @@ import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import useUpdatePost from "@/hooks/mutations/useUpdatePost";
 import {
-    imageFromAsset,
+    prepareUploadImage,
     UploadImage,
-    validateUploadImage,
+    uploadFailureMessage,
 } from "@/lib/imageUpload";
 import { getImageUrl } from "@/lib/imageUrl";
-import { ApiError } from "@/types/api";
 import { Post } from "@/types/post";
 import { themeColors } from "@/theme/colors";
 
@@ -56,10 +55,9 @@ export default function EditPostModal({
 
         if (result.canceled) return;
 
-        const asset = result.assets[0];
-        const picked = imageFromAsset(asset);
-        const size = picked.file?.size ?? asset.fileSize;
-        const validationError = validateUploadImage(picked.type, size);
+        const { image: picked, error: validationError } = await prepareUploadImage(
+            result.assets[0]
+        );
 
         if (validationError) {
             setError(validationError);
@@ -87,9 +85,7 @@ export default function EditPostModal({
             onClose();
         } catch (caught) {
             setError(
-                caught instanceof ApiError
-                    ? caught.message
-                    : "Could not update the post."
+                uploadFailureMessage(caught, Boolean(image), "Could not update the post.")
             );
         }
     }
