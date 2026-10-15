@@ -1,14 +1,16 @@
+function ordinalSuffix(day: number) {
+    if (day % 10 === 1 && day !== 11) return "st";
+    if (day % 10 === 2 && day !== 12) return "nd";
+    if (day % 10 === 3 && day !== 13) return "rd";
+
+    return "th";
+}
+
 export function formatPostDate(date: string) {
     const createdAt = new Date(date);
     const currentYear = new Date().getFullYear();
 
     const day = createdAt.getDate();
-
-    let ordinal = "th";
-
-    if (day % 10 === 1 && day !== 11) ordinal = "st";
-    if (day % 10 === 2 && day !== 12) ordinal = "nd";
-    if (day % 10 === 3 && day !== 13) ordinal = "rd";
 
     const month = createdAt.toLocaleDateString("en-US", {
         month: "long",
@@ -24,7 +26,7 @@ export function formatPostDate(date: string) {
             ? ""
             : `, ${createdAt.getFullYear()}`;
 
-    return `${month} ${day}${ordinal}${year} at ${time}`;
+    return `${month} ${day}${ordinalSuffix(day)}${year} at ${time}`;
 }
 
 // Compact stamp for the conversation list.
@@ -41,4 +43,33 @@ export function formatShortTime(date: string) {
         month: "short",
         day: "numeric",
     });
+}
+
+// Stamp under a message bubble; matches the web thread ("Oct 15, 12:23 PM").
+export function formatMessageTime(date: string) {
+    return new Date(date).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+}
+
+// Day separator in the message thread, e.g. "October 13th" (year only when it
+// is not the current one).
+export function formatMessageDate(date: string) {
+    const value = new Date(date);
+
+    const day = value.getDate();
+
+    const month = value.toLocaleDateString("en-US", {
+        month: "long",
+    });
+
+    const year =
+        value.getFullYear() === new Date().getFullYear()
+            ? ""
+            : `, ${value.getFullYear()}`;
+
+    return `${month} ${day}${ordinalSuffix(day)}${year}`;
 }

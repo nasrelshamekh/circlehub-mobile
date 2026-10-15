@@ -1,5 +1,6 @@
 import { Send } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import * as Clipboard from "expo-clipboard";
+import { useEffect, useMemo, useState } from "react";
 import {
     Alert,
     FlatList,
@@ -14,55 +15,144 @@ import SharedPostCard from "@/components/messages/sharedpostcard";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useSendMessage from "@/hooks/mutations/useSendMessage";
+import { formatMessageDate, formatMessageTime } from "@/lib/formatPostDate";
 import { ApiError } from "@/types/api";
 import { Message } from "@/types/message";
 import { themeColors } from "@/theme/colors";
 
+// Day separator so a long thread reads as dated groups.
+function DateDivider({ value }: { value: string }) {
+    return (
+        <View className="mb-3 flex-row items-center gap-3">
+            <View className="h-px flex-1 bg-border" />
+
+            <Text className="text-label-sm text-text-secondary">
+                {formatMessageDate(value)}
+            </Text>
+
+            <View className="h-px flex-1 bg-border" />
+        </View>
+    );
+}
+
+function isNewDay(current: string, previous?: string) {
+    if (!previous) return true;
+
+    const currentDate = new Date(current);
+    const previousDate = new Date(previous);
+
+    return (
+        currentDate.getFullYear() !== previousDate.getFullYear() ||
+        currentDate.getMonth() !== previousDate.getMonth() ||
+        currentDate.getDate() !== previousDate.getDate()
+    );
+}
+
+// The avatar lines up with the bubble, not the stamp row, so it only sits next
+// to the text it belongs to. Tap a message to reveal when it was sent (and copy
+// it) — the stamp stays hidden otherwise so the thread reads as bubbles only.
 function MessageBubble({ message }: { message: Message }) {
     const isMine = message.isMine;
     const hasContent = Boolean(message.content && message.content.length > 0);
 
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+
+    useEffect(() => {
+        if (!isCopied) return;
+
+        const timeout = setTimeout(() => setIsCopied(false), 1500);
+
+        return () => clearTimeout(timeout);
+    }, [isCopied]);
+
+    async function handleCopy() {
+        if (!message.content) return;
+
+        await Clipboard.setStringAsync(message.content);
+        setIsCopied(true);
+    }
+
     return (
-        <View
+        <Pressable
+            onPress={() => setIsExpanded((expanded) => !expanded)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isExpanded }}
+            accessibilityHint="Shows when the message was sent"
             className={
                 isMine
-                    ? "mb-3 flex-row items-end justify-end gap-2"
-                    : "mb-3 flex-row items-end gap-2"
+                    ? "mb-3 flex-col items-end"
+                    : "mb-3 flex-col items-start"
             }
         >
-            {!isMine && (
-                <Avatar
-                    src={message.sender.avatarUrl}
-                    name={message.sender.name}
-                    className="h-8 w-8"
-                    textClassName="text-label-sm"
-                />
-            )}
-
-            <View className={isMine ? "max-w-[78%] items-end" : "max-w-[78%]"}>
-                {hasContent && (
-                    <View
-                        className={
-                            isMine
-                                ? "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
-                                : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
-                        }
-                    >
-                        <Text
-                            className={
-                                isMine
-                                    ? "text-body-sm text-on-primary"
-                                    : "text-body-sm text-text-primary"
-                            }
-                        >
-                            {message.content}
-                        </Text>
-                    </View>
+            <View
+                className={
+                    isMine
+                        ? "flex-row items-end justify-end gap-2"
+                        : "flex-row items-end gap-2"
+                }
+            >
+                {!isMine && (
+                    <Avatar
+                        src={message.sender.avatarUrl}
+                        name={message.sender.name}
+                        className="h-8 w-8"
+                        textClassName="text-label-sm"
+                    />
                 )}
 
-                {message.postId && <SharedPostCard post={message.post} />}
+                <View className={isMine ? "max-w-[78%] items-end" : "max-w-[78%]"}>
+                    {hasContent && (
+                        <View
+                            className={
+                                isMine
+                                    ? "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
+                                    : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
+                            }
+                        >
+                            <Text
+                                className={
+                                    isMine
+                                        ? "text-body-sm text-on-primary"
+                                        : "text-body-sm text-text-primary"
+                                }
+                            >
+                                {message.content}
+                            </Text>
+                        </View>
+                    )}
+
+                    {message.postId && <SharedPostCard post={message.post} />}
+                </View>
             </View>
-        </View>
+
+            {isExpanded && (
+                <View
+                    className={
+                        isMine
+                            ? "mt-1 flex-row items-center gap-3"
+                            : "mt-1 flex-row items-center gap-3 pl-10"
+                    }
+                >
+                    <Text className="text-label-sm text-text-secondary">
+                        {formatMessageTime(message.createdAt)}
+                    </Text>
+
+                    {hasContent && (
+                        <Pressable
+                            onPress={handleCopy}
+                            accessibilityRole="button"
+                            accessibilityLabel="Copy message"
+                            hitSlop={6}
+                        >
+                            <Text className="text-label-sm font-semibold text-primary">
+                                {isCopied ? "Copied" : "Copy"}
+                            </Text>
+                        </Pressable>
+                    )}
+                </View>
+            )}
+        </Pressable>
     );
 }
 
@@ -121,7 +211,19 @@ export default function MessageThread({
                 inverted
                 data={orderedMessages}
                 keyExtractor={(message) => message.id}
-                renderItem={({ item }) => <MessageBubble message={item} />}
+                renderItem={({ item, index }) => (
+                    <View>
+                        {/* The list is inverted, so the older neighbour of this
+                            message is the next item — a day break belongs above
+                            this message when that neighbour is from another day. */}
+                        {isNewDay(
+                            item.createdAt,
+                            orderedMessages[index + 1]?.createdAt
+                        ) && <DateDivider value={item.createdAt} />}
+
+                        <MessageBubble message={item} />
+                    </View>
+                )}
                 contentContainerClassName="grow px-4 py-4"
                 keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={
@@ -136,7 +238,7 @@ export default function MessageThread({
                 }
             />
 
-            <View className="flex-row items-end gap-2 bg-surface-lowest px-4 py-3">
+            <View className="flex-row items-center gap-2 bg-surface-lowest px-4 py-3">
                 <Avatar
                     src={user?.avatarUrl}
                     name={user?.name ?? ""}
