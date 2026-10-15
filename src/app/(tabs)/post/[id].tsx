@@ -60,11 +60,7 @@ export default function PostDetailsScreen() {
             {isLoading ? (
                 <PostDetailsSkeleton />
             ) : post ? (
-                <KeyboardAvoidingView
-                    className="flex-1"
-                    behavior="padding"
-                    keyboardVerticalOffset={16}
-                >
+                <KeyboardAvoidingView className="flex-1" behavior="padding">
                     <ScrollView
                         className="flex-1"
                         contentContainerClassName="p-4 pb-10"

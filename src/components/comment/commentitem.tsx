@@ -1,4 +1,3 @@
-import { formatDistanceToNow } from "date-fns";
 import { MoreHorizontal } from "lucide-react-native";
 import { PostComment } from "@/types/post";
 
@@ -8,6 +7,7 @@ import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useDeleteComment from "@/hooks/mutations/useDeleteComment";
+import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 
@@ -65,9 +65,7 @@ export default function CommentItem({
 
                     <View className="flex-row items-center gap-2">
                         <Text className="text-label-sm text-text-secondary">
-                            {formatDistanceToNow(new Date(comment.createdAt), {
-                                addSuffix: true,
-                            })}
+                            {formatRelativeTime(comment.createdAt)}
                         </Text>
 
                         {isOwner && (

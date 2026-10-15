@@ -33,7 +33,12 @@ export default function Header() {
                     />
 
                     <View className="flex-row items-center gap-3">
-                        <Pressable className="items-center justify-center">
+                        <Pressable
+                            onPress={() => router.push("/messages")}
+                            accessibilityRole="button"
+                            accessibilityLabel="Messages"
+                            className="items-center justify-center"
+                        >
                             <MessageCircle size={22} color={colors.textPrimary} />
                         </Pressable>
 

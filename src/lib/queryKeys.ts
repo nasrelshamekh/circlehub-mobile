@@ -16,4 +16,7 @@ export const queryKeys = {
     communityPosts: (id: string) => ["community", id, "posts"],
     communityRequests: (id: string) => ["community", id, "requests"],
     search: (query: string) => ["search", query],
+    conversations: () => ["messages", "conversations"],
+    conversation: (id: string) => ["messages", "conversations", id],
+    messageRecipients: () => ["messages", "recipients"],
 } as const;

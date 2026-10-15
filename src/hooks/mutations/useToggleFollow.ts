@@ -167,6 +167,12 @@ export default function useToggleFollow() {
                 queryKey: queryKeys.userFollowers(targetUsername),
             });
 
+            // The share-post picker lists people I follow or who follow me, so
+            // it goes stale when the follow graph changes.
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.messageRecipients(),
+            });
+
             if (myUsername) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.userFollowing(myUsername),

@@ -1,7 +1,9 @@
 import { router } from "expo-router";
 import { Heart, MessageCircle, Send } from "lucide-react-native";
+import { useState } from "react";
 import { Pressable, Text } from "react-native";
 
+import SharePostModal from "@/components/messages/sharepostmodal";
 import { useTheme } from "@/context/themecontext";
 import useToggleLike from "@/hooks/mutations/useToggleLike";
 import { themeColors } from "@/theme/colors";
@@ -16,7 +18,7 @@ type PostActionsProps = {
     // Post-details passes this so it doesn't push a duplicate of itself.
     onPressComments?: () => void;
 
-    // The feed card keeps a (non-functional) share affordance.
+    // The feed card exposes the "send to a friend" action.
     showShare?: boolean;
 };
 
@@ -30,6 +32,7 @@ export default function PostActions({
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     const toggleLike = useToggleLike();
+    const [shareOpen, setShareOpen] = useState(false);
 
     const isLiked = post.isLikedByMe;
     const compact = variant === "compact";
@@ -94,9 +97,22 @@ export default function PostActions({
             </Pressable>
 
             {showShare && (
-                <Pressable className="flex-row items-center gap-2 rounded-full px-4 py-3">
+                <Pressable
+                    onPress={() => setShareOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send post to a friend"
+                    hitSlop={6}
+                    className="flex-row items-center gap-2 rounded-full px-4 py-3"
+                >
                     <Send size={20} color={colors.textSecondary} />
                 </Pressable>
+            )}
+
+            {shareOpen && (
+                <SharePostModal
+                    post={post}
+                    onClose={() => setShareOpen(false)}
+                />
             )}
         </>
     );
