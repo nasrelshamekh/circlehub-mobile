@@ -82,7 +82,6 @@ export default function useDeleteComment() {
                         : old
             );
 
-            // Search results carry their posts on a `posts` field.
             queryClient.setQueriesData<{ posts?: Post[] }>(
                 { queryKey: ["search"] },
                 (old) =>

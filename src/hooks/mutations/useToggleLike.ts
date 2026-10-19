@@ -34,10 +34,8 @@ export default function useToggleLike() {
         mutationFn: (postId: string) => toggleLike(postId),
 
         onMutate: async (postId) => {
-            // Don't let an in-flight refetch overwrite our optimistic value.
             await queryClient.cancelQueries();
 
-            // Snapshot only touched queries so failed rollbacks stay contained.
             const arrayPredicate = (query: { queryKey: QueryKey }) => {
                 const [root, , sub] = query.queryKey;
                 return (
@@ -75,7 +73,6 @@ export default function useToggleLike() {
                 (old) => (Array.isArray(old) ? flipInArray(old, postId) : old)
             );
 
-            // Search results carry their posts on a `posts` field.
             queryClient.setQueriesData<{ posts?: Post[] }>(
                 { queryKey: ["search"] },
                 (old) =>

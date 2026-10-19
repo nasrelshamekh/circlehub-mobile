@@ -28,10 +28,6 @@ export default function MessageThreadScreen() {
 
     const { messages, otherUser, isLoading, error } = useConversation(id);
 
-    // Every tab screen stays mounted, so React Query never remounts this one and
-    // would keep serving the thread it fetched first. Re-run it on focus: the GET
-    // marks the thread read for the current user and picks up anything sent since
-    // the last visit.
     useFocusEffect(
         useCallback(() => {
             void queryClient.refetchQueries({
@@ -40,15 +36,10 @@ export default function MessageThreadScreen() {
         }, [id, queryClient])
     );
 
-    // The inbox and the thread are both hidden screens of the tab navigator, so
-    // switching between them leaves no stack entry: router.back() would land on
-    // whichever tab was focused before (usually the feed). Go to the inbox.
     function goBack() {
         router.replace("/messages");
     }
 
-    // The header shares the composer's surface so the two read as one frame
-    // around the thread; the thread itself keeps the screen's usual surface.
     return (
         <SafeAreaView className="flex-1 bg-surface-lowest" edges={["top"]}>
             <View className="flex-row items-center gap-1 px-2 py-2">

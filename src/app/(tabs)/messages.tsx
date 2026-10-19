@@ -28,10 +28,6 @@ export default function Messages() {
     const { conversations, isLoading, isRefetching, refetch, error } =
         useConversations();
 
-    // Tab screens stay mounted, so React Query never remounts this one: without
-    // this the list keeps whatever it fetched first, leaving stale unread badges
-    // after a thread is read and missing messages sent since. Refresh whenever
-    // the inbox comes back into view.
     useFocusEffect(
         useCallback(() => {
             void queryClient.refetchQueries({
@@ -40,9 +36,6 @@ export default function Messages() {
         }, [queryClient])
     );
 
-    // The inbox is a hidden tab reached from the header's messages icon, so
-    // there is no stack entry to pop: fall back to the feed when back would
-    // land on whichever tab was focused before.
     function goBack() {
         if (router.canGoBack()) {
             router.back();

@@ -10,7 +10,6 @@ export default function useSendMessage() {
         mutationFn: (input: SendMessageInput) => sendMessage(input),
 
         onSuccess: () => {
-            // The "conversations" prefix also covers every open thread.
             queryClient.invalidateQueries({
                 queryKey: queryKeys.conversations(),
             });

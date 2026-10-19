@@ -26,7 +26,6 @@ type PickerOption = {
 };
 
 export type DatePickerProps = {
-    /** Current value; defaults to ~18 years ago when unset. */
     value: Date | null;
     maximumDate?: Date;
     onConfirm: (date: Date) => void;

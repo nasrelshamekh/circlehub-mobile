@@ -58,9 +58,7 @@ export type UpdateProfileInput = {
     bio: string;
     location: string;
     website: string;
-    /** "male" | "female" | "other"; omit to leave the stored value untouched. */
     gender?: string;
-    /** ISO date (YYYY-MM-DD); omit to leave the stored value untouched. */
     dateOfBirth?: string;
     skills: string[];
     avatarImage?: UploadImage | null;

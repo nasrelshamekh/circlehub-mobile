@@ -92,7 +92,6 @@ export type CommunityJoinRequest = {
     user: CommunityRequestUser;
 };
 
-// The update endpoint returns community fields without the viewer-specific ones.
 export type CommunityPatch = Omit<
     CommunityListItem,
     "membershipStatus" | "viewerRole"

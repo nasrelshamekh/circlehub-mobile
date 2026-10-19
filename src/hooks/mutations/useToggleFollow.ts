@@ -23,7 +23,6 @@ export default function useToggleFollow() {
             shouldFollow ? followUser(userId) : unfollowUser(userId),
 
         onMutate: async ({ userId, shouldFollow, targetUsername }) => {
-            // Don't let an in-flight refetch overwrite our optimistic value.
             await queryClient.cancelQueries();
 
             const snapshots: [QueryKey, unknown][] =
@@ -36,9 +35,6 @@ export default function useToggleFollow() {
                 (old) => {
                     if (!old) return old;
 
-                    // Following a followers-only account unlocks its content
-                    // right away; unfollowing locks it again. Private accounts
-                    // stay locked either way.
                     let isProfileLocked = old.isProfileLocked;
 
                     if (
@@ -93,7 +89,6 @@ export default function useToggleFollow() {
                         : old
             );
 
-            // Search results carry their users on a `users` field.
             queryClient.setQueriesData<{ users?: SearchUser[] }>(
                 { queryKey: ["search"] },
                 (old) =>
@@ -116,7 +111,6 @@ export default function useToggleFollow() {
                         : old
             );
 
-            // On unfollow, drop the user from my following list and me from theirs.
             if (!shouldFollow) {
                 if (myUsername) {
                     queryClient.setQueryData<FollowUser[]>(
@@ -149,8 +143,6 @@ export default function useToggleFollow() {
         },
 
         onSettled: (_data, _error, { targetUsername }) => {
-            // Refetch the profile and its content so a newly-unlocked
-            // (or newly-locked) account shows the right posts immediately.
             queryClient.invalidateQueries({
                 queryKey: queryKeys.user(targetUsername),
             });
@@ -167,8 +159,6 @@ export default function useToggleFollow() {
                 queryKey: queryKeys.userFollowers(targetUsername),
             });
 
-            // The share-post picker lists people I follow or who follow me, so
-            // it goes stale when the follow graph changes.
             queryClient.invalidateQueries({
                 queryKey: queryKeys.messageRecipients(),
             });

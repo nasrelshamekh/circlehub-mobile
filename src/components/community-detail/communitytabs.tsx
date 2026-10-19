@@ -39,7 +39,6 @@ export default function CommunityTabs({
 }: CommunityTabsProps) {
     const [activeTab, setActiveTab] = useState<TabValue>("posts");
 
-    // Admins and moderators can delete any post in the community.
     const canManagePosts =
         community.communityRole === "admin" ||
         community.communityRole === "moderator";

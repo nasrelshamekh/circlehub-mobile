@@ -50,7 +50,6 @@ export default function ChangePasswordForm() {
 
         try {
             await changePassword(currentPassword, newPassword);
-            // The change revokes every session; drop this one and land on login.
             await signOut();
             router.replace("/(auth)/login");
         } catch (caught) {

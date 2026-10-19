@@ -20,7 +20,6 @@ import { ApiError } from "@/types/api";
 import { Message } from "@/types/message";
 import { themeColors } from "@/theme/colors";
 
-// Day separator so a long thread reads as dated groups.
 function DateDivider({ value }: { value: string }) {
     return (
         <View className="mb-3 flex-row items-center gap-3">
@@ -48,9 +47,6 @@ function isNewDay(current: string, previous?: string) {
     );
 }
 
-// The avatar lines up with the bubble, not the stamp row, so it only sits next
-// to the text it belongs to. Tap a message to reveal when it was sent (and copy
-// it) — the stamp stays hidden otherwise so the thread reads as bubbles only.
 function MessageBubble({ message }: { message: Message }) {
     const isMine = message.isMine;
     const hasContent = Boolean(message.content && message.content.length > 0);
@@ -174,12 +170,6 @@ export default function MessageThread({
 
     const isSending = sendMessage.isPending;
 
-    // Render the thread inverted so the newest message is anchored to the bottom
-    // of the list. The keyboard then only shrinks the list: the end stays where it
-    // is, so the newest message stays visible without any scroll command.
-    // Programmatic re-anchoring cannot be used here — a scroll dispatched from
-    // onLayout/onContentSizeChange lands before the native resize is applied, so
-    // it is clamped short and leaves the last message behind the composer.
     const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
     async function handleSend() {
@@ -213,9 +203,6 @@ export default function MessageThread({
                 keyExtractor={(message) => message.id}
                 renderItem={({ item, index }) => (
                     <View>
-                        {/* The list is inverted, so the older neighbour of this
-                            message is the next item — a day break belongs above
-                            this message when that neighbour is from another day. */}
                         {isNewDay(
                             item.createdAt,
                             orderedMessages[index + 1]?.createdAt

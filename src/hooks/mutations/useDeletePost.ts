@@ -16,7 +16,6 @@ type FeedData = InfiniteData<FeedPage>;
 type DeletePostInput = {
     post: Post;
 
-    // Community screens pass this because their posts omit the community field.
     community?: { id: string; slug: string } | null;
 };
 
@@ -72,7 +71,6 @@ export default function useDeletePost() {
                 (old) => (Array.isArray(old) ? withoutPost(old, postId) : old)
             );
 
-            // Search results carry their posts on a `posts` field.
             queryClient.setQueriesData<{ posts?: Post[] }>(
                 { queryKey: ["search"] },
                 (old) =>
@@ -117,8 +115,6 @@ export default function useDeletePost() {
             });
         },
 
-        // Clear the detail entry only once it's really gone, so the caller can
-        // navigate away without a "post not found" flash.
         onSuccess: (_data, { post }) => {
             queryClient.removeQueries({ queryKey: queryKeys.post(post.id) });
         },

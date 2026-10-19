@@ -26,7 +26,6 @@ export default function PostDetailsScreen() {
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    // Community admins and moderators can delete posts they don't own.
     const canManageCommunity =
         community?.communityRole === "admin" ||
         community?.communityRole === "moderator";
@@ -66,7 +65,6 @@ export default function PostDetailsScreen() {
                         contentContainerClassName="p-4 pb-10"
                         keyboardShouldPersistTaps="handled"
                     >
-                        {/* Already on the comment page, so this button is a no-op. */}
                         <PostCard
                             post={post}
                             onPressComments={() => undefined}

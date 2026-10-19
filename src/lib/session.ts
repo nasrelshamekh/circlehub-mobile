@@ -17,7 +17,6 @@ function notifySessionExpired() {
     sessionExpiredListeners.forEach((listener) => listener());
 }
 
-// SecureStore has no web implementation, so fall back to localStorage there.
 export async function getToken() {
     if (Platform.OS === "web") {
         try {
@@ -35,7 +34,6 @@ export async function setToken(token: string) {
         try {
             localStorage.setItem(TOKEN_KEY, token);
         } catch {
-            // storage unavailable
         }
         return;
     }
@@ -48,7 +46,6 @@ export async function clearToken() {
         try {
             localStorage.removeItem(TOKEN_KEY);
         } catch {
-            // storage unavailable
         }
         return;
     }
@@ -56,8 +53,6 @@ export async function clearToken() {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
-// Only expire the session if the token used by the failed request is still
-// current. This prevents a late 401 from an old request signing out a new login.
 export async function expireTokenIfCurrent(token: string) {
     if ((await getToken()) !== token) return false;
 

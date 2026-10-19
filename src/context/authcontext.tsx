@@ -55,7 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(response.data);
                 setStatus("authenticated");
             } catch {
-                // Token is missing/expired/invalid — start a clean session.
                 await clearToken();
                 queryClient.clear();
 
@@ -87,8 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function signUp(data: RegisterData) {
         const response = await registerRequest(data);
 
-        // Registration doesn't sign the user in — the account stays unverified
-        // until the emailed link is opened. Hand the message back to the caller.
         return response.message;
     }
 

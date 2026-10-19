@@ -4,7 +4,6 @@ export type PostAuthor = {
     username: string;
     avatarUrl: string | null;
 
-    /** Only the search projection includes this; feed and profile posts omit it. */
     jobTitle?: string | null;
 };
 
@@ -27,7 +26,6 @@ export type Post = {
     isLikedByMe: boolean;
     author: PostAuthor;
 
-    /** Only the feed, search and post-details projections include this. */
     community?: PostCommunity | null;
 };
 

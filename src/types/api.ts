@@ -1,7 +1,6 @@
 export type ApiErrorBody = {
     success?: boolean;
     message?: string;
-    // ASP.NET `ValidationProblem` payloads use this shape instead of `message`.
     errors?: Record<string, string[]>;
 };
 

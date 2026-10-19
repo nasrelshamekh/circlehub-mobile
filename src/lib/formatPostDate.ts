@@ -29,7 +29,6 @@ export function formatPostDate(date: string) {
     return `${month} ${day}${ordinalSuffix(day)}${year} at ${time}`;
 }
 
-// Compact stamp for the conversation list.
 export function formatShortTime(date: string) {
     const value = new Date(date);
     const seconds = (Date.now() - value.getTime()) / 1000;
@@ -45,7 +44,6 @@ export function formatShortTime(date: string) {
     });
 }
 
-// Stamp under a message bubble; matches the web thread ("Oct 15, 12:23 PM").
 export function formatMessageTime(date: string) {
     return new Date(date).toLocaleString("en-US", {
         month: "short",
@@ -55,8 +53,6 @@ export function formatMessageTime(date: string) {
     });
 }
 
-// Day separator in the message thread, e.g. "October 13th" (year only when it
-// is not the current one).
 export function formatMessageDate(date: string) {
     const value = new Date(date);
 

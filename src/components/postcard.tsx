@@ -26,14 +26,11 @@ export default function PostCard({
 }: {
     post: Post;
 
-    // Post-details passes this so it doesn't push a duplicate of itself.
     onPressComments?: () => void;
     onDeleted?: () => void;
 
-    // Community admins and moderators delete posts they don't own.
     canDelete?: boolean;
 
-    // Community screens pass this because their posts omit the community field.
     community?: { id: string; slug: string };
 }) {
     const { isDark } = useTheme();

@@ -14,7 +14,6 @@ type UpdateCommunityVars = {
     input: UpdateCommunityInput;
 };
 
-// Spreading the whole response would drop the viewer-specific fields.
 function patchFrom(data: CommunityPatch): Partial<CommunityListItem> {
     return {
         name: data.name,

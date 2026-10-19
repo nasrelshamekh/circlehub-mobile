@@ -199,7 +199,6 @@ describe("useDeletePost", () => {
             queryClient.getQueryData(queryKeys.user("author"))
         ).toMatchObject({ postsCount: 4 });
 
-        // The detail entry is dropped only after the server confirms.
         expect(queryClient.getQueryData(queryKeys.post("p1"))).toBeUndefined();
     });
 

@@ -16,9 +16,6 @@ export default function Header() {
     const { signOut, user } = useAuth();
     const { conversations } = useConversations();
 
-    // Unread badge on the messages icon. The inbox is a pushed screen with no
-    // tab of its own, so this is the only place unread mail shows up while the
-    // user is on another screen. Shares the inbox's query and cache entry.
     const unreadCount = conversations.reduce(
         (total, conversation) => total + conversation.unreadCount,
         0

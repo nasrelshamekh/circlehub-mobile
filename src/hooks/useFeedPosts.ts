@@ -15,9 +15,6 @@ export default function useFeedPosts() {
             lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
     });
 
-    // Pages are fetched by offset, so a post created while the feed is open
-    // shifts the window and one post can land in two pages at once. Keep the
-    // first occurrence so list keys stay unique and nothing renders twice.
     const seen = new Set<string>();
     const posts: Post[] = [];
 

@@ -22,7 +22,6 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     return <ErrorFallback error={error} retry={retry} />;
 }
 
-// Keeps the tab bar and headers mounted when a screen throws.
 export const unstable_settings = {
     screenErrorBoundary: ErrorFallback,
 };
@@ -44,10 +43,8 @@ function RootNavigator() {
     const { status } = useAuth();
 
     const theme = isDark ? themes.dark : themes.light;
-    // --surface-low: the background the feed/post-detail screens actually paint.
     const stackBackground = isDark ? "#131b2e" : "#f2f3ff";
 
-    // Paint the layer behind every screen so it doesn't flash white on pop.
     const navTheme = useMemo(
         () => ({
             ...(isDark ? DarkTheme : DefaultTheme),
@@ -59,12 +56,10 @@ function RootNavigator() {
         [isDark, stackBackground],
     );
 
-    // Root window layer; shows during pop gaps and behind the Android nav bar.
     useEffect(() => {
         SystemUI.setBackgroundColorAsync(stackBackground).catch(() => {});
     }, [stackBackground]);
 
-    // Wait for the token check; rendering Stack first flashes the wrong screen.
     if (status === "loading") {
         return (
             <View
@@ -85,13 +80,11 @@ function RootNavigator() {
                         contentStyle: { backgroundColor: stackBackground },
                     }}
                 >
-                {/* Anchor for denied navigations, e.g. a guest hitting /(tabs). */}
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
 
                 <Stack.Protected guard={status === "authenticated"}>
                     <Stack.Screen name="(tabs)" />
-                    {/* formSheet gives an exit animation; a plain modal flashes. */}
                     <Stack.Screen
                         name="compose"
                         options={{

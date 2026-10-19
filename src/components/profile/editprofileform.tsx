@@ -22,7 +22,6 @@ import {
 } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
 
-// Keep the calendar day stable regardless of the viewer's timezone.
 function parseDateOfBirth(value: string | null): Date | null {
     if (!value) {
         return null;
@@ -66,7 +65,6 @@ export default function EditProfileForm() {
     const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Hidden tab stays mounted, so re-sync the form (and drop drafts) on focus.
     useFocusEffect(
         useCallback(() => {
             if (!user) {

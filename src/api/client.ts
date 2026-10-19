@@ -16,7 +16,6 @@ function messageFromBody(body: ApiErrorBody | null, status: number): string {
         return body.message;
     }
 
-    // ASP.NET validation problems omit `message`; surface the first field error.
     if (body?.errors) {
         const first = Object.values(body.errors)
             .flat()
@@ -51,8 +50,6 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
     }
 
     if (!response.ok) {
-        // Invalid credentials at login are also 401s, so only expire a session
-        // for requests that actually used a bearer token and aren't login calls.
         if (
             response.status === 401 &&
             token &&

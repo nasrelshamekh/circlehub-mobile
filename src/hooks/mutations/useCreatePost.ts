@@ -24,7 +24,6 @@ export default function useCreatePost() {
         onSuccess: (response, variables) => {
             const post = response.data;
 
-            // A community post belongs to that community, not the main feed.
             if (variables.communityId) {
                 queryClient.setQueryData<Post[]>(
                     queryKeys.communityPosts(variables.communityId),
@@ -34,7 +33,6 @@ export default function useCreatePost() {
                 return;
             }
 
-            // Prepend to the first feed page so the new post shows instantly.
             queryClient.setQueryData<InfiniteData<FeedPage>>(
                 queryKeys.feed(),
                 (old) => {

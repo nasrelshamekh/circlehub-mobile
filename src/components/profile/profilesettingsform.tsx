@@ -124,8 +124,6 @@ export default function ProfileSettingsForm() {
     );
     const [error, setError] = useState<string | null>(null);
 
-    // The Settings tab stays mounted behind the Profile tab, so re-sync the
-    // fields from the signed-in user whenever the screen regains focus.
     useFocusEffect(
         useCallback(() => {
             if (!user) return;

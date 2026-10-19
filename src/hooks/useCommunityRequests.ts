@@ -13,7 +13,6 @@ export function useCommunityRequests(communityId: string | undefined) {
                 const { data } = await getCommunityRequests(communityId ?? "");
                 return data;
             } catch (error) {
-                // Non-admins get a 403; treat it as "no requests to show".
                 if (error instanceof ApiError && error.status === 403) return [];
                 throw error;
             }

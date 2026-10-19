@@ -22,7 +22,6 @@ export function toggleLike(postId: string) {
     );
 }
 
-// Don't set Content-Type — the runtime adds the multipart boundary.
 export function createPost(
     content: string,
     image?: UploadImage | null,
@@ -65,7 +64,6 @@ export function deletePost(postId: string) {
     });
 }
 
-// Community admins and moderators can delete posts they don't own here.
 export function deleteCommunityPost(communityId: string, postId: string) {
     return apiFetch<{ message: string }>(
         `/api/Communities/${communityId}/posts/${postId}`,

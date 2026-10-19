@@ -20,7 +20,6 @@ type UpdatePostInput = {
     image?: UploadImage | null;
 };
 
-// The update response omits `community`, so spread onto the cached post to keep it.
 function replaceInArray(posts: Post[], updated: Post) {
     return posts.map((post) =>
         post.id === updated.id ? { ...post, ...updated } : post
@@ -35,7 +34,6 @@ export default function useUpdatePost() {
             updatePost(postId, content, image),
 
         onSuccess: ({ data: updated }) => {
-            // The details cache also holds the loaded comments; keep them.
             queryClient.setQueryData<PostDetails>(
                 queryKeys.post(updated.id),
                 (old) =>
@@ -71,7 +69,6 @@ export default function useUpdatePost() {
                     Array.isArray(old) ? replaceInArray(old, updated) : old
             );
 
-            // Search results carry their posts on a `posts` field.
             queryClient.setQueriesData<{ posts?: Post[] }>(
                 { queryKey: ["search"] },
                 (old) =>

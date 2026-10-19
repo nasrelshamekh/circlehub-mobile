@@ -60,7 +60,6 @@ export default function UserResultCard({ user }: { user: SearchUser }) {
                     </View>
                 </Pressable>
 
-                {/* Search never returns the current user, so isCurrentUser is false. */}
                 <FollowButton
                     user={{
                         id: user.id,

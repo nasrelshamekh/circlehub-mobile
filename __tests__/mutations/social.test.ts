@@ -267,7 +267,6 @@ describe("useToggleCommunityMembership", () => {
                 ?.communities[0]
         ).toMatchObject({ membershipStatus: "joined", membersCount: 11 });
 
-        // Category lists (length 2) and member lists (length 3) are not touched.
         expect(
             queryClient.getQueryData<CommunityListItem[]>(
                 queryKeys.communityCategories()

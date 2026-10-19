@@ -27,7 +27,6 @@ export default function Create() {
     const { user } = useAuth();
     const createPost = useCreatePost();
 
-    // When opened from a community, the post is scoped to that community.
     const { communityId, communityName } = useLocalSearchParams<{
         communityId?: string;
         communityName?: string;
@@ -42,7 +41,6 @@ export default function Create() {
     const firstName = user?.name.split(" ")[0];
     const isSubmitting = createPost.isPending;
 
-    // Return to the tab underneath, or the feed when deep-linked with nothing to pop.
     function close() {
         if (router.canGoBack()) {
             router.back();
@@ -51,10 +49,7 @@ export default function Create() {
         }
     }
 
-    // Close the composer and land on the Home feed so the new post is visible,
-    // no matter which tab the composer was opened from.
     function showInFeed() {
-        // Jump the feed back to the top so the new post is visible.
         requestFeedScrollToTop();
 
         if (router.canDismiss()) {
@@ -109,10 +104,8 @@ export default function Create() {
             setImage(null);
 
             if (communityId) {
-                // Community posts stay in their own community feed.
                 close();
             } else {
-                // Public posts always land in the Home feed.
                 showInFeed();
             }
         } catch (caught) {

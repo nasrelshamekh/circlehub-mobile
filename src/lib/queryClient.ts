@@ -14,7 +14,6 @@ export const queryClient = new QueryClient({
     },
 });
 
-// React Native has no window focus events; treat foreground as focused.
 if (Platform.OS !== "web") {
     focusManager.setEventListener((handleFocus) => {
         const subscription = AppState.addEventListener(
@@ -28,7 +27,6 @@ if (Platform.OS !== "web") {
     });
 }
 
-// NetInfo drives onlineManager so queries pause offline and refetch on reconnect.
 if (Platform.OS !== "web") {
     onlineManager.setEventListener((setOnline) =>
         NetInfo.addEventListener((state) => {

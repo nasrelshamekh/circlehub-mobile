@@ -56,7 +56,6 @@ export default function useToggleCommunityMembership() {
                 membershipStatus = "requested";
             }
 
-            // Only patch detail entries (length 2), not nested members/posts lists.
             queryClient.setQueriesData<CommunityDetails>(
                 {
                     predicate: (query) =>
@@ -77,7 +76,6 @@ export default function useToggleCommunityMembership() {
                         : old
             );
 
-            // Search results carry their communities on a `communities` field.
             queryClient.setQueriesData<{ communities?: CommunityListItem[] }>(
                 { queryKey: ["search"] },
                 (old) =>
@@ -101,7 +99,6 @@ export default function useToggleCommunityMembership() {
                         : old
             );
 
-            // The browse list is exactly one segment; categories/detail add more.
             queryClient.setQueriesData<CommunityListItem[]>(
                 {
                     predicate: (query) =>
@@ -140,11 +137,9 @@ export default function useToggleCommunityMembership() {
                 });
             }
 
-            // Refresh the community detail + its members after joining/leaving.
             queryClient.invalidateQueries({ queryKey: ["community"] });
             queryClient.invalidateQueries({ queryKey: ["search"] });
 
-            // `exact` so the cached category list isn't refetched too.
             queryClient.invalidateQueries({
                 queryKey: queryKeys.communities(),
                 exact: true,

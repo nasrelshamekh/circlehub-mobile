@@ -28,7 +28,6 @@ export function login(data: LoginData) {
     });
 }
 
-// Registration doesn't mint a token; the account needs email verification.
 export function register(data: RegisterData) {
     return apiFetch<{ message: string; data: User }>("/api/Auth/register", {
         method: "POST",

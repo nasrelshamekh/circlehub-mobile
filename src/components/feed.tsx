@@ -21,8 +21,6 @@ export default function Feed() {
     const listRef = useRef<FlatList<Post>>(null);
     const [scrollToTopPending, setScrollToTopPending] = useState(false);
 
-    // Scroll back to the top after a post is published, even when the feed was
-    // scrolled down before the composer was opened.
     useEffect(() => {
         return subscribeFeedScrollToTop(() => setScrollToTopPending(true));
     }, []);

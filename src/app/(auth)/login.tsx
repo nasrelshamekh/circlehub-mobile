@@ -66,7 +66,6 @@ export default function Login() {
             if (error instanceof ApiError && error.isEmailUnverified) {
                 const identifier = usernameOrEmail.trim().toLowerCase();
 
-                // Web parity: unverified sign-ins go to the verify-email screen.
                 router.push(
                     identifier.includes("@")
                         ? {

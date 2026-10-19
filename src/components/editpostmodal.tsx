@@ -72,7 +72,6 @@ export default function EditPostModal({
 
         const trimmed = content.trim();
 
-        // The API marks content as required, so an image alone won't save.
         if (!trimmed) {
             setError("Please write something first.");
             return;
@@ -160,7 +159,6 @@ export default function EditPostModal({
                                     resizeMode="cover"
                                 />
 
-                                {/* Only a newly picked image can be cleared; the original survives. */}
                                 {image && (
                                     <Pressable
                                         onPress={() => setImage(null)}

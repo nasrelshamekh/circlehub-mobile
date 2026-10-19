@@ -22,7 +22,6 @@ export default function RegisterSuccess({
     const colors = isDark ? themeColors.dark : themeColors.light;
     const [resending, setResending] = useState(false);
 
-    // The account is unverified, so resend never routes to the feed.
     async function handleResend() {
         if (!email || resending) return;
 

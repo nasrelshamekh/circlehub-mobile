@@ -12,13 +12,10 @@ import { Post } from "@/types/post";
 type PostActionsProps = {
     post: Post;
 
-    // "compact" matches the denser explore card; "default" the feed/detail card.
     variant?: "default" | "compact";
 
-    // Post-details passes this so it doesn't push a duplicate of itself.
     onPressComments?: () => void;
 
-    // The feed card exposes the "send to a friend" action.
     showShare?: boolean;
 };
 

@@ -65,7 +65,6 @@ export default function TabsLayout() {
                 }}
                 listeners={{
                     tabPress: (event) => {
-                        // Present the composer instead of the placeholder create tab.
                         event.preventDefault();
                         router.push("/compose");
                     },
@@ -92,7 +91,6 @@ export default function TabsLayout() {
                 }}
             />
 
-            {/* Kept in the tab navigator for the bottom nav; href: null hides them. */}
             <Tabs.Screen name="post/[id]" options={{ href: null }} />
             <Tabs.Screen name="profile/[username]" options={{ href: null }} />
             <Tabs.Screen name="followers/[username]" options={{ href: null }} />

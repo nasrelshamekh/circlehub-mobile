@@ -37,7 +37,6 @@ export default function useAddComment() {
         onSuccess: (response, { postId }) => {
             const newComment: PostComment = response.data.comment;
 
-            // Post details: the count follows the list.
             queryClient.setQueryData<PostDetails>(
                 queryKeys.post(postId),
                 (old) => {
@@ -79,7 +78,6 @@ export default function useAddComment() {
                 (old) => (Array.isArray(old) ? bumpCommentsCount(old, postId, 1) : old)
             );
 
-            // Search results carry their posts on a `posts` field.
             queryClient.setQueriesData<{ posts?: Post[] }>(
                 { queryKey: ["search"] },
                 (old) =>
