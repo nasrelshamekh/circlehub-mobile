@@ -7,9 +7,9 @@ export function getConversations() {
     );
 }
 
-export function getConversation(id: string) {
+export function getConversation(id: string, page = 1, pageSize = 50) {
     return apiFetch<{ message: string; data: ConversationThread }>(
-        `/api/Messages/conversations/${id}`
+        `/api/Messages/conversations/${id}?page=${page}&pageSize=${pageSize}`
     );
 }
 

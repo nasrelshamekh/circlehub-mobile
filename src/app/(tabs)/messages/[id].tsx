@@ -26,7 +26,8 @@ export default function MessageThreadScreen() {
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    const { messages, otherUser, isLoading, error } = useConversation(id);
+    const { messages, otherUser, isLoading, isLoadingOlder, loadOlder, error } =
+        useConversation(id);
 
     useFocusEffect(
         useCallback(() => {
@@ -114,6 +115,8 @@ export default function MessageThreadScreen() {
                         messages={messages}
                         recipientUsername={otherUser?.username ?? ""}
                         isLoading={isLoading}
+                        isLoadingOlder={isLoadingOlder}
+                        onLoadOlder={loadOlder}
                     />
                 </KeyboardAvoidingView>
             )}

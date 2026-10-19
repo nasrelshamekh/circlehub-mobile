@@ -2,6 +2,7 @@ import { Send } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useEffect, useMemo, useState } from "react";
 import {
+    ActivityIndicator,
     Alert,
     FlatList,
     Pressable,
@@ -156,10 +157,14 @@ export default function MessageThread({
     messages,
     recipientUsername,
     isLoading,
+    isLoadingOlder,
+    onLoadOlder,
 }: {
     messages: Message[];
     recipientUsername: string;
     isLoading: boolean;
+    isLoadingOlder?: boolean;
+    onLoadOlder?: () => void;
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -213,6 +218,15 @@ export default function MessageThread({
                 )}
                 contentContainerClassName="grow px-4 py-4"
                 keyboardShouldPersistTaps="handled"
+                onEndReached={onLoadOlder}
+                onEndReachedThreshold={0.4}
+                ListFooterComponent={
+                    isLoadingOlder ? (
+                        <View className="items-center py-3">
+                            <ActivityIndicator color={colors.primary} />
+                        </View>
+                    ) : null
+                }
                 ListEmptyComponent={
                     isLoading ? null : (
                         <View className="items-center justify-center py-10">
