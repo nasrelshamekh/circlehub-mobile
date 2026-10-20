@@ -8,6 +8,8 @@ export const themeColors = {
         primaryGradientEnd: "#8b5cf6",
         buttonGradientText: "#ffffff",
         error: "#ba1a1a",
+        success: "#16a34a",
+        successContainer: "#bbf7d0",
     },
 
     dark: {
@@ -19,5 +21,7 @@ export const themeColors = {
         primaryGradientEnd: "#a78bfa",
         buttonGradientText: "#0b1326",
         error: "#ffb4ab",
+        success: "#4ade80",
+        successContainer: "#14532d",
     },
 };

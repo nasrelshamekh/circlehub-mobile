@@ -56,6 +56,10 @@ export const themes = {
         "--error-container": "#ffdad6",
         "--on-error-container": "#93000a",
 
+        "--success": "#16a34a",
+        "--success-container": "#bbf7d0",
+        "--on-success-container": "#052e16",
+
         "--primary-soft": "#e1e0ff",
         "--primary-soft-dim": "#c0c1ff",
         "--on-primary-soft": "#07006c",
@@ -136,6 +140,10 @@ export const themes = {
         "--on-error": "#690005",
         "--error-container": "#93000a",
         "--on-error-container": "#ffdad6",
+
+        "--success": "#4ade80",
+        "--success-container": "#14532d",
+        "--on-success-container": "#dcfce7",
 
         "--primary-soft": "#e0e0ff",
         "--primary-soft-dim": "#bdc2ff",

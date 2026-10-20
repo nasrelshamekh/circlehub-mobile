@@ -76,6 +76,13 @@ module.exports = {
                 "on-error": "var(--on-error)",
                 "on-error-container": "var(--on-error-container)",
 
+                success: {
+                    DEFAULT: "var(--success)",
+                    container: "var(--success-container)",
+                },
+
+                "on-success-container": "var(--on-success-container)",
+
                 "primary-soft-dim": "var(--primary-soft-dim)",
                 "on-primary-soft": "var(--on-primary-soft)",
                 "on-primary-soft-variant": "var(--on-primary-soft-variant)",
