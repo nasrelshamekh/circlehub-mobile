@@ -3,21 +3,94 @@ import { MessageCircleMore } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import PresenceDot from "@/components/messages/presencedot";
+import PresenceLabel from "@/components/messages/presencelabel";
 import { useTheme } from "@/context/themecontext";
+import { useDecryptedContent } from "@/hooks/useDecryptedContent";
 import { formatShortTime } from "@/lib/formatPostDate";
 import { themeColors } from "@/theme/colors";
 import { Conversation } from "@/types/message";
 
-function previewText(conversation: Conversation) {
+function ConversationRow({
+    conversation,
+}: {
+    conversation: Conversation;
+}) {
+    const unread = conversation.unreadCount > 0;
     const last = conversation.lastMessage;
+    const decryptedBody = useDecryptedContent(last?.content);
 
-    if (!last) return "No messages yet";
+    let preview = "No messages yet";
+    if (last) {
+        const body = last.hasPost
+            ? decryptedBody || "Shared a post"
+            : decryptedBody || "";
+        preview = last.isMine ? `You: ${body}` : body;
+    }
 
-    const body = last.hasPost
-        ? last.content || "Shared a post"
-        : last.content || "";
+    return (
+        <Pressable
+            onPress={() =>
+                router.push({
+                    pathname: "/messages/[id]",
+                    params: { id: conversation.id },
+                })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`Open conversation with ${conversation.otherUser.name}`}
+            className="flex-row items-center gap-3 rounded-2xl bg-surface-lowest p-4"
+        >
+            <View className="relative">
+                <Avatar
+                    src={conversation.otherUser.avatarUrl}
+                    name={conversation.otherUser.name}
+                    className="h-12 w-12"
+                />
+                <PresenceDot isOnline={conversation.otherUser.isOnline} />
+            </View>
 
-    return last.isMine ? `You: ${body}` : body;
+            <View className="min-w-0 flex-1">
+                <View className="flex-row items-center justify-between gap-2">
+                    <Text
+                        numberOfLines={1}
+                        className="flex-1 text-label-md font-semibold text-text-primary"
+                    >
+                        {conversation.otherUser.name}
+                    </Text>
+
+                    <Text className="text-label-sm text-text-secondary">
+                        {formatShortTime(conversation.lastMessageAt)}
+                    </Text>
+                </View>
+
+                <PresenceLabel
+                    isOnline={conversation.otherUser.isOnline}
+                    lastSeenAt={conversation.otherUser.lastSeenAt}
+                />
+
+                <View className="mt-0.5 flex-row items-center justify-between gap-2">
+                    <Text
+                        numberOfLines={1}
+                        className={
+                            unread
+                                ? "flex-1 text-body-sm font-semibold text-text-primary"
+                                : "flex-1 text-body-sm text-text-secondary"
+                        }
+                    >
+                        {preview}
+                    </Text>
+
+                    {unread && (
+                        <View className="min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5">
+                            <Text className="text-label-sm font-semibold text-on-primary">
+                                {conversation.unreadCount}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </View>
+        </Pressable>
+    );
 }
 
 export default function ConversationList({
@@ -40,7 +113,8 @@ export default function ConversationList({
                 </Text>
 
                 <Text className="mt-2 text-center text-body-sm text-text-secondary">
-                    Share a post with a friend to start the conversation.
+                    Start a new message or share a post with a friend to start
+                    the conversation.
                 </Text>
             </View>
         );
@@ -48,66 +122,12 @@ export default function ConversationList({
 
     return (
         <View className="gap-3">
-            {conversations.map((conversation) => {
-                const unread = conversation.unreadCount > 0;
-
-                return (
-                    <Pressable
-                        key={conversation.id}
-                        onPress={() =>
-                            router.push({
-                                pathname: "/messages/[id]",
-                                params: { id: conversation.id },
-                            })
-                        }
-                        accessibilityRole="button"
-                        accessibilityLabel={`Open conversation with ${conversation.otherUser.name}`}
-                        className="flex-row items-center gap-3 rounded-2xl bg-surface-lowest p-4"
-                    >
-                        <Avatar
-                            src={conversation.otherUser.avatarUrl}
-                            name={conversation.otherUser.name}
-                            className="h-12 w-12"
-                        />
-
-                        <View className="flex-1">
-                            <View className="flex-row items-center justify-between gap-2">
-                                <Text
-                                    numberOfLines={1}
-                                    className="flex-1 text-label-md font-semibold text-text-primary"
-                                >
-                                    {conversation.otherUser.name}
-                                </Text>
-
-                                <Text className="text-label-sm text-text-secondary">
-                                    {formatShortTime(conversation.lastMessageAt)}
-                                </Text>
-                            </View>
-
-                            <View className="mt-0.5 flex-row items-center justify-between gap-2">
-                                <Text
-                                    numberOfLines={1}
-                                    className={
-                                        unread
-                                            ? "flex-1 text-body-sm font-semibold text-text-primary"
-                                            : "flex-1 text-body-sm text-text-secondary"
-                                    }
-                                >
-                                    {previewText(conversation)}
-                                </Text>
-
-                                {unread && (
-                                    <View className="min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5">
-                                        <Text className="text-label-sm font-semibold text-on-primary">
-                                            {conversation.unreadCount}
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
-                    </Pressable>
-                );
-            })}
+            {conversations.map((conversation) => (
+                <ConversationRow
+                    key={conversation.id}
+                    conversation={conversation}
+                />
+            ))}
         </View>
     );
 }

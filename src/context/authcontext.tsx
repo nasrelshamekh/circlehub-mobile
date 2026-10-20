@@ -8,6 +8,8 @@ import {
     register as registerRequest,
 } from "@/api/auth";
 import { clearToken, getToken, onSessionExpired, setToken } from "@/lib/session";
+import { clearDecryptCache } from "@/services/messageCrypto";
+import { unregisterCurrentDevicePushToken } from "@/services/pushNotifications";
 import { User } from "@/types/user";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         return onSessionExpired(() => {
+            clearDecryptCache();
             queryClient.clear();
             setUser(null);
             setStatus("unauthenticated");
@@ -56,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setStatus("authenticated");
             } catch {
                 await clearToken();
+                clearDecryptCache();
                 queryClient.clear();
 
                 if (!active) return;
@@ -76,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await loginRequest({ usernameOrEmail, password });
 
         await setToken(response.data.token);
-
+        clearDecryptCache();
         queryClient.clear();
 
         setUser(response.data.user);
@@ -90,7 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function signOut() {
+        await unregisterCurrentDevicePushToken();
         await clearToken();
+        clearDecryptCache();
         queryClient.clear();
         setUser(null);
         setStatus("unauthenticated");

@@ -8,6 +8,7 @@ import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
+import { useNotifications } from "@/hooks/useNotifications";
 import { themeColors } from "@/theme/colors";
 
 export default function Header() {
@@ -15,6 +16,7 @@ export default function Header() {
     const { isDark, toggleTheme } = useTheme();
     const { signOut, user } = useAuth();
     const { conversations } = useConversations();
+    const { unreadCount: unreadNotifications } = useNotifications();
 
     const unreadCount = conversations.reduce(
         (total, conversation) => total + conversation.unreadCount,
@@ -61,8 +63,25 @@ export default function Header() {
                             )}
                         </Pressable>
 
-                        <Pressable className="items-center justify-center">
+                        <Pressable
+                            onPress={() => router.push("/notifications")}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                                unreadNotifications > 0
+                                    ? `Notifications, ${unreadNotifications} unread`
+                                    : "Notifications"
+                            }
+                            className="relative items-center justify-center"
+                        >
                             <Bell size={22} color={colors.textPrimary} />
+
+                            {unreadNotifications > 0 && (
+                                <View className="absolute -right-1.5 -top-1 min-w-5 items-center justify-center rounded-full bg-primary px-1 py-0.5">
+                                    <Text className="text-label-sm font-semibold text-on-primary">
+                                        {unreadNotifications}
+                                    </Text>
+                                </View>
+                            )}
                         </Pressable>
 
                         <Pressable

@@ -8,7 +8,7 @@ import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 
 export default function CommunityManageRoute() {
-    const { slug } = useLocalSearchParams<{ slug: string }>();
+    const { slug, tab } = useLocalSearchParams<{ slug: string; tab?: string }>();
     const { isDark } = useTheme();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -42,7 +42,9 @@ export default function CommunityManageRoute() {
                 </Text>
             </View>
 
-            {slug ? <ManageCommunityScreen slug={slug} /> : null}
+            {slug ? (
+                <ManageCommunityScreen slug={slug} initialTab={tab} />
+            ) : null}
         </SafeAreaView>
     );
 }

@@ -5,6 +5,8 @@ export type MessageUser = {
     name: string;
     username: string;
     avatarUrl: string | null;
+    isOnline?: boolean;
+    lastSeenAt?: string | null;
 };
 
 export type MessagePreview = {
@@ -31,6 +33,9 @@ export type Message = {
     createdAt: string;
     isMine: boolean;
     sender: MessageUser;
+    pending?: boolean;
+    failed?: boolean;
+    plaintext?: string;
 };
 
 export type ConversationThread = {

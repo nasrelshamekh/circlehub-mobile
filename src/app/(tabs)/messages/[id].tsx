@@ -1,7 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { useCallback } from "react";
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -12,30 +10,22 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
+import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import MessageThread from "@/components/messages/messagethread";
+import PresenceLabel from "@/components/messages/presencelabel";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
-import { queryKeys } from "@/lib/queryKeys";
-import { ApiError } from "@/types/api";
 import { themeColors } from "@/theme/colors";
+import { ApiError } from "@/types/api";
 
 export default function MessageThreadScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const { isDark } = useTheme();
-    const queryClient = useQueryClient();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     const { messages, otherUser, isLoading, isLoadingOlder, loadOlder, error } =
         useConversation(id);
-
-    useFocusEffect(
-        useCallback(() => {
-            void queryClient.refetchQueries({
-                queryKey: queryKeys.conversation(id),
-            });
-        }, [id, queryClient])
-    );
 
     function goBack() {
         router.replace("/messages");
@@ -81,17 +71,17 @@ export default function MessageThreadScreen() {
                                 {otherUser.name}
                             </Text>
 
-                            <Text
-                                numberOfLines={1}
-                                className="text-label-sm text-text-secondary"
-                            >
-                                @{otherUser.username}
-                            </Text>
+                            <PresenceLabel
+                                isOnline={otherUser.isOnline}
+                                lastSeenAt={otherUser.lastSeenAt}
+                            />
                         </View>
                     </Pressable>
                 ) : (
                     <View className="flex-1" />
                 )}
+
+                <ChatConnectionStatus />
             </View>
 
             {isLoading ? (
@@ -113,7 +103,10 @@ export default function MessageThreadScreen() {
                 >
                     <MessageThread
                         messages={messages}
+                        recipientId={otherUser?.id}
                         recipientUsername={otherUser?.username ?? ""}
+                        recipientName={otherUser?.name}
+                        recipientAvatarUrl={otherUser?.avatarUrl}
                         isLoading={isLoading}
                         isLoadingOlder={isLoadingOlder}
                         onLoadOlder={loadOlder}

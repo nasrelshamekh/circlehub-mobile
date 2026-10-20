@@ -30,7 +30,13 @@ const TAB_META: Record<TabValue, { label: string; icon: LucideIcon }> = {
     requests: { label: "Requests", icon: UserPlus },
 };
 
-export default function ManageCommunityScreen({ slug }: { slug: string }) {
+export default function ManageCommunityScreen({
+    slug,
+    initialTab,
+}: {
+    slug: string;
+    initialTab?: string;
+}) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
 
@@ -46,8 +52,16 @@ export default function ManageCommunityScreen({ slug }: { slug: string }) {
         canManage ? community?.id : undefined
     );
 
+    const parsedInitialTab: TabValue | null =
+        initialTab === "requests" || initialTab === "members"
+            ? initialTab
+            : initialTab === "manage" && isAdmin
+              ? "manage"
+              : null;
+
     const [selectedTab, setSelectedTab] = useState<TabValue | null>(null);
-    const activeTab: TabValue = selectedTab ?? (isAdmin ? "manage" : "members");
+    const activeTab: TabValue =
+        selectedTab ?? parsedInitialTab ?? (isAdmin ? "manage" : "members");
 
     useEffect(() => {
         if (community && !canManage) {

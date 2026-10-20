@@ -1,7 +1,6 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { router, useFocusEffect } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
-import { useCallback } from "react";
+import { router } from "expo-router";
+import { ChevronLeft, SquarePen } from "lucide-react-native";
+import { useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -12,29 +11,32 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import ConversationList from "@/components/messages/conversationlist";
+import NewMessageModal from "@/components/messages/newmessagemodal";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
-import { queryKeys } from "@/lib/queryKeys";
-import { ApiError } from "@/types/api";
 import { themeColors } from "@/theme/colors";
+import { ApiError } from "@/types/api";
 
 export default function Messages() {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    const queryClient = useQueryClient();
+    const [newMessageOpen, setNewMessageOpen] = useState(false);
+    const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
-    const { conversations, isLoading, isRefetching, refetch, error } =
+    const { conversations, isLoading, refetch, error } =
         useConversations();
 
-    useFocusEffect(
-        useCallback(() => {
-            void queryClient.refetchQueries({
-                queryKey: queryKeys.conversations(),
-            });
-        }, [queryClient])
-    );
+    async function handlePullRefresh() {
+        setIsManualRefreshing(true);
+        try {
+            await refetch();
+        } finally {
+            setIsManualRefreshing(false);
+        }
+    }
 
     function goBack() {
         if (router.canGoBack()) {
@@ -46,23 +48,40 @@ export default function Messages() {
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>
-            <View className="flex-row items-center gap-2 px-2 py-2">
-                <Pressable
-                    onPress={goBack}
-                    accessibilityRole="button"
-                    accessibilityLabel="Go back"
-                    hitSlop={8}
-                    className="h-10 w-10 items-center justify-center rounded-full"
-                >
-                    <ChevronLeft size={24} color={colors.textPrimary} />
-                </Pressable>
+            <View className="flex-row items-center justify-between gap-2 px-2 py-2">
+                <View className="flex-1 flex-row items-center gap-2">
+                    <Pressable
+                        onPress={goBack}
+                        accessibilityRole="button"
+                        accessibilityLabel="Go back"
+                        hitSlop={8}
+                        className="h-10 w-10 items-center justify-center rounded-full"
+                    >
+                        <ChevronLeft size={24} color={colors.textPrimary} />
+                    </Pressable>
 
-                <Text
-                    numberOfLines={1}
-                    className="flex-1 text-title-lg font-semibold text-text-primary"
+                    <Text
+                        numberOfLines={1}
+                        className="text-title-lg font-semibold text-text-primary"
+                    >
+                        Messages
+                    </Text>
+
+                    <ChatConnectionStatus />
+                </View>
+
+                <Pressable
+                    onPress={() => setNewMessageOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="New message"
+                    hitSlop={8}
+                    className="mr-2 flex-row items-center gap-1.5 rounded-xl bg-primary px-3 py-2"
                 >
-                    Messages
-                </Text>
+                    <SquarePen size={16} color={colors.buttonGradientText} />
+                    <Text className="text-label-sm font-semibold text-on-primary">
+                        New
+                    </Text>
+                </Pressable>
             </View>
 
             {isLoading ? (
@@ -82,9 +101,9 @@ export default function Messages() {
                     contentContainerClassName="px-4 pb-8 pt-2"
                     refreshControl={
                         <RefreshControl
-                            refreshing={isRefetching}
+                            refreshing={isManualRefreshing}
                             onRefresh={() => {
-                                void refetch();
+                                void handlePullRefresh();
                             }}
                             tintColor={colors.primary}
                         />
@@ -93,6 +112,12 @@ export default function Messages() {
                     <ConversationList conversations={conversations} />
                 </ScrollView>
             )}
+
+            <NewMessageModal
+                visible={newMessageOpen}
+                onClose={() => setNewMessageOpen(false)}
+                conversations={conversations}
+            />
         </SafeAreaView>
     );
 }

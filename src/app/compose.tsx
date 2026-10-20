@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
     Image,
     KeyboardAvoidingView,
+    Modal,
     Pressable,
     ScrollView,
     Text,
@@ -114,34 +115,34 @@ export default function Create() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-surface-low" edges={["top", "bottom"]}>
-            <KeyboardAvoidingView
-                className="flex-1"
-                behavior="padding"
-                keyboardVerticalOffset={16}
-            >
-                <View className="flex-row items-center justify-between px-4 py-3">
-                    <Text className="text-title-lg font-semibold text-text-primary">
-                        {communityId ? "Create Community Post" : "Create Post"}
-                    </Text>
-
-                    <Pressable
-                        onPress={close}
-                        accessibilityRole="button"
-                        accessibilityLabel="Cancel"
-                        hitSlop={8}
-                    >
-                        <Text className="text-body-md font-semibold text-primary">
-                            Cancel
-                        </Text>
-                    </Pressable>
-                </View>
-
-                <ScrollView
+        <Modal visible animationType="slide" onRequestClose={close}>
+            <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+                <KeyboardAvoidingView
                     className="flex-1"
-                    contentContainerClassName="gap-4 p-4"
-                    keyboardShouldPersistTaps="handled"
+                    behavior="padding"
+                    keyboardVerticalOffset={16}
                 >
+                    <View className="flex-row items-center justify-between px-4 py-3">
+                        <Text className="text-title-lg font-semibold text-text-primary">
+                            {communityId ? "Create Community Post" : "Create Post"}
+                        </Text>
+
+                        <Pressable
+                            onPress={close}
+                            accessibilityRole="button"
+                            accessibilityLabel="Close"
+                            hitSlop={8}
+                            className="h-9 w-9 items-center justify-center rounded-full bg-surface-lowest"
+                        >
+                            <X size={18} color={colors.textPrimary} />
+                        </Pressable>
+                    </View>
+
+                    <ScrollView
+                        className="flex-1"
+                        contentContainerClassName="gap-3 px-4 pb-10"
+                        keyboardShouldPersistTaps="handled"
+                    >
                     <Text className="text-body-sm text-text-secondary">
                         {communityName
                             ? `Share an update, thought, or photo with ${communityName}.`
@@ -243,8 +244,9 @@ export default function Create() {
                         contentStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
                         textClassName="text-body-md font-semibold"
                     />
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </Modal>
     );
 }

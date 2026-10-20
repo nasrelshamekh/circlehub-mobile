@@ -1,5 +1,5 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 
 import { getConversation } from "@/api/messages";
 import { mergeConversationPages } from "@/lib/messagePages";
@@ -8,6 +8,8 @@ import { queryKeys } from "@/lib/queryKeys";
 const PAGE_SIZE = 50;
 
 export function useConversation(id: string) {
+    const queryClient = useQueryClient();
+
     const query = useInfiniteQuery({
         queryKey: queryKeys.conversation(id),
         queryFn: async ({ pageParam }) => {
@@ -26,6 +28,17 @@ export function useConversation(id: string) {
         () => (pages ? mergeConversationPages(pages) : []),
         [pages]
     );
+
+    const hasLoadedPages = Boolean(pages);
+    const newestMessageId = messages[messages.length - 1]?.id ?? null;
+    const messageCount = messages.length;
+
+    useEffect(() => {
+        if (!hasLoadedPages) return;
+        void queryClient.invalidateQueries({
+            queryKey: queryKeys.conversations(),
+        });
+    }, [hasLoadedPages, newestMessageId, messageCount, queryClient]);
 
     function loadOlder() {
         if (!query.hasNextPage || query.isFetchingNextPage) return;

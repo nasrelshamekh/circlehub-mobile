@@ -1,5 +1,10 @@
 import { apiFetch } from "./client";
-import { Conversation, ConversationThread, MessageRecipient } from "@/types/message";
+import {
+    Conversation,
+    ConversationThread,
+    Message,
+    MessageRecipient,
+} from "@/types/message";
 
 export function getConversations() {
     return apiFetch<{ message: string; data: Conversation[] }>(
@@ -26,12 +31,12 @@ export type SendMessageInput = {
 };
 
 export function sendMessage(input: SendMessageInput) {
-    return apiFetch<{ message: string; data: { conversationId: string } }>(
-        "/api/Messages",
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(input),
-        }
-    );
+    return apiFetch<{
+        message: string;
+        data: { conversationId: string; message?: Message };
+    }>("/api/Messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+    });
 }

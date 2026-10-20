@@ -5,3 +5,16 @@ export function formatRelativeTime(value: string | Date): string {
         addSuffix: true,
     });
 }
+
+export function formatLastSeen(value?: string | Date | null): string | null {
+    if (!value) return null;
+
+    const timestamp = new Date(value).getTime();
+    if (Number.isNaN(timestamp)) return null;
+
+    if (Date.now() - timestamp < 60_000) {
+        return "Last seen just now";
+    }
+
+    return `Last seen ${formatRelativeTime(value)}`;
+}

@@ -11,6 +11,7 @@ import {
 
 import ChangePasswordForm from "@/components/profile/changepasswordform";
 import EditProfileForm from "@/components/profile/editprofileform";
+import MessageRecoveryCard from "@/components/profile/messagerecoverycard";
 import ProfileSettingsForm from "@/components/profile/profilesettingsform";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
@@ -94,6 +95,7 @@ export default function EditProfileScreen() {
                 ) : (
                     <View className="px-4">
                         <ProfileSettingsForm />
+                        <MessageRecoveryCard />
                     </View>
                 )}
             </ScrollView>

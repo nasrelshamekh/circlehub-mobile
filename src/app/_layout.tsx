@@ -8,12 +8,14 @@ import {
     ThemeProvider as NavigationThemeProvider,
 } from "expo-router";
 import type { ErrorBoundaryProps } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import ErrorFallback from "@/components/errors/errorfallback";
 import { AuthProvider, useAuth } from "@/context/authcontext";
+import { ChatConnectionProvider } from "@/context/chatconnectioncontext";
 import { ThemeProvider, useTheme } from "@/context/themecontext";
 import { queryClient } from "@/lib/queryClient";
 import { themes } from "@/theme/themes";
@@ -31,7 +33,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
                 <AuthProvider>
-                    <RootNavigator />
+                    <ChatConnectionProvider>
+                        <RootNavigator />
+                    </ChatConnectionProvider>
                 </AuthProvider>
             </ThemeProvider>
         </QueryClientProvider>
@@ -66,6 +70,7 @@ function RootNavigator() {
                 className="flex-1 items-center justify-center bg-surface-low"
                 style={theme}
             >
+                <StatusBar style={isDark ? "light" : "dark"} />
                 <ActivityIndicator size="large" />
             </View>
         );
@@ -73,6 +78,7 @@ function RootNavigator() {
 
     return (
         <View className="flex-1" style={theme}>
+            <StatusBar style={isDark ? "light" : "dark"} />
             <NavigationThemeProvider value={navTheme}>
                 <Stack
                     screenOptions={{
@@ -88,10 +94,8 @@ function RootNavigator() {
                     <Stack.Screen
                         name="compose"
                         options={{
-                            presentation: "formSheet",
-                            sheetAllowedDetents: [1],
-                            sheetInitialDetentIndex: 0,
-                            sheetGrabberVisible: true,
+                            presentation: "transparentModal",
+                            animation: "none",
                         }}
                     />
                     <Stack.Screen
