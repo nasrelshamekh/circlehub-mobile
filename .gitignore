@@ -49,3 +49,5 @@ example
 # IDE
 .idea/
 .vscode/
+
+google-services.json

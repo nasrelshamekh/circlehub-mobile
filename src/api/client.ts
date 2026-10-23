@@ -41,7 +41,8 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
 
     try {
         response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-    } catch {
+    } catch (error) {
+        console.warn(`[apiFetch] Request failed for ${endpoint}:`, error);
         throw new ApiError(
             0,
             `Cannot reach the server at ${API_URL}. Check that the backend is running and EXPO_PUBLIC_API_URL points at this machine.`,

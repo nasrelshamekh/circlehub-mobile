@@ -1,6 +1,5 @@
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
-import { requireOptionalNativeModule } from "expo-modules-core";
 import type * as NotificationsType from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -23,15 +22,6 @@ function getNotifications(): typeof NotificationsType | null {
     if (cachedNotifications !== undefined) return cachedNotifications;
 
     try {
-        // Check native modules required by expo-notifications before requiring the JS entry point
-        // so older dev-client builds or Expo Go never log a missing native module error.
-        if (
-            !requireOptionalNativeModule("ExpoPushTokenManager") ||
-            !requireOptionalNativeModule("ExpoTopicSubscriptionModule")
-        ) {
-            cachedNotifications = null;
-            return null;
-        }
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const mod = require("expo-notifications") as typeof NotificationsType;
         mod.setNotificationHandler({
@@ -43,7 +33,8 @@ function getNotifications(): typeof NotificationsType | null {
             }),
         });
         cachedNotifications = mod;
-    } catch {
+    } catch (e) {
+        console.warn("[Push] Failed to load expo-notifications:", e);
         cachedNotifications = null;
     }
 
@@ -118,6 +109,8 @@ export async function registerCurrentDevicePushToken(): Promise<string | null> {
             await Notifications.setNotificationChannelAsync("default", {
                 name: "Default",
                 importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: "#6366F1",
             });
         }
 
@@ -130,18 +123,23 @@ export async function registerCurrentDevicePushToken(): Promise<string | null> {
         }
 
         if (finalStatus !== "granted") {
+            console.warn("[Push] Notification permission not granted:", finalStatus);
             return null;
         }
 
         const projectId =
             Constants?.expoConfig?.extra?.eas?.projectId ??
-            Constants?.easConfig?.projectId;
+            Constants?.easConfig?.projectId ??
+            "e785b374-5326-4afc-86ef-af5cf6c6772c";
 
         const tokenResponse = await Notifications.getExpoPushTokenAsync(
             projectId ? { projectId } : undefined
         );
         const token = tokenResponse.data;
-        if (!token) return null;
+        if (!token) {
+            console.warn("[Push] No token returned from getExpoPushTokenAsync");
+            return null;
+        }
 
         const platform =
             Platform.OS === "ios" || Platform.OS === "android"
@@ -150,8 +148,10 @@ export async function registerCurrentDevicePushToken(): Promise<string | null> {
 
         await registerDeviceToken(token, platform);
         await savePushTokenLocally(token);
+        console.log("[Push] Successfully registered device push token:", token);
         return token;
-    } catch {
+    } catch (error) {
+        console.error("[Push] Error registering push token:", error);
         return null;
     }
 }

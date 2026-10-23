@@ -16,15 +16,11 @@ jest.mock("expo-image-manipulator", () => ({
     SaveFormat: { JPEG: "jpeg" },
 }));
 
-jest.mock("expo-file-system", () => ({
-    File: class MockFile {
-        uri: string;
-        size = mockShrunkSize;
-
-        constructor(uri: string) {
-            this.uri = uri;
-        }
-    },
+jest.mock("expo-file-system/legacy", () => ({
+    getInfoAsync: jest.fn().mockImplementation(async () => ({
+        exists: true,
+        size: mockShrunkSize,
+    })),
 }));
 
 function makeAsset(

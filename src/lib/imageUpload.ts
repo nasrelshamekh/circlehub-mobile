@@ -1,4 +1,4 @@
-import { File as ExpoFile } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import type { ImagePickerAsset } from "expo-image-picker";
 
@@ -108,11 +108,30 @@ async function shrinkImage(asset: ImagePickerAsset): Promise<UploadImage> {
         format: SaveFormat.JPEG,
     });
 
+    const releasableContext = context as { release?: () => void };
+    if (typeof releasableContext.release === "function") {
+        releasableContext.release();
+    }
+    const releasableRendered = rendered as { release?: () => void };
+    if (typeof releasableRendered.release === "function") {
+        releasableRendered.release();
+    }
+
+    let size: number | undefined;
+    try {
+        const info = await FileSystem.getInfoAsync(saved.uri);
+        if (info.exists && typeof info.size === "number") {
+            size = info.size;
+        }
+    } catch {
+        // fallback
+    }
+
     return {
         uri: saved.uri,
         name: "photo.jpg",
         type: "image/jpeg",
-        size: new ExpoFile(saved.uri).size,
+        size,
     };
 }
 
@@ -130,8 +149,20 @@ export async function prepareUploadImage(
         return { image, error: validateUploadImage(image.type, image.file.size) };
     }
 
-    const size = asset.fileSize ?? null;
+    let size = asset.fileSize ?? null;
     const width = asset.width ?? 0;
+
+    if (size === null && asset.uri) {
+        try {
+            const info = await FileSystem.getInfoAsync(asset.uri);
+            if (info.exists && typeof info.size === "number") {
+                size = info.size;
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     const needsShrink =
         width <= 0 ||
         size === null ||
@@ -149,7 +180,8 @@ export async function prepareUploadImage(
             image: shrunk,
             error: validateUploadImage(shrunk.type, shrunk.size),
         };
-    } catch {
+    } catch (e) {
+        console.warn("[Upload] Failed to shrink image:", e);
         return { image, error: validateUploadImage(image.type, size) };
     }
 }
