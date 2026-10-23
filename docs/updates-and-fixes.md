@@ -811,3 +811,26 @@ When installing the generated APK on an Android device, the CircleHub app icon a
   - `npm test`: 16/16 test suites passed (104/104 tests).
   - `npx tsc --noEmit`: 0 errors.
   - `npm run lint`: 0 errors.
+
+
+---
+
+## 28. Conversation Thread Back Navigation Fixed to Target `/messages`
+
+### Symptom
+When inside an active conversation thread (`src/app/(tabs)/messages/[id].tsx`), pressing the top-left back button (or using the Android system back button) navigated the user back to the Home Feed tab instead of returning to the conversations list (`/messages`).
+
+### Root Cause
+1. In Expo Router's `<Tabs>`, all screens in `(tabs)/_layout.tsx` belong to the same tab navigator without a nested stack navigator.
+2. React Navigation Tabs defaults `backBehavior` to `"firstRoute"` (which is the Home Feed tab `index`).
+3. Calling `router.back()` popped across the tab boundary back to `index` rather than navigating to the sibling `/messages` screen.
+
+### Fix
+- **File:** `src/app/(tabs)/messages/[id].tsx`
+- **Changes:**
+  - Updated `goBack()` to explicitly call `router.replace("/messages")`.
+  - Added Android hardware `BackHandler` listener inside a focused effect to route system back gestures directly to `/messages`.
+- **Verification:**
+  - `npm test`: 16/16 test suites passed (104/104 tests).
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors.

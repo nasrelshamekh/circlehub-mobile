@@ -1,7 +1,8 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+    BackHandler,
     KeyboardAvoidingView,
     Pressable,
     Text,
@@ -46,12 +47,17 @@ export default function MessageThreadScreen() {
     } = useConversation(id, { enabled: isFocused });
 
     function goBack() {
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.replace("/messages");
-        }
+        router.replace("/messages");
     }
+
+    useEffect(() => {
+        if (!isFocused) return;
+        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+            goBack();
+            return true;
+        });
+        return () => sub.remove();
+    }, [isFocused]);
 
     return (
         <SafeAreaView className="flex-1 bg-surface-lowest" edges={["top"]}>
