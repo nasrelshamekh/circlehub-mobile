@@ -6,52 +6,76 @@ import {
     isEncryptedContent,
     peekDecrypted,
     subscribeDecryptCache,
+    UNREADABLE_PLACEHOLDER,
 } from "@/services/messageCrypto";
 
-export function useDecryptedContent(content?: string | null): string {
+/**
+ * Resolves the readable text for a stored message body. Encrypted content decrypts
+ * asynchronously, so the result carries `isPending` alongside the text: callers render a
+ * loading placeholder while it is true instead of an empty bubble, and render the
+ * resolved value (plaintext or the unreadable placeholder) once it settles.
+ */
+export function useDecryptedContent(content?: string | null): {
+    text: string;
+    isPending: boolean;
+} {
     const cacheVersion = useSyncExternalStore(
         subscribeDecryptCache,
         getDecryptCacheVersion,
         getDecryptCacheVersion
     );
 
+    const isEncrypted = isEncryptedContent(content);
+    const settled = isEncrypted ? peekDecrypted(content) : null;
+
     const [resolved, setResolved] = useState<{
-        source: string | null | undefined;
-        version: number;
+        content: string | null | undefined;
         text: string;
+        isPending: boolean;
     }>(() => ({
-        source: content,
-        version: cacheVersion,
-        text: isEncryptedContent(content)
-            ? (peekDecrypted(content) ?? "")
-            : (content ?? ""),
+        content,
+        text: settled ?? (isEncrypted ? "" : (content ?? "")),
+        isPending: isEncrypted && settled === null,
     }));
 
-    const needsDecrypt =
-        isEncryptedContent(content) && peekDecrypted(content) === null;
-
     useEffect(() => {
-        if (!needsDecrypt || !content) return undefined;
+        if (!isEncrypted || !content) return undefined;
+        if (peekDecrypted(content) !== null) return undefined;
 
         let cancelled = false;
 
-        decryptMessageContent(content).then((text) => {
-            if (!cancelled) {
-                setResolved({ source: content, version: cacheVersion, text });
-            }
-        });
+        decryptMessageContent(content)
+            .then((text) => {
+                if (!cancelled) {
+                    setResolved({ content, text, isPending: false });
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setResolved({
+                        content,
+                        text: UNREADABLE_PLACEHOLDER,
+                        isPending: false,
+                    });
+                }
+            });
 
         return () => {
             cancelled = true;
         };
-    }, [content, needsDecrypt, cacheVersion]);
+    }, [content, isEncrypted, cacheVersion]);
 
-    if (!isEncryptedContent(content)) return content ?? "";
+    if (!isEncrypted) {
+        return { text: content ?? "", isPending: false };
+    }
 
-    const settled = peekDecrypted(content);
-    if (settled !== null) return settled;
+    if (settled !== null) {
+        return { text: settled, isPending: false };
+    }
 
-    return resolved.source === content && resolved.version === cacheVersion
-        ? resolved.text
-        : "";
+    if (resolved.content === content) {
+        return { text: resolved.text, isPending: resolved.isPending };
+    }
+
+    return { text: "", isPending: true };
 }

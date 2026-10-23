@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { ChevronLeft, SquarePen } from "lucide-react-native";
 import { useState } from "react";
 import {
-    ActivityIndicator,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -14,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import ConversationList from "@/components/messages/conversationlist";
 import NewMessageModal from "@/components/messages/newmessagemodal";
+import ConversationsSkeleton from "@/components/skeletons/conversationsskeleton";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
 import { themeColors } from "@/theme/colors";
@@ -85,9 +85,7 @@ export default function Messages() {
             </View>
 
             {isLoading ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator color={colors.primary} />
-                </View>
+                <ConversationsSkeleton />
             ) : error ? (
                 <View className="px-6 pt-8">
                     <Text className="text-center text-body-sm text-error">

@@ -1,6 +1,6 @@
 import * as Clipboard from "expo-clipboard";
 import { RotateCcw, Send, Smile } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -14,6 +14,11 @@ import {
 import Avatar from "@/components/avatar";
 import EmojiPicker from "@/components/messages/emojipicker";
 import SharedPostCard from "@/components/messages/sharedpostcard";
+import {
+    FadeSlideIn,
+    MOTION,
+    TypingDot,
+} from "@/components/ui/motion";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useSendMessage from "@/hooks/mutations/useSendMessage";
@@ -56,7 +61,7 @@ function isNewDay(current: string, previous?: string) {
     );
 }
 
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
     message,
     onRetry,
     isRetrying,
@@ -72,7 +77,11 @@ function MessageBubble({
     const isPending = Boolean(message.pending);
     const isFailed = Boolean(message.failed);
     const hasContent = Boolean(message.content && message.content.length > 0);
-    const decryptedText = useDecryptedContent(message.content);
+    const { text: decryptedText, isPending: isDecrypting } =
+        useDecryptedContent(message.content);
+
+    const displayText = message.plaintext ?? decryptedText;
+    const isActuallyDecrypting = !message.plaintext && isDecrypting;
 
     const [isExpanded, setIsExpanded] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -86,24 +95,28 @@ function MessageBubble({
     }, [isCopied]);
 
     async function handleCopy() {
-        if (!decryptedText) return;
+        if (!displayText) return;
 
-        await Clipboard.setStringAsync(decryptedText);
+        await Clipboard.setStringAsync(displayText);
         setIsCopied(true);
     }
 
     return (
-        <Pressable
-            onPress={() => setIsExpanded((expanded) => !expanded)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: isExpanded }}
-            accessibilityHint="Shows when the message was sent"
-            className={
-                isMine
-                    ? `mb-3 flex-col items-end ${isPending ? "opacity-70" : ""}`
-                    : "mb-3 flex-col items-start"
-            }
+        <FadeSlideIn
+            duration={isPending ? MOTION.quick : 0}
+            from={isPending ? 6 : 0}
         >
+            <Pressable
+                onPress={() => setIsExpanded((expanded) => !expanded)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isExpanded }}
+                accessibilityHint="Shows when the message was sent"
+                className={
+                    isMine
+                        ? `mb-3 flex-col items-end ${isPending ? "opacity-70" : ""}`
+                        : "mb-3 flex-col items-start"
+                }
+            >
             <View
                 className={
                     isMine
@@ -135,15 +148,25 @@ function MessageBubble({
                                     : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
                             }
                         >
-                            <Text
-                                className={
-                                    isMine
-                                        ? "text-body-sm text-on-primary"
-                                        : "text-body-sm text-text-primary"
-                                }
-                            >
-                                {decryptedText}
-                            </Text>
+                            {isActuallyDecrypting && !displayText ? (
+                                <View
+                                    accessibilityLabel="Loading message"
+                                    className="gap-1.5"
+                                >
+                                    <View className="h-3 w-28 rounded-full bg-surface-high" />
+                                    <View className="h-3 w-16 rounded-full bg-surface-high" />
+                                </View>
+                            ) : (
+                                <Text
+                                    className={
+                                        isMine
+                                            ? "text-body-sm text-on-primary"
+                                            : "text-body-sm text-text-primary"
+                                    }
+                                >
+                                    {displayText}
+                                </Text>
+                            )}
                         </View>
                     )}
 
@@ -194,7 +217,7 @@ function MessageBubble({
                         {formatMessageTime(message.createdAt)}
                     </Text>
 
-                    {hasContent && Boolean(decryptedText) && (
+                    {hasContent && Boolean(displayText) && (
                         <Pressable
                             onPress={handleCopy}
                             accessibilityRole="button"
@@ -209,8 +232,9 @@ function MessageBubble({
                 </View>
             )}
         </Pressable>
+        </FadeSlideIn>
     );
-}
+});
 
 function TypingBubble({
     name,
@@ -219,27 +243,39 @@ function TypingBubble({
     name?: string;
     avatarUrl?: string | null;
 }) {
+    const { isDark } = useTheme();
+    const colors = isDark ? themeColors.dark : themeColors.light;
+
     return (
-        <View
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={`${name || "User"} is typing`}
+        <FadeSlideIn
             className="mb-3 flex-row items-end gap-2"
+            duration={MOTION.quick}
         >
-            <Avatar
-                src={avatarUrl}
-                name={name ?? ""}
-                className="h-8 w-8"
-                textClassName="text-label-sm"
-            />
-            <View className="flex-row items-center gap-1.5 rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5">
-                <View className="h-2 w-2 rounded-full bg-primary opacity-80" />
-                <View className="h-2 w-2 rounded-full bg-primary opacity-60" />
-                <View className="h-2 w-2 rounded-full bg-primary opacity-40" />
-                <Text className="ml-1 text-label-sm font-medium italic text-primary">
-                    typing…
-                </Text>
+            <View
+                accessibilityLiveRegion="polite"
+                accessibilityLabel={`${name || "User"} is typing`}
+                className="flex-row items-end gap-2"
+            >
+                <Avatar
+                    src={avatarUrl}
+                    name={name ?? ""}
+                    className="h-8 w-8"
+                    textClassName="text-label-sm"
+                />
+                <View className="flex-row items-center gap-1.5 rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5">
+                    {[0, 1, 2].map((index) => (
+                        <TypingDot
+                            key={index}
+                            color={colors.primary}
+                            index={index}
+                        />
+                    ))}
+                    <Text className="ml-1 text-label-sm font-medium italic text-primary">
+                        typing…
+                    </Text>
+                </View>
             </View>
-        </View>
+        </FadeSlideIn>
     );
 }
 
@@ -371,87 +407,87 @@ export default function MessageThread({
         return `pending-${Date.now()}-${tempIdCounter.current}`;
     }
 
-    function updatePending(updater: (previous: Message[]) => Message[]) {
-        setPendingMessages(conversationKey, updater);
-    }
+    const updatePending = useCallback(
+        (updater: (previous: Message[]) => Message[]) => {
+            setPendingMessages(conversationKey, updater);
+        },
+        [conversationKey]
+    );
 
-    async function transmitMessage(contentText: string, existingTempId?: string) {
-        const tempId = existingTempId ?? nextTempId();
-        const optimistic: Message = {
-            id: tempId,
-            content: contentText,
-            plaintext: contentText,
-            createdAt: new Date().toISOString(),
-            isMine: true,
-            pending: true,
-            failed: false,
-            sender: {
-                id: user?.id ?? "me",
-                name: user?.name ?? "",
-                username: user?.username ?? "",
-                avatarUrl: user?.avatarUrl ?? null,
-            },
-        };
-
-        updatePending((prev) =>
-            existingTempId
-                ? prev.map((m) => (m.id === existingTempId ? optimistic : m))
-                : [...prev, optimistic]
-        );
-
-        try {
-            const response = await sendMessage.mutateAsync({
-                recipientUsername,
+    const transmitMessage = useCallback(
+        async (contentText: string, existingTempId?: string) => {
+            const tempId = existingTempId ?? nextTempId();
+            const optimistic: Message = {
+                id: tempId,
                 content: contentText,
-            });
-            const serverId = response?.data?.message?.id;
-            if (serverId) {
-                // Hand the optimistic entry over to the server id so the list keeps the same row
-                // and React does not remount it (the zero-flicker handoff in the decrypt cache
-                // relies on this id too).
+                plaintext: contentText,
+                createdAt: new Date().toISOString(),
+                isMine: true,
+                pending: true,
+                failed: false,
+                sender: {
+                    id: user?.id ?? "me",
+                    name: user?.name ?? "",
+                    username: user?.username ?? "",
+                    avatarUrl: user?.avatarUrl ?? null,
+                },
+            };
+
+            updatePending((prev) =>
+                existingTempId
+                    ? prev.map((m) => (m.id === existingTempId ? optimistic : m))
+                    : [...prev, optimistic]
+            );
+
+            try {
+                const response = await sendMessage.mutateAsync({
+                    recipientUsername,
+                    content: contentText,
+                });
+                const serverId = response?.data?.message?.id;
+                if (serverId) {
+                    updatePending((prev) =>
+                        prev.map((m) =>
+                            m.id === tempId
+                                ? {
+                                      ...m,
+                                      id: serverId,
+                                      createdAt:
+                                          response.data.message?.createdAt ??
+                                          m.createdAt,
+                                      pending: false,
+                                      failed: false,
+                                  }
+                                : m
+                        )
+                    );
+                } else {
+                    updatePending((prev) =>
+                        prev.map((m) =>
+                            m.id === tempId
+                                ? { ...m, pending: false, failed: false }
+                                : m
+                        )
+                    );
+                }
+            } catch (error) {
                 updatePending((prev) =>
                     prev.map((m) =>
                         m.id === tempId
-                            ? {
-                                  ...m,
-                                  id: serverId,
-                                  createdAt:
-                                      response.data.message?.createdAt ??
-                                      m.createdAt,
-                                  pending: false,
-                                  failed: false,
-                              }
+                            ? { ...m, pending: false, failed: true }
                             : m
                     )
                 );
-            } else {
-                // The server accepted the send but returned no id. Dropping the entry here would
-                // make a successfully sent message vanish from the thread, so keep it as a
-                // settled local row instead.
-                updatePending((prev) =>
-                    prev.map((m) =>
-                        m.id === tempId
-                            ? { ...m, pending: false, failed: false }
-                            : m
-                    )
+                Alert.alert(
+                    "Message not sent",
+                    error instanceof ApiError
+                        ? error.message
+                        : "Something went wrong. Tap Retry on the message to try again."
                 );
             }
-        } catch (error) {
-            updatePending((prev) =>
-                prev.map((m) =>
-                    m.id === tempId
-                        ? { ...m, pending: false, failed: true }
-                        : m
-                )
-            );
-            Alert.alert(
-                "Message not sent",
-                error instanceof ApiError
-                    ? error.message
-                    : "Something went wrong. Tap Retry on the message to try again."
-            );
-        }
-    }
+        },
+        [recipientUsername, sendMessage, updatePending, user]
+    );
 
     async function handleSend() {
         const trimmed = text.trim();
@@ -460,27 +496,48 @@ export default function MessageThread({
         stopTyping();
         setShowEmojiPicker(false);
         setText("");
-        // No in-flight guard: sending B sends A and B, rather than silently dropping B until A
-        // settles. Each send owns its own pending row.
         await transmitMessage(trimmed);
     }
 
-    async function handleRetry(failedMsg: Message) {
-        if (retryingIds.has(failedMsg.id)) return;
-        const body = failedMsg.plaintext ?? failedMsg.content;
-        if (!body) return;
+    const handleRetry = useCallback(
+        async (failedMsg: Message) => {
+            if (retryingIds.has(failedMsg.id)) return;
+            const body = failedMsg.plaintext ?? failedMsg.content;
+            if (!body) return;
 
-        setRetryingIds((prev) => new Set(prev).add(failedMsg.id));
-        try {
-            await transmitMessage(body, failedMsg.id);
-        } finally {
-            setRetryingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(failedMsg.id);
-                return next;
-            });
-        }
-    }
+            setRetryingIds((prev) => new Set(prev).add(failedMsg.id));
+            try {
+                await transmitMessage(body, failedMsg.id);
+            } finally {
+                setRetryingIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(failedMsg.id);
+                    return next;
+                });
+            }
+        },
+        [retryingIds, transmitMessage]
+    );
+
+    const keyExtractor = useCallback((message: Message) => message.id, []);
+
+    const renderItem = useCallback(
+        ({ item, index }: { item: Message; index: number }) => (
+            <View key={item.id}>
+                {isNewDay(
+                    item.createdAt,
+                    orderedMessages[index + 1]?.createdAt
+                ) && <DateDivider value={item.createdAt} />}
+
+                <MessageBubble
+                    message={item}
+                    onRetry={handleRetry}
+                    isRetrying={retryingIds.has(item.id)}
+                />
+            </View>
+        ),
+        [orderedMessages, handleRetry, retryingIds]
+    );
 
     const showCounter = text.length >= COUNTER_SHOW_THRESHOLD;
     const isNearLimit = text.length >= COUNTER_WARN_THRESHOLD;
@@ -490,25 +547,16 @@ export default function MessageThread({
             <FlatList
                 inverted
                 data={orderedMessages}
-                keyExtractor={(message) => message.id}
-                renderItem={({ item, index }) => (
-                    <View>
-                        {isNewDay(
-                            item.createdAt,
-                            orderedMessages[index + 1]?.createdAt
-                        ) && <DateDivider value={item.createdAt} />}
-
-                        <MessageBubble
-                            message={item}
-                            onRetry={handleRetry}
-                            isRetrying={retryingIds.has(item.id)}
-                        />
-                    </View>
-                )}
+                keyExtractor={keyExtractor}
+                renderItem={renderItem}
+                initialNumToRender={30}
+                maxToRenderPerBatch={20}
+                windowSize={21}
+                removeClippedSubviews={false}
                 contentContainerClassName="grow px-4 py-4"
                 keyboardShouldPersistTaps="handled"
                 onEndReached={onLoadOlder}
-                onEndReachedThreshold={0.4}
+                onEndReachedThreshold={0.2}
                 ListHeaderComponent={
                     isPartnerTyping ? (
                         <TypingBubble

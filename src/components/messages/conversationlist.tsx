@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { MessageCircleMore } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
@@ -6,6 +7,7 @@ import Avatar from "@/components/avatar";
 import PresenceDot from "@/components/messages/presencedot";
 import PresenceLabel from "@/components/messages/presencelabel";
 import { useTheme } from "@/context/themecontext";
+import { conversationQueryOptions } from "@/hooks/useConversation";
 import { useDecryptedContent } from "@/hooks/useDecryptedContent";
 import { formatShortTime } from "@/lib/formatPostDate";
 import { themeColors } from "@/theme/colors";
@@ -16,9 +18,10 @@ function ConversationRow({
 }: {
     conversation: Conversation;
 }) {
+    const queryClient = useQueryClient();
     const unread = conversation.unreadCount > 0;
     const last = conversation.lastMessage;
-    const decryptedBody = useDecryptedContent(last?.content);
+    const { text: decryptedBody } = useDecryptedContent(last?.content);
 
     let preview = "No messages yet";
     if (last) {
@@ -26,6 +29,16 @@ function ConversationRow({
             ? decryptedBody || "Shared a post"
             : decryptedBody || "";
         preview = last.isMine ? `You: ${body}` : body;
+    }
+
+    function prewarmConversation() {
+        // The prewarm has to use the very same options the thread screen uses.
+        // `prefetchInfiniteQuery` *replaces* the options of the query it shares with the
+        // thread, so an option that only exists on one of the two callers (e.g.
+        // `getNextPageParam`) gets dropped for both and breaks the next refetch.
+        void queryClient.prefetchInfiniteQuery(
+            conversationQueryOptions(conversation.id)
+        );
     }
 
     return (
@@ -36,6 +49,7 @@ function ConversationRow({
                     params: { id: conversation.id },
                 })
             }
+            onPressIn={prewarmConversation}
             accessibilityRole="button"
             accessibilityLabel={`Open conversation with ${conversation.otherUser.name}`}
             className="flex-row items-center gap-3 rounded-2xl bg-surface-lowest p-4"

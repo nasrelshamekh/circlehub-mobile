@@ -4,6 +4,8 @@ export type DeviceKeyDto = {
     deviceId: string;
     publicKey: string;
     createdAt: string;
+    /** When this device last published a key — the order the directory is useful in. */
+    lastSeenAt?: string;
 };
 
 export type KeyBackupDto = {

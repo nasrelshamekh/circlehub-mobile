@@ -25,6 +25,7 @@ export default function useSendMessage() {
         onSuccess: () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.conversations(),
+                exact: true,
             });
         },
     });
