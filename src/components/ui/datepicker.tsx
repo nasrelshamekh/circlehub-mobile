@@ -169,9 +169,12 @@ export default function DatePicker({
                 style={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
                 onPress={onClose}
             >
-                <View className="w-full max-w-lg self-center overflow-hidden rounded-2xl bg-surface-lowest">
+                <Pressable
+                    onPress={(e) => e.stopPropagation?.()}
+                    className="w-full max-w-lg self-center overflow-hidden rounded-2xl bg-surface-lowest"
+                >
                     <View className="flex-row items-center justify-between border-b border-border px-5 py-4">
-                        <Pressable onPress={onClose}>
+                        <Pressable onPress={onClose} hitSlop={12}>
                             <Text className="text-body-sm font-semibold text-text-secondary">
                                 Cancel
                             </Text>
@@ -181,7 +184,7 @@ export default function DatePicker({
                             Date of birth
                         </Text>
 
-                        <Pressable onPress={confirm}>
+                        <Pressable onPress={confirm} hitSlop={12}>
                             <Text className="text-body-sm font-semibold text-primary">
                                 Done
                             </Text>
@@ -219,7 +222,7 @@ export default function DatePicker({
                             />
                         </View>
                     </View>
-                </View>
+                </Pressable>
             </Pressable>
         </Modal>
     );
