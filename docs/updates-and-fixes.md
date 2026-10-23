@@ -782,3 +782,32 @@ When attempting to sign in (`POST /api/Auth/login`) or create an account (`POST 
   - `npm run lint`: 0 errors, 0 warnings.
   - Web Vite build (`npm run build`): 0 errors, built in 6.24s.
   - Live probe against `https://circlehub.runasp.net/api/Posts` and `https://circlehub.runasp.net/api/Auth/login` verified 200 OK and 401 Unauthorized (proper controller response).
+
+
+---
+
+## 27. Android Adaptive Icon Scaling & Safe Zone Padding
+
+### Symptom
+When installing the generated APK on an Android device, the CircleHub app icon appeared visibly cropped: the outer curves and top/bottom edges of the interlocking circles were cut off by Android's circular, squircle, or rounded-square launcher masks.
+
+### Root Cause
+1. In `app.json`, `android.adaptiveIcon.foregroundImage` pointed to `./assets/images/circlehub-icon.png`.
+2. `circlehub-icon.png` was created with content bounds extending to 96.3% of the canvas width (content width 712px on a 739px canvas).
+3. Android Adaptive Icon specifications designate the inner 66dp of a 108dp canvas (~61.1% diameter) as the "safe zone". Modern Android OEM launchers (Samsung One UI, Pixel Launcher, MIUI, etc.) mask the foreground image into a circle, squircle, or rounded rectangle, cutting off anything outside the safe zone.
+4. Because the artwork occupied 96% of the canvas, the outer ~35% of the artwork was masked off by the launcher.
+
+### Fix
+- **Files:**
+  - `assets/images/circlehub-adaptive-foreground.png` (new)
+  - `assets/images/circlehub-app-icon.png` (updated)
+  - `app.json`
+- **Changes:**
+  - Generated `circlehub-adaptive-foreground.png` (1024x1024 transparent PNG) with the CircleHub logo centered at 500x323px (~48.8% width). This places the entire mark comfortably inside Android's 61% safe zone with clean, balanced breathing room.
+  - Re-rendered `circlehub-app-icon.png` (1024x1024 white background) with the same safe proportions for legacy launchers and stores.
+  - Updated `app.json` so `android.adaptiveIcon.foregroundImage` points to `./assets/images/circlehub-adaptive-foreground.png`.
+- **Verification:**
+  - Visual circle mask and squircle mask previews generated and verified.
+  - `npm test`: 16/16 test suites passed (104/104 tests).
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors.
