@@ -834,3 +834,23 @@ When inside an active conversation thread (`src/app/(tabs)/messages/[id].tsx`), 
   - `npm test`: 16/16 test suites passed (104/104 tests).
   - `npx tsc --noEmit`: 0 errors.
   - `npm run lint`: 0 errors.
+
+
+---
+
+## 29. Firebase Cloud Messaging (FCM V1) Configuration for Android Push Notifications
+
+### Overview
+To enable background push notifications when the mobile app is closed on Android standalone APK builds, Google Firebase Cloud Messaging (FCM V1) was linked to the project.
+
+### Changes
+- **Files:**
+  - `google-services.json` (added to project root)
+  - `app.json`
+- **Configuration:**
+  - Configured `google-services.json` (Project ID: `circlehub-95e2a`, Package: `com.nasrdev97.circlehubmobile`).
+  - Added `"googleServicesFile": "./google-services.json"` under `expo.android` in `app.json`.
+- **Verification:**
+  - `npm test`: 16/16 test suites passed (104/104 tests).
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors.

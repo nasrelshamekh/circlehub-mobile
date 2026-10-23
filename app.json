@@ -21,7 +21,8 @@
         "foregroundImage": "./assets/images/circlehub-adaptive-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.nasrdev97.circlehubmobile"
+      "package": "com.nasrdev97.circlehubmobile",
+      "googleServicesFile": "./google-services.json"
     },
     "androidStatusBar": {
       "barStyle": "dark-content",

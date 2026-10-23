@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "125602621821",
+    "project_id": "circlehub-95e2a",
+    "storage_bucket": "circlehub-95e2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:125602621821:android:ea400d890b68cd095d8414",
+        "android_client_info": {
+          "package_name": "com.nasrdev97.circlehubmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHER2FIRa-4HQtiJ3Jx3Suq-L-kgSAMKs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
