@@ -29,13 +29,16 @@ export type NotificationItem = {
 
 export type NotificationsFeedData = {
     unreadCount: number;
-    notifications: NotificationItem[];
+    items?: NotificationItem[];
+    notifications?: NotificationItem[];
 };
 
 export type NotificationsPageMeta = {
     page: number;
     pageSize: number;
     totalPages: number;
+    total?: number;
+    hasNext?: boolean;
 };
 
 export type NotificationsResponse = {

@@ -14,7 +14,7 @@ import {
     Users,
     XCircle,
 } from "lucide-react-native";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -26,9 +26,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
+import Skeleton from "@/components/ui/skeleton";
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import {
     useDeleteNotification,
+    useMarkAllNotificationsRead,
     useMarkNotificationRead,
     useMarkNotificationsSeen,
     useNotifications,
@@ -106,41 +109,46 @@ function NotificationRow({
         <View
             className={
                 notification.unread
-                    ? "flex-row items-center gap-3 rounded-2xl border border-primary/25 bg-active p-4"
-                    : "flex-row items-center gap-3 rounded-2xl bg-surface-lowest p-4"
+                    ? "flex-row items-center gap-3 rounded-xl border border-primary/20 bg-active p-3.5"
+                    : "flex-row items-center gap-3 rounded-xl bg-surface-low p-3.5"
             }
         >
             <Pressable
                 disabled={!canOpen && !notification.unread}
                 onPress={handlePressRow}
                 accessibilityRole="button"
-                accessibilityLabel={`${notification.actor.name} ${sentence}`}
+                accessibilityLabel={`${notification.actor?.name ?? "Someone"} ${sentence}`}
                 className="min-w-0 flex-1 flex-row items-center gap-3"
             >
                 <View className="relative">
                     <Avatar
-                        src={notification.actor.avatarUrl}
-                        name={notification.actor.name}
-                        className="h-11 w-11"
+                        src={notification.actor?.avatarUrl}
+                        name={notification.actor?.name ?? ""}
+                        className="h-10 w-10"
                     />
-                    <View className="absolute -bottom-0.5 -right-0.5 h-5 w-5 items-center justify-center rounded-full border border-surface-lowest bg-primary">
+                    <View className="absolute -bottom-0.5 -right-0.5 h-4.5 w-4.5 items-center justify-center rounded-full border border-surface-lowest bg-primary">
                         <NotificationTypeBadgeIcon
                             type={notification.type}
-                            size={11}
+                            size={10}
                             color={colors.buttonGradientText}
                         />
                     </View>
                 </View>
 
                 <View className="min-w-0 flex-1">
-                    <Text className="text-body-sm text-text-primary">
-                        <Text className="font-semibold">
-                            {notification.actor.name}
-                        </Text>{" "}
-                        {sentence}
-                    </Text>
+                    <View className="flex-row flex-wrap items-center gap-1.5">
+                        <Text className="text-body-sm text-text-primary">
+                            <Text className="font-semibold">
+                                {notification.actor?.name ?? "Someone"}
+                            </Text>{" "}
+                            {sentence}
+                        </Text>
+                        {notification.unread && (
+                            <View className="h-2 w-2 rounded-full bg-primary" />
+                        )}
+                    </View>
 
-                    <Text className="mt-1 text-label-sm text-text-secondary">
+                    <Text className="mt-1 text-label-xs text-text-secondary">
                         {formatRelativeTime(notification.createdAt)}
                     </Text>
                 </View>
@@ -154,7 +162,7 @@ function NotificationRow({
                         accessibilityRole="button"
                         accessibilityLabel="Mark as read"
                         hitSlop={6}
-                        className="h-8 w-8 items-center justify-center rounded-full bg-surface-low"
+                        className="h-8 w-8 items-center justify-center rounded-full bg-surface-lowest active:opacity-70"
                     >
                         <Check size={15} color={colors.primary} />
                     </Pressable>
@@ -166,7 +174,7 @@ function NotificationRow({
                     accessibilityRole="button"
                     accessibilityLabel="Delete notification"
                     hitSlop={6}
-                    className="h-8 w-8 items-center justify-center rounded-full bg-surface-low"
+                    className="h-8 w-8 items-center justify-center rounded-full bg-surface-lowest active:opacity-70"
                 >
                     <Trash2 size={15} color={colors.textSecondary} />
                 </Pressable>
@@ -178,6 +186,7 @@ function NotificationRow({
 export default function NotificationsScreen() {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
+    const { user } = useAuth();
 
     const {
         notifications,
@@ -191,10 +200,22 @@ export default function NotificationsScreen() {
     } = useNotifications();
 
     const markSeen = useMarkNotificationsSeen();
+    const markAllRead = useMarkAllNotificationsRead();
     const markRead = useMarkNotificationRead();
     const deleteRow = useDeleteNotification();
+    const isFocusedRef = useRef(false);
     const stampedVisitRef = useRef(false);
+    const unreadCountRef = useRef(unreadCount);
+    const isLoadingRef = useRef(isLoading);
     const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+    useEffect(() => {
+        unreadCountRef.current = unreadCount;
+    }, [unreadCount]);
+
+    useEffect(() => {
+        isLoadingRef.current = isLoading;
+    }, [isLoading]);
 
     async function handlePullRefresh() {
         setIsManualRefreshing(true);
@@ -207,17 +228,42 @@ export default function NotificationsScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            if (!stampedVisitRef.current && notifications.length >= 0) {
+            isFocusedRef.current = true;
+
+            // Stamp at most once when the screen gains focus, provided data is ready
+            if (
+                !stampedVisitRef.current &&
+                !isLoadingRef.current &&
+                unreadCountRef.current > 0
+            ) {
                 stampedVisitRef.current = true;
                 markSeen.mutate();
             }
+
             return () => {
+                isFocusedRef.current = false;
                 stampedVisitRef.current = false;
             };
-        }, [markSeen, notifications.length])
+        }, [markSeen])
     );
 
-    const visitUnreadCount = notifications.filter((n) => n.unread).length;
+    // If data finished loading while still focused on this visit, stamp once
+    useEffect(() => {
+        if (
+            isFocusedRef.current &&
+            !stampedVisitRef.current &&
+            !isLoading &&
+            unreadCount > 0
+        ) {
+            stampedVisitRef.current = true;
+            markSeen.mutate();
+        }
+    }, [isLoading, unreadCount, markSeen]);
+
+    const visitUnreadCount = useMemo(
+        () => notifications.filter((n) => n.unread).length,
+        [notifications]
+    );
 
     function goBack() {
         if (router.canGoBack()) {
@@ -229,7 +275,8 @@ export default function NotificationsScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>
-            <View className="flex-row items-center justify-between gap-2 px-2 py-2">
+            {/* Top Bar: Nav, Title, and Unread Count Pill */}
+            <View className="flex-row items-center justify-between gap-2 px-3 py-2">
                 <View className="flex-1 flex-row items-center gap-2">
                     <Pressable
                         onPress={goBack}
@@ -247,75 +294,103 @@ export default function NotificationsScreen() {
                     >
                         Notifications
                     </Text>
-
-                    {(unreadCount > 0 || visitUnreadCount > 0) && (
-                        <View className="rounded-full bg-primary px-2 py-0.5">
-                            <Text className="text-label-sm font-semibold text-on-primary">
-                                {Math.max(unreadCount, visitUnreadCount)} unread
-                            </Text>
-                        </View>
-                    )}
                 </View>
 
-                {visitUnreadCount > 0 && (
-                    <Pressable
-                        disabled={markSeen.isPending}
-                        onPress={() => markSeen.mutate()}
-                        accessibilityRole="button"
-                        accessibilityLabel="Mark all as read"
-                        hitSlop={8}
-                        className="mr-2 flex-row items-center gap-1 rounded-xl bg-surface-lowest px-3 py-1.5"
-                    >
-                        <CheckCheck size={15} color={colors.primary} />
-                        <Text className="text-label-sm font-semibold text-primary">
-                            Mark all read
-                        </Text>
-                    </Pressable>
-                )}
-            </View>
-
-            {isLoading ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator color={colors.primary} />
-                </View>
-            ) : error ? (
-                <View className="px-6 pt-8">
-                    <Text className="text-center text-body-sm text-error">
-                        {error instanceof ApiError
-                            ? error.message
-                            : "Could not load your notifications."}
+                <View className="flex-row items-center gap-1.5 rounded-full bg-active px-3 py-1.5">
+                    <Bell size={14} color={colors.primary} />
+                    <Text className="text-label-sm font-semibold text-primary">
+                        {visitUnreadCount} unread
                     </Text>
                 </View>
-            ) : (
-                <ScrollView
-                    contentContainerClassName="px-4 pb-8 pt-2"
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isManualRefreshing}
-                            onRefresh={() => {
-                                void handlePullRefresh();
-                            }}
-                            tintColor={colors.primary}
-                        />
-                    }
-                >
-                    {notifications.length === 0 ? (
-                        <View className="items-center rounded-2xl bg-surface-lowest px-4 py-10">
-                            <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-active">
-                                <Bell size={24} color={colors.primary} />
+            </View>
+
+            <ScrollView
+                contentContainerClassName="px-4 pb-8 pt-1"
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isManualRefreshing}
+                        onRefresh={() => {
+                            void handlePullRefresh();
+                        }}
+                        tintColor={colors.primary}
+                    />
+                }
+            >
+                <Text className="mb-4 px-1 text-body-sm text-text-secondary">
+                    Keep up with activity around your posts, profile, and communities.
+                </Text>
+
+                {/* Notifications Card */}
+                <View className="rounded-2xl bg-surface-lowest p-4">
+                    {/* Card Header: Recent Activity & Mark all as read */}
+                    <View className="mb-4 flex-row items-center justify-between gap-3">
+                        <View className="flex-1">
+                            <Text className="text-title-md font-semibold text-text-primary">
+                                Recent Activity
+                            </Text>
+                            {Boolean(user?.username) && (
+                                <Text className="mt-0.5 text-body-xs text-text-secondary">
+                                    Updates for @{user?.username}
+                                </Text>
+                            )}
+                        </View>
+
+                        {visitUnreadCount > 0 && (
+                            <Pressable
+                                disabled={markAllRead.isPending}
+                                onPress={() => markAllRead.mutate()}
+                                accessibilityRole="button"
+                                accessibilityLabel="Mark all as read"
+                                hitSlop={6}
+                                className="flex-row items-center gap-1.5 rounded-full bg-surface-low px-3 py-1.5 active:opacity-70"
+                            >
+                                <CheckCheck size={15} color={colors.primary} />
+                                <Text className="text-label-sm font-semibold text-primary">
+                                    Mark all as read
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
+
+                    {isLoading ? (
+                        <View className="gap-2.5">
+                            {Array.from({ length: 3 }, (_, index) => (
+                                <View
+                                    key={index}
+                                    className="flex-row items-start gap-3 rounded-xl bg-surface-low p-3.5"
+                                >
+                                    <Skeleton className="h-10 w-10 rounded-full" />
+                                    <View className="flex-1 gap-2 pt-1">
+                                        <Skeleton className="h-3.5 w-4/5 rounded-md" />
+                                        <Skeleton className="h-3 w-1/3 rounded-md" />
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    ) : error ? (
+                        <View className="py-6">
+                            <Text className="text-center text-body-sm text-error">
+                                {error instanceof ApiError
+                                    ? error.message
+                                    : "Could not load your notifications."}
+                            </Text>
+                        </View>
+                    ) : notifications.length === 0 ? (
+                        <View className="items-center py-10">
+                            <View className="mb-3 h-12 w-12 items-center justify-center rounded-full bg-active">
+                                <Bell size={22} color={colors.primary} />
                             </View>
 
-                            <Text className="text-title-lg font-semibold text-text-primary">
+                            <Text className="text-body-md font-semibold text-text-primary">
                                 You&apos;re all caught up
                             </Text>
 
-                            <Text className="mt-2 text-center text-body-sm text-text-secondary">
-                                Likes, comments, follows, and community activity
-                                will appear here.
+                            <Text className="mt-1 text-center text-body-xs text-text-secondary">
+                                Likes, comments, follows, and community activity will appear here.
                             </Text>
                         </View>
                     ) : (
-                        <View className="gap-3">
+                        <View className="gap-2.5">
                             {notifications.map((item) => (
                                 <NotificationRow
                                     key={item.id}
@@ -333,14 +408,15 @@ export default function NotificationsScreen() {
                                 <Pressable
                                     disabled={isLoadingMore}
                                     onPress={loadMore}
-                                    className="items-center rounded-2xl bg-surface-lowest py-3.5"
+                                    className="mt-2 items-center rounded-xl bg-surface-low py-3 active:opacity-70"
                                 >
                                     {isLoadingMore ? (
                                         <ActivityIndicator
+                                            size="small"
                                             color={colors.primary}
                                         />
                                     ) : (
-                                        <Text className="text-label-md font-semibold text-primary">
+                                        <Text className="text-label-sm font-semibold text-primary">
                                             Load earlier notifications
                                         </Text>
                                     )}
@@ -348,8 +424,8 @@ export default function NotificationsScreen() {
                             )}
                         </View>
                     )}
-                </ScrollView>
-            )}
+                </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }

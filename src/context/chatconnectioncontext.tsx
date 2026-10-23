@@ -24,7 +24,7 @@ import {
     TYPING_CHANGED_EVENT,
 } from "@/services/chatHub";
 import { getBackupInfo } from "@/services/keyRecovery";
-import { ensureDeviceKey } from "@/services/messageCrypto";
+import { decryptMessageContent, ensureDeviceKey } from "@/services/messageCrypto";
 import {
     registerCurrentDevicePushToken,
     subscribeToNotificationResponses,
@@ -34,6 +34,7 @@ import {
     markRecoveryPromptDismissed,
 } from "@/services/recoveryPrompt";
 import { Conversation, ConversationThread } from "@/types/message";
+import { NotificationItem, NotificationsResponse } from "@/types/notification";
 import { themes } from "@/theme/themes";
 
 export type ChatConnectionStatus =
@@ -282,11 +283,39 @@ export function ChatConnectionProvider({
         const connection = createChatConnection();
         connectionRef.current = connection;
 
-        connection.on(RECEIVE_MESSAGE_EVENT, () => {
-            void queryClient.invalidateQueries({
-                queryKey: queryKeys.conversations(),
-            });
-        });
+        connection.on(
+            RECEIVE_MESSAGE_EVENT,
+            (message?: {
+                encryptedPayload?: string | null;
+                EncryptedPayload?: string | null;
+                conversationId?: string | null;
+                ConversationId?: string | null;
+            }) => {
+                // The event carries the ciphertext, so it can be opened while the refetch below is
+                // still in flight. The bubble then mounts with its text already in the settled cache
+                // and never shows the decrypt skeleton — which is what a burst of messages used to
+                // flash on the receiving end.
+                const payload =
+                    message?.encryptedPayload ?? message?.EncryptedPayload;
+                if (payload) {
+                    void decryptMessageContent(payload).catch(() => undefined);
+                }
+
+                void queryClient.invalidateQueries({
+                    queryKey: queryKeys.conversations(),
+                    exact: true,
+                });
+
+                const conversationId =
+                    message?.conversationId ?? message?.ConversationId;
+                if (conversationId) {
+                    void queryClient.invalidateQueries({
+                        queryKey: queryKeys.conversation(conversationId),
+                        refetchType: "active",
+                    });
+                }
+            }
+        );
 
         connection.on(
             PRESENCE_CHANGED_EVENT,
@@ -312,11 +341,55 @@ export function ChatConnectionProvider({
             );
         });
 
-        connection.on(NOTIFICATION_CREATED_EVENT, () => {
-            void queryClient.invalidateQueries({
-                queryKey: queryKeys.notifications(),
-            });
-        });
+        connection.on(
+            NOTIFICATION_CREATED_EVENT,
+            (notification?: NotificationItem) => {
+                if (notification?.id) {
+                    queryClient.setQueryData<
+                        InfiniteData<NotificationsResponse>
+                    >(queryKeys.notifications(), (current) => {
+                        if (!current || !current.pages.length) return current;
+
+                        const firstPage = current.pages[0];
+                        const existingItems =
+                            firstPage.data?.items ??
+                            firstPage.data?.notifications ??
+                            [];
+
+                        if (
+                            existingItems.some((i) => i.id === notification.id)
+                        ) {
+                            return current;
+                        }
+
+                        return {
+                            ...current,
+                            pages: current.pages.map((page, index) =>
+                                index === 0
+                                    ? {
+                                          ...page,
+                                          data: {
+                                              ...page.data,
+                                              unreadCount:
+                                                  (page.data?.unreadCount ??
+                                                      0) + 1,
+                                              items: [
+                                                  notification,
+                                                  ...existingItems,
+                                              ],
+                                          },
+                                      }
+                                    : page
+                            ),
+                        };
+                    });
+                }
+
+                void queryClient.invalidateQueries({
+                    queryKey: queryKeys.notifications(),
+                });
+            }
+        );
 
         connection.onreconnecting(() => {
             if (!disposed) setStatus("reconnecting");
@@ -327,6 +400,7 @@ export function ChatConnectionProvider({
             setStatus("live");
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.conversations(),
+                exact: true,
             });
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.notifications(),
