@@ -78,6 +78,20 @@ export function subscribeToNotificationResponses(
     if (!Notifications) return () => {};
 
     try {
+        // Handle cold start when user taps a notification while app was completely closed
+        Notifications.getLastNotificationResponseAsync()
+            .then((response) => {
+                if (response) {
+                    const data = response.notification.request.content.data as
+                        | Record<string, unknown>
+                        | undefined;
+                    if (data) {
+                        onData(data);
+                    }
+                }
+            })
+            .catch(() => {});
+
         const sub = Notifications.addNotificationResponseReceivedListener(
             (response) => {
                 const data = response.notification.request.content.data as
