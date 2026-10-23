@@ -738,3 +738,47 @@ Middleware pipeline ordering violated Microsoft guidance: static files middlewar
 - **Verification:**
   - `dotnet build`: 0 warnings, 0 errors.
   - Backend daemon restarted on port 5289.
+
+
+---
+
+## 26. Mobile API URL Normalization & Double `/api` 404 Prevention
+
+### Symptom
+When attempting to sign in (`POST /api/Auth/login`) or create an account (`POST /api/Auth/register`) on the mobile app, the submission immediately failed and displayed a red banner with:
+`Request failed with status 404`
+
+### Root Cause
+1. **Double `/api` Concatenation from EAS Build Config:**
+   - In `eas.json`, `preview` and `production` build profiles defined `"EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net/api"`.
+   - In the mobile app's API services (`src/api/*.ts`), all routes explicitly prefix endpoints with `/api/` (e.g. `apiFetch("/api/Auth/login")`, `apiFetch("/api/Posts")`).
+   - In `src/api/client.ts`, requests are constructed as `fetch(`${API_URL}${endpoint}`)`.
+   - When combined, requests hit `https://circlehub.runasp.net/api/api/Auth/login`. Because this route does not exist in ASP.NET Core, IIS returned an empty HTTP 404.
+2. **Missing Normalization on Trailing Slashes:**
+   - In `src/config/env.ts`, `API_URL` was assigned directly from `process.env.EXPO_PUBLIC_API_URL` without sanitization. If configured with a trailing slash (e.g. `http://circlehub.runasp.net/`), concatenation produced `http://circlehub.runasp.net//api/Auth/login` (double slash `//`), which IIS also returns 404 for.
+3. **Unparseable 404 Bodies Fallback:**
+   - `client.ts` attempts to parse error bodies with `response.json()`. Because IIS returns 404 with 0 bytes or an HTML page, `readErrorBody` returns `null`, causing `messageFromBody` to fallback to the literal string `"Request failed with status 404"`.
+
+### Fix
+- **Files:**
+  - `src/config/env.ts`
+  - `eas.json`
+  - `CircleHub/src/context/ChatConnectionContext.jsx` (web parity)
+- **Changes:**
+  - **`src/config/env.ts`:**
+    - Added defensive regex cleanup to automatically strip trailing slashes and trailing `/api`:
+      ```ts
+      const rawUrl = process.env.EXPO_PUBLIC_API_URL ?? "http://192.168.1.2:5289";
+      const API_URL = rawUrl.replace(/\/+$/, "").replace(/\/api$/, "");
+      export { API_URL };
+      ```
+  - **`eas.json`:**
+    - Changed `preview` and `production` environments from `"https://circlehub.runasp.net/api"` to `"https://circlehub.runasp.net"`.
+  - **`CircleHub/src/context/ChatConnectionContext.jsx`:**
+    - Updated web chat invalidation to use `{ exact: true }` on `queryKeys.conversations()` and specifically invalidate `queryKeys.conversation(message.conversationId)` for complete architectural consistency with mobile.
+- **Verification:**
+  - `npm test`: 16/16 test suites passed (104/104 tests).
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors, 0 warnings.
+  - Web Vite build (`npm run build`): 0 errors, built in 6.24s.
+  - Live probe against `https://circlehub.runasp.net/api/Posts` and `https://circlehub.runasp.net/api/Auth/login` verified 200 OK and 401 Unauthorized (proper controller response).

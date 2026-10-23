@@ -15,14 +15,14 @@
       "distribution": "internal",
       "env": {
         "APP_NAME": "CircleHub",
-        "EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net/api"
+        "EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "APP_NAME": "CircleHub",
-        "EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net/api"
+        "EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net"
       }
     }
   },
