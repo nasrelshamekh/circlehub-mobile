@@ -1,7 +1,7 @@
 import { router } from "expo-router";
-import { LoaderCircle, MailCheck, Send } from "lucide-react-native";
+import { MailCheck, Send } from "lucide-react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 import { forgotPassword } from "@/api/auth";
 import { AuthHeader, AuthLayout } from "@/components/auth/authlayout";
@@ -110,8 +110,8 @@ export default function ForgotPasswordScreen() {
                     disabled={submitting}
                     icon={
                         submitting ? (
-                            <LoaderCircle
-                                size={18}
+                            <ActivityIndicator
+                                size="small"
                                 color={colors.buttonGradientText}
                             />
                         ) : (

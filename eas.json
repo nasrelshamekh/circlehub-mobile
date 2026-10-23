@@ -6,13 +6,24 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "APP_NAME": "CircleHub"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "APP_NAME": "CircleHub",
+        "EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net/api"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_NAME": "CircleHub",
+        "EXPO_PUBLIC_API_URL": "https://circlehub.runasp.net/api"
+      }
     }
   },
   "submit": {

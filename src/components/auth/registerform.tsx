@@ -1,12 +1,7 @@
 import { router } from "expo-router";
-import {
-    CalendarDays,
-    ChevronDown,
-    LoaderCircle,
-    UserPlus,
-} from "lucide-react-native";
+import { CalendarDays, ChevronDown, UserPlus } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { AuthHeader, AuthLayout } from "@/components/auth/authlayout";
 import GenderModal, { genderLabel } from "@/components/auth/gendermodal";
@@ -288,8 +283,8 @@ export default function RegisterForm({ onRegistered }: RegisterFormProps) {
                         disabled={submitting}
                         icon={
                             submitting ? (
-                                <LoaderCircle
-                                    size={18}
+                                <ActivityIndicator
+                                    size="small"
                                     color={colors.buttonGradientText}
                                 />
                             ) : (

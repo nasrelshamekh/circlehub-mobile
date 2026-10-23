@@ -2,6 +2,7 @@ import { CirclePlus, CircleUser, Compass, Home, Users } from "lucide-react-nativ
 import { router, Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import SidebarDrawer from "@/components/sidebar/sidebardrawer";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 
@@ -12,29 +13,30 @@ export default function TabsLayout() {
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     return (
-        <Tabs
-            screenOptions={{
-                tabBarActiveTintColor: colors.primary,
-                tabBarInactiveTintColor: colors.textPrimary,
+        <SidebarDrawer>
+            <Tabs
+                screenOptions={{
+                    tabBarActiveTintColor: colors.primary,
+                    tabBarInactiveTintColor: colors.textPrimary,
 
-                tabBarStyle: {
-                    height: 70 + insets.bottom,
-                    paddingTop: 8,
-                    paddingBottom: insets.bottom + 8,
-                    backgroundColor: colors.surface,
-                    borderTopWidth: 0,
-                },
+                    tabBarStyle: {
+                        height: 70 + insets.bottom,
+                        paddingTop: 8,
+                        paddingBottom: insets.bottom + 8,
+                        backgroundColor: colors.surface,
+                        borderTopWidth: 0,
+                    },
 
-                tabBarLabelStyle: {
-                    fontSize: 12,
-                    fontWeight: "500",
-                },
+                    tabBarLabelStyle: {
+                        fontSize: 12,
+                        fontWeight: "500",
+                    },
 
-                tabBarHideOnKeyboard: true,
+                    tabBarHideOnKeyboard: true,
 
-                headerShown: false,
-            }}
-        >
+                    headerShown: false,
+                }}
+            >
             <Tabs.Screen
                 name="index"
                 options={{
@@ -102,5 +104,6 @@ export default function TabsLayout() {
             <Tabs.Screen name="communities" options={{ href: null }} />
             <Tabs.Screen name="edit-profile" options={{ href: null }} />
         </Tabs>
+        </SidebarDrawer>
     );
 }

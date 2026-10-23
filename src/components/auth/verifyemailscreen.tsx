@@ -1,13 +1,14 @@
 import { router } from "expo-router";
-import {
-    CheckCircle2,
-    LoaderCircle,
-    MailCheck,
-    MailX,
-    RefreshCw,
-} from "lucide-react-native";
+import { CheckCircle2, MailCheck, MailX, RefreshCw } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import {
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    Text,
+    TextInput,
+    View,
+} from "react-native";
 
 import { resendVerification } from "@/api/auth";
 import { AuthHeader, AuthLayout } from "@/components/auth/authlayout";
@@ -100,7 +101,10 @@ export default function VerifyEmailScreen({
                         ) : showPending ? (
                             <MailCheck size={36} color={colors.primary} />
                         ) : showVerifying ? (
-                            <LoaderCircle size={36} color={colors.primary} />
+                            <ActivityIndicator
+                                size="large"
+                                color={colors.primary}
+                            />
                         ) : (
                             <MailX size={36} color={colors.error} />
                         )}
@@ -134,8 +138,8 @@ export default function VerifyEmailScreen({
                         style={resending ? { opacity: 0.6 } : undefined}
                     >
                         {resending ? (
-                            <LoaderCircle
-                                size={18}
+                            <ActivityIndicator
+                                size="small"
                                 color={colors.textSecondary}
                             />
                         ) : (
@@ -179,8 +183,8 @@ export default function VerifyEmailScreen({
                             disabled={resending || !trimmedEmail}
                             icon={
                                 resending ? (
-                                    <LoaderCircle
-                                        size={18}
+                                    <ActivityIndicator
+                                        size="small"
                                         color={colors.buttonGradientText}
                                     />
                                 ) : (

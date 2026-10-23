@@ -10,8 +10,10 @@ import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
 import { useNotifications } from "@/hooks/useNotifications";
 import { themeColors } from "@/theme/colors";
+import { useSidebarDrawer } from "@/context/sidebardrawercontext";
 
 export default function Header() {
+    const { openSidebar } = useSidebarDrawer();
     const [menuOpen, setMenuOpen] = useState(false);
     const { isDark, toggleTheme } = useTheme();
     const { signOut, user } = useAuth();
@@ -34,14 +36,21 @@ export default function Header() {
     return (
         <SafeAreaView edges={["top"]} className="bg-background">
             <View className="relative z-50">
-                <View className="h-20 flex-row items-center justify-between px-6">
-                    <Image
-                        source={require("@/assets/images/circlehub-logo.png")}
-                        className="h-12 w-[145px]"
-                        resizeMode="contain"
-                    />
+                <View className="h-16 flex-row items-center justify-between px-4">
+                    <Pressable
+                        onPress={openSidebar}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open sidebar menu"
+                        hitSlop={16}
+                    >
+                        <Image
+                            source={require("@/assets/images/circlehub-logo.png")}
+                            className="h-12 w-[145px]"
+                            resizeMode="contain"
+                        />
+                    </Pressable>
 
-                    <View className="flex-row items-center gap-3">
+                    <View className="flex-row items-center gap-2">
                         <Pressable
                             onPress={() => router.push("/messages")}
                             accessibilityRole="button"
@@ -50,12 +59,13 @@ export default function Header() {
                                     ? `Messages, ${unreadCount} unread`
                                     : "Messages"
                             }
-                            className="relative items-center justify-center"
+                            hitSlop={12}
+                            className="relative h-11 w-11 items-center justify-center rounded-full active:bg-surface-high/30"
                         >
                             <MessageCircle size={22} color={colors.textPrimary} />
 
                             {unreadCount > 0 && (
-                                <View className="absolute -right-1.5 -top-1 min-w-5 items-center justify-center rounded-full bg-primary px-1 py-0.5">
+                                <View className="absolute -right-0.5 -top-0.5 min-w-5 items-center justify-center rounded-full bg-primary px-1 py-0.5">
                                     <Text className="text-label-sm font-semibold text-on-primary">
                                         {unreadCount}
                                     </Text>
@@ -71,12 +81,13 @@ export default function Header() {
                                     ? `Notifications, ${unreadNotifications} unread`
                                     : "Notifications"
                             }
-                            className="relative items-center justify-center"
+                            hitSlop={12}
+                            className="relative h-11 w-11 items-center justify-center rounded-full active:bg-surface-high/30"
                         >
                             <Bell size={22} color={colors.textPrimary} />
 
                             {unreadNotifications > 0 && (
-                                <View className="absolute -right-1.5 -top-1 min-w-5 items-center justify-center rounded-full bg-primary px-1 py-0.5">
+                                <View className="absolute -right-0.5 -top-0.5 min-w-5 items-center justify-center rounded-full bg-primary px-1 py-0.5">
                                     <Text className="text-label-sm font-semibold text-on-primary">
                                         {unreadNotifications}
                                     </Text>
@@ -88,14 +99,18 @@ export default function Header() {
                             onPress={() => router.push("/communities")}
                             accessibilityRole="button"
                             accessibilityLabel="Communities"
-                            className="items-center justify-center"
+                            hitSlop={12}
+                            className="h-11 w-11 items-center justify-center rounded-full active:bg-surface-high/30"
                         >
                             <Network size={22} color={colors.textPrimary} />
                         </Pressable>
 
                         <Pressable
                             onPress={() => setMenuOpen((prev) => !prev)}
-                            className="items-center justify-center"
+                            accessibilityRole="button"
+                            accessibilityLabel="Open user menu"
+                            hitSlop={12}
+                            className="ml-0.5 h-11 w-11 items-center justify-center rounded-full"
                         >
                             <Avatar
                                 src={user?.avatarUrl}

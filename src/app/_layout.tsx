@@ -1,6 +1,7 @@
 import "../global.css";
 
 import { QueryClientProvider } from "@tanstack/react-query";
+import * as NavigationBar from "expo-navigation-bar";
 import {
     DarkTheme,
     DefaultTheme,
@@ -8,10 +9,9 @@ import {
     ThemeProvider as NavigationThemeProvider,
 } from "expo-router";
 import type { ErrorBoundaryProps } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, StatusBar, View } from "react-native";
 
 import ErrorFallback from "@/components/errors/errorfallback";
 import { AuthProvider, useAuth } from "@/context/authcontext";
@@ -62,7 +62,16 @@ function RootNavigator() {
 
     useEffect(() => {
         SystemUI.setBackgroundColorAsync(stackBackground).catch(() => {});
-    }, [stackBackground]);
+        if (Platform.OS === "android") {
+            StatusBar.setTranslucent(true);
+            StatusBar.setBackgroundColor("transparent");
+            StatusBar.setBarStyle(isDark ? "light-content" : "dark-content");
+            try {
+                (NavigationBar as any).setStyle?.(isDark ? "light" : "dark");
+                (NavigationBar as any).setBackgroundColorAsync?.(stackBackground).catch(() => {});
+            } catch {}
+        }
+    }, [isDark, stackBackground]);
 
     if (status === "loading") {
         return (
@@ -70,7 +79,11 @@ function RootNavigator() {
                 className="flex-1 items-center justify-center bg-surface-low"
                 style={theme}
             >
-                <StatusBar style={isDark ? "light" : "dark"} />
+                <StatusBar
+                    barStyle={isDark ? "light-content" : "dark-content"}
+                    backgroundColor="transparent"
+                    translucent
+                />
                 <ActivityIndicator size="large" />
             </View>
         );
@@ -78,7 +91,11 @@ function RootNavigator() {
 
     return (
         <View className="flex-1" style={theme}>
-            <StatusBar style={isDark ? "light" : "dark"} />
+            <StatusBar
+                barStyle={isDark ? "light-content" : "dark-content"}
+                backgroundColor="transparent"
+                translucent
+            />
             <NavigationThemeProvider value={navTheme}>
                 <Stack
                     screenOptions={{

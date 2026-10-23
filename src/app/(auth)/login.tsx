@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { LoaderCircle, LogIn } from "lucide-react-native";
+import { LogIn } from "lucide-react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 import { AuthHeader, AuthLayout } from "@/components/auth/authlayout";
 import PasswordField from "@/components/auth/passwordfield";
@@ -138,8 +138,8 @@ export default function Login() {
                     disabled={submitting}
                     icon={
                         submitting ? (
-                            <LoaderCircle
-                                size={18}
+                            <ActivityIndicator
+                                size="small"
                                 color={colors.buttonGradientText}
                             />
                         ) : (

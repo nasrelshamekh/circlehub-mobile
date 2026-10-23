@@ -41,13 +41,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }, [isManual]);
 
     const toggleTheme = useCallback(() => {
-        const next: ColorScheme = scheme === "dark" ? "light" : "dark";
-
-        setIsManual(true);
-        setScheme(next);
-
-        nativeColorScheme.set(next);
-    }, [scheme]);
+        setScheme((current) => {
+            const next: ColorScheme = current === "dark" ? "light" : "dark";
+            setIsManual(true);
+            nativeColorScheme.set(next);
+            return next;
+        });
+    }, []);
 
     const value = useMemo(
         () => ({ isDark: scheme === "dark", toggleTheme }),

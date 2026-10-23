@@ -23,6 +23,15 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.nasrdev97.circlehubmobile"
     },
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#00000000",
+      "translucent": true
+    },
+    "androidNavigationBar": {
+      "visible": "always",
+      "barStyle": "dark-content"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
@@ -44,6 +53,12 @@
           "photosPermission": "Allow CircleHub to access your photos so you can add them to posts.",
           "cameraPermission": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
         }
       ]
     ],

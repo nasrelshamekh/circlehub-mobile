@@ -1,11 +1,7 @@
 import { router } from "expo-router";
-import {
-    CheckCircle2,
-    LoaderCircle,
-    ShieldAlert,
-} from "lucide-react-native";
+import { CheckCircle2, ShieldAlert } from "lucide-react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 import { resetPassword } from "@/api/auth";
 import { AuthHeader, AuthLayout } from "@/components/auth/authlayout";
@@ -168,8 +164,8 @@ export default function ResetPasswordScreen({
                     disabled={submitting}
                     icon={
                         submitting ? (
-                            <LoaderCircle
-                                size={18}
+                            <ActivityIndicator
+                                size="small"
                                 color={colors.buttonGradientText}
                             />
                         ) : (
