@@ -1,11 +1,13 @@
 import { router } from "expo-router";
-import { MoreHorizontal } from "lucide-react-native";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
 import EditPostModal from "@/components/editpostmodal";
 import PostActions from "@/components/postactions";
+import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
+import ConfirmModal from "@/components/ui/confirmmodal";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useDeletePost from "@/hooks/mutations/useDeletePost";
@@ -14,8 +16,6 @@ import { getImageUrl } from "@/lib/imageUrl";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { Post } from "@/types/post";
-
-import type { AlertButton } from "react-native";
 
 export default function PostCard({
     post,
@@ -41,6 +41,10 @@ export default function PostCard({
     const deletePost = useDeletePost();
 
     const [editOpen, setEditOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -73,36 +77,48 @@ export default function PostCard({
 
     async function handleDelete() {
         try {
+            setIsDeleting(true);
+            setDeleteError(null);
             await deletePost.mutateAsync({ post, community });
+            setConfirmDeleteOpen(false);
             onDeleted?.();
         } catch (caught) {
-            Alert.alert(
-                "Could not delete post",
+            setDeleteError(
                 caught instanceof ApiError
                     ? caught.message
                     : "Please try again."
             );
+        } finally {
+            setIsDeleting(false);
         }
     }
 
+    const menuOptions: ActionOption[] = [];
+
+    if (isOwner) {
+        menuOptions.push({
+            key: "edit",
+            label: "Edit post",
+            icon: <Pencil size={18} color={colors.textPrimary} />,
+            onPress: () => setEditOpen(true),
+        });
+    }
+
+    if (canDeletePost) {
+        menuOptions.push({
+            key: "delete",
+            label: "Delete post",
+            destructive: true,
+            icon: <Trash2 size={18} color={colors.error} />,
+            onPress: () => {
+                setDeleteError(null);
+                setConfirmDeleteOpen(true);
+            },
+        });
+    }
+
     function openMenu() {
-        const buttons: AlertButton[] = [];
-
-        if (isOwner) {
-            buttons.push({ text: "Edit post", onPress: () => setEditOpen(true) });
-        }
-
-        if (canDeletePost) {
-            buttons.push({
-                text: "Delete post",
-                style: "destructive",
-                onPress: handleDelete,
-            });
-        }
-
-        buttons.push({ text: "Cancel", style: "cancel" });
-
-        Alert.alert("Post options", undefined, buttons);
+        setMenuOpen(true);
     }
 
     return (
@@ -202,6 +218,30 @@ export default function PostCard({
             {editOpen && (
                 <EditPostModal post={post} onClose={() => setEditOpen(false)} />
             )}
+
+            <ActionModal
+                visible={menuOpen}
+                title="Post options"
+                options={menuOptions}
+                onClose={() => setMenuOpen(false)}
+            />
+
+            <ConfirmModal
+                visible={confirmDeleteOpen}
+                title="Delete post?"
+                message={
+                    deleteError ??
+                    "Are you sure you want to delete this post? This action cannot be undone."
+                }
+                confirmText="Delete"
+                destructive
+                loading={isDeleting}
+                onCancel={() => {
+                    setConfirmDeleteOpen(false);
+                    setDeleteError(null);
+                }}
+                onConfirm={handleDelete}
+            />
         </>
     );
 }

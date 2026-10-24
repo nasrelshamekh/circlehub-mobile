@@ -1,15 +1,17 @@
-import { MoreHorizontal } from "lucide-react-native";
-import { PostComment } from "@/types/post";
-
-import { Alert, Pressable, Text, View } from "react-native";
+import { MoreHorizontal, Trash2 } from "lucide-react-native";
+import { useState } from "react";
+import { Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
+import ConfirmModal from "@/components/ui/confirmmodal";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useDeleteComment from "@/hooks/mutations/useDeleteComment";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
+import { PostComment } from "@/types/post";
 
 export default function CommentItem({
     postId,
@@ -22,31 +24,50 @@ export default function CommentItem({
     const { user } = useAuth();
     const deleteComment = useDeleteComment();
 
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     const isOwner = user?.id === comment.author.id;
 
     async function handleDelete() {
         try {
+            setIsDeleting(true);
+            setDeleteError(null);
             await deleteComment.mutateAsync({
                 postId,
                 commentId: comment.id,
             });
+            setConfirmDeleteOpen(false);
         } catch (caught) {
-            Alert.alert(
-                "Could not delete comment",
+            setDeleteError(
                 caught instanceof ApiError
                     ? caught.message
                     : "Please try again."
             );
+        } finally {
+            setIsDeleting(false);
         }
     }
 
+    const menuOptions: ActionOption[] = [
+        {
+            key: "delete",
+            label: "Delete comment",
+            destructive: true,
+            icon: <Trash2 size={16} color={colors.error} />,
+            onPress: () => {
+                setDeleteError(null);
+                setConfirmDeleteOpen(true);
+            },
+        },
+    ];
+
     function openMenu() {
-        Alert.alert("Comment options", undefined, [
-            { text: "Delete comment", style: "destructive", onPress: handleDelete },
-            { text: "Cancel", style: "cancel" },
-        ]);
+        setMenuOpen(true);
     }
 
     return (
@@ -88,6 +109,30 @@ export default function CommentItem({
                     {comment.content}
                 </Text>
             </View>
+
+            <ActionModal
+                visible={menuOpen}
+                title="Comment options"
+                options={menuOptions}
+                onClose={() => setMenuOpen(false)}
+            />
+
+            <ConfirmModal
+                visible={confirmDeleteOpen}
+                title="Delete comment?"
+                message={
+                    deleteError ??
+                    "Are you sure you want to delete this comment? This action cannot be undone."
+                }
+                confirmText="Delete"
+                destructive
+                loading={isDeleting}
+                onCancel={() => {
+                    setConfirmDeleteOpen(false);
+                    setDeleteError(null);
+                }}
+                onConfirm={handleDelete}
+            />
         </View>
     );
 }

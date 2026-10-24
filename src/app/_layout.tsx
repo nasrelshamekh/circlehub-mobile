@@ -11,9 +11,10 @@ import {
 import type { ErrorBoundaryProps } from "expo-router";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
-import { ActivityIndicator, Platform, StatusBar, View } from "react-native";
+import { Platform, StatusBar, View } from "react-native";
 
 import ErrorFallback from "@/components/errors/errorfallback";
+import AppLoadingScreen from "@/components/ui/apploadingscreen";
 import { AuthProvider, useAuth } from "@/context/authcontext";
 import { ChatConnectionProvider } from "@/context/chatconnectioncontext";
 import { ThemeProvider, useTheme } from "@/context/themecontext";
@@ -74,19 +75,7 @@ function RootNavigator() {
     }, [isDark, stackBackground]);
 
     if (status === "loading") {
-        return (
-            <View
-                className="flex-1 items-center justify-center bg-surface-low"
-                style={theme}
-            >
-                <StatusBar
-                    barStyle={isDark ? "light-content" : "dark-content"}
-                    backgroundColor="transparent"
-                    translucent
-                />
-                <ActivityIndicator size="large" />
-            </View>
-        );
+        return <AppLoadingScreen />;
     }
 
     return (
