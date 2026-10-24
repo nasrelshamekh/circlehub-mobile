@@ -835,7 +835,6 @@ When inside an active conversation thread (`src/app/(tabs)/messages/[id].tsx`), 
   - `npx tsc --noEmit`: 0 errors.
   - `npm run lint`: 0 errors.
 
-
 ---
 
 ## 29. Firebase Cloud Messaging (FCM V1) Configuration for Android Push Notifications
@@ -854,3 +853,131 @@ To enable background push notifications when the mobile app is closed on Android
   - `npm test`: 16/16 test suites passed (104/104 tests).
   - `npx tsc --noEmit`: 0 errors.
   - `npm run lint`: 0 errors.
+
+---
+
+## 30. Transparent Monochrome Android Notification Icon
+
+### Symptom
+When push notifications arrived on Android, the notification icon in the Android status bar and top-down notification shade rendered as an opaque white square or truncated mark instead of a clean, transparent logo.
+
+### Root Cause
+Android requires notification icons (unlike launcher icons) to have a transparent background with pure white (`#FFFFFF`) silhouette pixels. The notification configuration in `app.json` was previously pointing to `circlehub-app-icon.png` (which has a solid white `#FFFFFF` background), causing Android's alpha-mask compositor to treat the entire 1024x1024 rectangle as solid.
+
+### Fix
+- **Files:**
+  - `assets/images/notification-icon.png` (created)
+  - `app.json`
+- **Changes:**
+  - Generated a dedicated 512x512 transparent monochrome PNG (`notification-icon.png`) with the pure white CircleHub two-circles silhouette centered within the standard 24dp safe area.
+  - Updated the `expo-notifications` plugin configuration in `app.json`:
+    ```json
+    [
+      "expo-notifications",
+      {
+        "icon": "./assets/images/notification-icon.png",
+        "color": "#6366F1",
+        "defaultChannel": "default"
+      }
+    ]
+    ```
+
+---
+
+## 31. Notification Stacking & Multi-line Preview Expansion
+
+### Symptom
+1. Multiple messages from the same sender or conversation flooded the notification tray with separate notification cards.
+2. Dragging down / expanding the notification in Android's drawer enlarged the sender's avatar into a giant picture banner (`BigPictureStyle`), rather than revealing message previews.
+
+### Root Cause
+1. Expo push notifications lacked conversation coalescing tags.
+2. Supplying `richContent: { image: avatarUrl }` in push payloads forced Android to activate `NotificationCompat.BigPictureStyle`, replacing the text expansion with a large image banner.
+
+### Fix
+- **Files:**
+  - `CircleHub.Api/Services/MessageDeliveryService.cs`
+  - `CircleHub.Api/Services/NotificationService.cs`
+  - `CircleHub.Api/Controllers/MessagesController.cs`
+- **Changes:**
+  - Added conversation tags (`tag = $"chat_{conversationId}"`) so Android groups messages into a single slot.
+  - Removed `imageUrl` on chat notifications to allow Android's native `BigTextStyle` to activate instead of `BigPictureStyle`.
+  - Maintained an in-memory buffer of up to 3 recent message previews formatted with newlines (`\n`). Pulling down expands to reveal up to 3 messages.
+  - Added `ClearUnreadPreviews` triggered when the recipient opens the conversation thread.
+
+---
+
+## 32. Web Message Composer Instant Optimistic Clearing
+
+### Symptom
+On the web app, typing a message and clicking Send kept the text inside the input box until the backend responded, preventing immediate typing of follow-up messages.
+
+### Root Cause
+`MessageComposer.jsx` had a `sendMessage.isPending` check and only cleared `setText("")` in the React Query mutation's `onSuccess` callback.
+
+### Fix
+- **File:** `CircleHub/src/components/messages/MessageComposer.jsx`
+- **Changes:**
+  - Cleared `setText("")` and reset textarea height immediately at the start of `sendContent()`.
+  - Removed `isPending` send locks to permit smooth, consecutive message sending.
+
+---
+
+## 33. Interactive Feed Cards & Natural Aspect Ratio Post Details
+
+### Symptom
+Tapping post text or images in feed cards did not navigate to the post details page, and images on the post details page were constrained or cropped.
+
+### Fix
+- **Files:**
+  - Mobile: `src/components/postcard.tsx`, `src/app/(tabs)/post/[id].tsx`
+  - Web: `src/components/postcard/PostContent.jsx`, `src/components/post/Post.jsx`, `src/pages/PostDetails/PostDetails.jsx`
+- **Changes:**
+  - Wrapped post content and images with pressable/link navigation targeting `/post/${post.id}` when in feed/profile/community views.
+  - On details pages (`isDetailsPage={true}`), images compute their natural aspect ratio dynamically and display at 100% width without height clipping.
+
+---
+
+## 34. Themed Brand Animated Loading Screen (Webapp Parity)
+
+### Symptom
+When opening the mobile app, the initial auth verification displayed an unstyled default grey `ActivityIndicator` in the center of the screen.
+
+### Root Cause
+`_layout.tsx` rendered `<ActivityIndicator size="large" />` with no color or brand animation when `status === "loading"`.
+
+### Fix
+- **Files:**
+  - `src/components/ui/apploadingscreen.tsx` (created)
+  - `src/app/_layout.tsx`
+- **Changes:**
+  - Created `AppLoadingScreen` featuring the official CircleHub logo with a smooth 1.6s looping pulse animation (scale from `0.98` to `1.03`, opacity from `0.6` to `1.0`) matching the web app's `AuthContext` loading behavior.
+  - Positioned an `ActivityIndicator` colored with the active theme's primary color (`#4648d4` in light mode, `#bdc2ff` in dark mode) below the logo.
+  - Container styled with `bg-surface-low`, theme variables, and matching translucent status bar.
+
+---
+
+## 35. Consistent In-App Options & Confirm Modals
+
+### Symptom
+Tapping the 3 horizontal dots on a post or comment displayed a native OS `Alert.alert` dialog with system grey/white styling that was inconsistent with the app's dark/light theme and card aesthetics.
+
+### Root Cause
+`src/components/postcard.tsx` and `src/components/comment/commentitem.tsx` used React Native's `Alert.alert` for menus and action prompts.
+
+### Fix
+- **Files:**
+  - `src/components/ui/actionmodal.tsx` (created)
+  - `src/components/ui/confirmmodal.tsx` (created)
+  - `src/components/postcard.tsx`
+  - `src/components/comment/commentitem.tsx`
+  - `__tests__/components/modals.test.tsx` (created)
+- **Changes:**
+  - Created `ActionModal`: A centered card options modal (`rounded-2xl bg-surface-lowest`, dark scrim backdrop `bg-black/50`, theme variables, fade animation) rendering action items with Lucide icons (`Pencil` for edit, `Trash2` with `text-error` for delete) and a themed "Cancel" button.
+  - Created `ConfirmModal`: A themed confirmation modal with title, message, cancel button, and confirm button with loading spinner and destructive `bg-error` styling.
+  - Integrated `ActionModal` and `ConfirmModal` into `PostCard` and `CommentItem`, eliminating native alerts.
+- **Verification:**
+  - `npm test`: 17/17 test suites passed (108/108 tests).
+  - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors.
+

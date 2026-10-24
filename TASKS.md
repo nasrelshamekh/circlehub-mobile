@@ -10,9 +10,10 @@ place and what is still open. Keep it current when parity work lands.
 - **Email verification** — deep-linkable `verify-email` screen, resend, and unverified-login
   routing to the verify screen (web parity).
 - **Feed & explore** — public feed, post detail, comments, likes, browse/search communities.
-- **Posts** — create, edit, delete; text with an optional single image; community posts; full-screen
-  slide-up/slide-down Create Post modal (`presentation: "transparentModal"`, `animation: "slide_from_bottom"`)
-  matching the Send Post modal header and close button.
+- **Posts & Comments** — create, edit, delete; text with an optional single image; community posts; full-screen
+  slide-up/slide-down Create Post modal (`presentation: "transparentModal"`, `animation: "slide_from_bottom"`);
+  pressable post cards that navigate to post details with full natural image height display;
+  consistent themed in-app `ActionModal` and `ConfirmModal` for post and comment options/deletion (replacing native OS alerts).
 - **Communities** — browse, create, join/leave, and the detail screen (Posts / Members / Media /
   About tabs).
 - **Manage community** (admins & moderators) — settings, members, and join requests (including
@@ -33,11 +34,13 @@ place and what is still open. Keep it current when parity work lands.
 - **Notifications & Push** — in-app `/notifications` screen, live header bell unread badge,
   `NotificationCreated` real-time updates, once-per-visit seen stamp, "Mark all as read", per-row
   mark-as-read / delete, deep-linking (`CommunityJoinRequested` → Manage Community `requests` tab),
+  transparent monochrome CircleHub statusbar & drawer icon (`notification-icon.png`),
   and Expo push token registration (`POST /api/devices`) + sign-out unregistration
   (`DELETE /api/devices`) with tap navigation.
-- **Theming** — light and dark; primary actions use the shared `GradientButton`. Presence
+- **Theming & App Experience** — light and dark; primary actions use the shared `GradientButton`. Presence
   indicators (online dot and "Online" label) render from the shared `--success` token in both
-  themes rather than hardcoded greens.
+  themes rather than hardcoded greens. App boot renders `AppLoadingScreen` featuring the official CircleHub logo
+  with a smooth pulsing animation and theme-colored activity indicator (matching webapp parity).
 
 ## Open
 
