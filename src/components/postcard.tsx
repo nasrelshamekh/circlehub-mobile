@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { MoreHorizontal } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
@@ -23,6 +23,7 @@ export default function PostCard({
     onDeleted,
     canDelete,
     community,
+    isDetailsPage = false,
 }: {
     post: Post;
 
@@ -32,15 +33,40 @@ export default function PostCard({
     canDelete?: boolean;
 
     community?: { id: string; slug: string };
+
+    isDetailsPage?: boolean;
 }) {
     const { isDark } = useTheme();
     const { user } = useAuth();
     const deletePost = useDeletePost();
 
     const [editOpen, setEditOpen] = useState(false);
+    const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
     const imageUri = getImageUrl(post.imageUrl);
+
+    useEffect(() => {
+        if (imageUri && isDetailsPage) {
+            Image.getSize(
+                imageUri,
+                (width, height) => {
+                    if (width > 0 && height > 0) {
+                        setAspectRatio(width / height);
+                    }
+                },
+                () => {
+                    // Fallback
+                }
+            );
+        }
+    }, [imageUri, isDetailsPage]);
+
+    function openPost() {
+        if (!isDetailsPage) {
+            router.push(`/post/${post.id}`);
+        }
+    }
 
     const isOwner = user?.id === post.author.id;
     const canDeletePost = isOwner || Boolean(canDelete);
@@ -124,19 +150,44 @@ export default function PostCard({
                 </View>
 
                 {post.content && (
-                    <View>
+                    <Pressable
+                        onPress={openPost}
+                        disabled={isDetailsPage}
+                        accessibilityRole={isDetailsPage ? "none" : "button"}
+                        accessibilityLabel="View post details"
+                    >
                         <Text className="text-body-md text-text-secondary">
                             {post.content}
                         </Text>
-                    </View>
+                    </Pressable>
                 )}
 
                 {imageUri && (
-                    <Image
-                        source={{ uri: imageUri }}
-                        className="h-[200px] w-full rounded-2xl"
-                        resizeMode="cover"
-                    />
+                    <Pressable
+                        onPress={openPost}
+                        disabled={isDetailsPage}
+                        accessibilityRole={isDetailsPage ? "none" : "button"}
+                        accessibilityLabel="View post details"
+                    >
+                        {isDetailsPage ? (
+                            <Image
+                                source={{ uri: imageUri }}
+                                style={
+                                    aspectRatio
+                                        ? { width: "100%", aspectRatio }
+                                        : { width: "100%", height: 350 }
+                                }
+                                className="w-full rounded-2xl"
+                                resizeMode="contain"
+                            />
+                        ) : (
+                            <Image
+                                source={{ uri: imageUri }}
+                                className="h-[200px] w-full rounded-2xl"
+                                resizeMode="cover"
+                            />
+                        )}
+                    </Pressable>
                 )}
 
                 <View className="flex-row items-center gap-2 pt-3">
