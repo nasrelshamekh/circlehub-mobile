@@ -188,13 +188,19 @@ export default function PostCard({
                         {isDetailsPage ? (
                             <Image
                                 source={{ uri: imageUri }}
+                                onLoad={(e) => {
+                                    const { width, height } = e.nativeEvent.source;
+                                    if (width > 0 && height > 0) {
+                                        setAspectRatio(width / height);
+                                    }
+                                }}
                                 style={
                                     aspectRatio
                                         ? { width: "100%", aspectRatio }
-                                        : { width: "100%", height: 350 }
+                                        : { width: "100%", minHeight: 250 }
                                 }
                                 className="w-full rounded-2xl"
-                                resizeMode="contain"
+                                resizeMode="cover"
                             />
                         ) : (
                             <Image

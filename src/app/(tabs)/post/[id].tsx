@@ -70,6 +70,7 @@ export default function PostDetailsScreen() {
                             onPressComments={() => undefined}
                             onDeleted={goBack}
                             canDelete={canManageCommunity}
+                            isDetailsPage={true}
                         />
                         <CommentList post={post} />
                     </ScrollView>
