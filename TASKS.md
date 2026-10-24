@@ -34,7 +34,9 @@ place and what is still open. Keep it current when parity work lands.
 - **Notifications & Push** — in-app `/notifications` screen, live header bell unread badge,
   `NotificationCreated` real-time updates, once-per-visit seen stamp, "Mark all as read", per-row
   mark-as-read / delete, deep-linking (`CommunityJoinRequested` → Manage Community `requests` tab),
-  transparent monochrome CircleHub statusbar & drawer icon (`notification-icon.png`),
+  scaled transparent monochrome CircleHub statusbar & drawer icon (`notification-icon.png`),
+  fallback large icon (`largeIcon`), non-enlarging sender avatar thumbnail, multi-line message history expansion
+  on hold/drag-down via `patches/expo-notifications+57.0.24.patch`,
   and Expo push token registration (`POST /api/devices`) + sign-out unregistration
   (`DELETE /api/devices`) with tap navigation.
 - **Theming & App Experience** — light and dark; primary actions use the shared `GradientButton`. Presence

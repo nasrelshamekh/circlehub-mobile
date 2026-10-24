@@ -983,6 +983,47 @@ Tapping the 3 horizontal dots on a post or comment displayed a native OS `Alert.
 
 ---
 
+## 37. Notification Avatar & Multi-Line Expansion, Status Bar Silhouette Scale, and Web High-Fidelity Image Rendering
+
+### Symptom
+1. In mobile notifications, removing `imageUrl` removed the sender's avatar entirely; previously, passing `imageUrl` caused Android to enlarge the avatar into a full-screen picture banner when the notification shade was dragged down. Furthermore, joining preview lines caused Android's collapsed preview to render 3 messages squished horizontally into one line with spaces.
+2. The CircleHub two-circles silhouette in the Android status bar appeared smaller than standard status bar icons.
+3. Photos posted from phones appeared pixelated and excessively large on the web application.
+
+### Root Cause
+1. **FCM BigPictureStyle vs BigTextStyle:**
+   - Passing `richContent.image` in the Expo push payload causes FCM on Android to force `NotificationCompat.BigPictureStyle`, expanding any avatar image into a full-width photo banner when dragged down.
+   - Setting `body = string.Join("\n", previews)` caused Android's single-line collapsed notification preview to convert `\n` into spaces, smushing all 3 messages into a horizontal sentence.
+2. **Status Bar Canvas Fill:**
+   - `assets/images/notification-icon.png` previously had a bounding box of 419x270 within a 512x512 canvas (only 52.7% vertical fill), causing the icon to scale down to ~12dp in a 24dp status bar.
+3. **SkiaSharp Nearest-Neighbor Downsampling & Unconstrained Web Viewport:**
+   - In `UploadService.cs`, `ScaleBitmap` invoked `source.Resize(info, SKSamplingOptions.Default)`. In SkiaSharp, `SKSamplingOptions.Default` maps to `SKFilterMode.Nearest` (nearest neighbor), which discards pixel interpolation and causes jagged edges/pixelation when downscaling high-resolution smartphone camera photos.
+   - In `PostContent.jsx` on web, `PostDetails` rendered inside a `max-w-5xl` (1024px) container with `className="w-full rounded-2xl h-auto object-contain max-h-none"`. A vertical 3:4 or 9:16 phone photo stretched across the full 1024px width, resulting in heights of 1365px–1820px (over two screen heights tall).
+
+### Fix
+- **Files:**
+  - Backend: `MessageDeliveryService.cs`, `UploadService.cs`, `Program.cs`
+  - Mobile: `patches/expo-notifications+57.0.24.patch` (created), `app.json`, `assets/images/notification-icon.png`, `src/lib/imageUpload.ts`, `__tests__/lib/imageUpload.test.ts`
+  - Web: `src/components/postcard/PostContent.jsx`
+- **Changes:**
+  - **Single-Line Collapsed Preview:** `MessageDeliveryService.cs` now passes `singleBody` (the single latest message) as the push `body` payload so Android's collapsed preview shows only the last message.
+  - **Multi-Line Drag-Down History:** `expandedBody` (up to 3 messages) is passed in `data.bigText`. Patched `ExpoNotificationBuilder.kt` to bind `NotificationCompat.BigTextStyle().bigText(bigText)` so holding and dragging down displays the 3 messages formatted cleanly on multiple lines.
+  - **Non-Enlarging Sender Avatar:** `resolvedAvatarUrl` is passed in `data.senderAvatarUrl` while `imageUrl` is kept `null` on the push envelope. `ExpoNotificationBuilder.kt` downloads the avatar and applies `builder.setLargeIcon(avatarBitmap)` with `BigTextStyle`. Because Android FCM receives `imageUrl: null`, FCM never applies `BigPictureStyle`, keeping the avatar as a circular icon next to the sender's name without enlarging into a giant banner. Added `"largeIcon": "./assets/images/circlehub-app-icon.png"` in `app.json` for fallback branding.
+  - **Status Bar Icon Scaling:** Re-generated `assets/images/notification-icon.png` with a scaled bounding box of 479x309 (+15% linear, +32% visual surface area) in pure `#FFFFFF` with exact 16px lateral margins, rendering visibly larger in the status bar and shade.
+  - **Bicubic Downsampling:** In `UploadService.cs`, replaced `SKSamplingOptions.Default` with `new SKSamplingOptions(SKCubicResampler.CatmullRom)` (high-quality bicubic resampling) and increased WebP quality from 82 to 90.
+  - **Mobile Upload Quality:** In `imageUpload.ts`, increased `MAX_UPLOAD_WIDTH` to 2048 and `UPLOAD_JPEG_QUALITY` to 0.90.
+  - **Web Viewport Constraint:** In `PostContent.jsx`, bounded post details images to `max-h-[72vh] max-w-full w-auto h-auto object-contain` centered in a neutral container, preventing vertical phone photos from stretching to giant proportions. Feed previews now use `max-h-[520px] max-w-full w-auto h-auto object-contain`.
+  - **MonsterASP Package:** Updated `/health` endpoint to report version `2.3.0-bicubic-notif-fix` and regenerated `circlehub-api-publish.zip` (16.9 MB).
+- **Verification:**
+  - Mobile: `npm test` 17/17 test suites passed (108/108 tests).
+  - Mobile: `npx tsc --noEmit` passed (0 errors).
+  - Mobile: `npm run lint` passed (0 warnings, 0 errors).
+  - Web: `npm run build` passed (0 errors, 5.89s).
+  - Backend: `dotnet build` passed (0 warnings, 0 errors).
+
+
+---
+
 ## 36. Post Details Full Image Height Wiring & OnLoad Aspect Ratio Resolution
 
 ### Symptom
@@ -1004,5 +1045,46 @@ On mobile, tapping a post image or card navigated to the post details page, but 
   - `npm test`: 17/17 test suites passed (108/108 tests).
   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
   - `npm run lint`: 0 errors.
+
+---
+
+## 37. Notification Avatar & Multi-Line Expansion, Status Bar Silhouette Scale, and Web High-Fidelity Image Rendering
+
+### Symptom
+1. In mobile notifications, removing `imageUrl` removed the sender's avatar entirely; previously, passing `imageUrl` caused Android to enlarge the avatar into a full-screen picture banner when the notification shade was dragged down. Furthermore, joining preview lines caused Android's collapsed preview to render 3 messages squished horizontally into one line with spaces.
+2. The CircleHub two-circles silhouette in the Android status bar appeared smaller than standard status bar icons.
+3. Photos posted from phones appeared pixelated and excessively large on the web application.
+
+### Root Cause
+1. **FCM BigPictureStyle vs BigTextStyle:**
+   - Passing `richContent.image` in the Expo push payload causes FCM on Android to force `NotificationCompat.BigPictureStyle`, expanding any avatar image into a full-width photo banner when dragged down.
+   - Setting `body = string.Join("\n", previews)` caused Android's single-line collapsed notification preview to convert `\n` into spaces, smushing all 3 messages into a horizontal sentence.
+2. **Status Bar Canvas Fill:**
+   - `assets/images/notification-icon.png` previously had a bounding box of 419x270 within a 512x512 canvas (only 52.7% vertical fill), causing the icon to scale down to ~12dp in a 24dp status bar.
+3. **SkiaSharp Nearest-Neighbor Downsampling & Unconstrained Web Viewport:**
+   - In `UploadService.cs`, `ScaleBitmap` invoked `source.Resize(info, SKSamplingOptions.Default)`. In SkiaSharp, `SKSamplingOptions.Default` maps to `SKFilterMode.Nearest` (nearest neighbor), which discards pixel interpolation and causes jagged edges/pixelation when downscaling high-resolution smartphone camera photos.
+   - In `PostContent.jsx` on web, `PostDetails` rendered inside a `max-w-5xl` (1024px) container with `className="w-full rounded-2xl h-auto object-contain max-h-none"`. A vertical 3:4 or 9:16 phone photo stretched across the full 1024px width, resulting in heights of 1365px–1820px (over two screen heights tall).
+
+### Fix
+- **Files:**
+  - Backend: `MessageDeliveryService.cs`, `UploadService.cs`, `Program.cs`
+  - Mobile: `patches/expo-notifications+57.0.24.patch` (created), `app.json`, `assets/images/notification-icon.png`, `src/lib/imageUpload.ts`, `__tests__/lib/imageUpload.test.ts`
+  - Web: `src/components/postcard/PostContent.jsx`
+- **Changes:**
+  - **Single-Line Collapsed Preview:** `MessageDeliveryService.cs` now passes `singleBody` (the single latest message) as the push `body` payload so Android's collapsed preview shows only the last message.
+  - **Multi-Line Drag-Down History:** `expandedBody` (up to 3 messages) is passed in `data.bigText`. Patched `ExpoNotificationBuilder.kt` to bind `NotificationCompat.BigTextStyle().bigText(bigText)` so holding and dragging down displays the 3 messages formatted cleanly on multiple lines.
+  - **Non-Enlarging Sender Avatar:** `resolvedAvatarUrl` is passed in `data.senderAvatarUrl` while `imageUrl` is kept `null` on the push envelope. `ExpoNotificationBuilder.kt` downloads the avatar and applies `builder.setLargeIcon(avatarBitmap)` with `BigTextStyle`. Because Android FCM receives `imageUrl: null`, FCM never applies `BigPictureStyle`, keeping the avatar as a circular icon next to the sender's name without enlarging into a giant banner. Added `"largeIcon": "./assets/images/circlehub-app-icon.png"` in `app.json` for fallback branding.
+  - **Status Bar Icon Scaling:** Re-generated `assets/images/notification-icon.png` with a scaled bounding box of 479x309 (+15% linear, +32% visual surface area) in pure `#FFFFFF` with exact 16px lateral margins, rendering visibly larger in the status bar and shade.
+  - **Bicubic Downsampling:** In `UploadService.cs`, replaced `SKSamplingOptions.Default` with `new SKSamplingOptions(SKCubicResampler.CatmullRom)` (high-quality bicubic resampling) and increased WebP quality from 82 to 90.
+  - **Mobile Upload Quality:** In `imageUpload.ts`, increased `MAX_UPLOAD_WIDTH` to 2048 and `UPLOAD_JPEG_QUALITY` to 0.90.
+  - **Web Viewport Constraint:** In `PostContent.jsx`, bounded post details images to `max-h-[72vh] max-w-full w-auto h-auto object-contain` centered in a neutral container, preventing vertical phone photos from stretching to giant proportions. Feed previews now use `max-h-[520px] max-w-full w-auto h-auto object-contain`.
+  - **MonsterASP Package:** Updated `/health` endpoint to report version `2.3.0-bicubic-notif-fix` and regenerated `circlehub-api-publish.zip` (16.9 MB).
+- **Verification:**
+  - Mobile: `npm test` 17/17 test suites passed (108/108 tests).
+  - Mobile: `npx tsc --noEmit` passed (0 errors).
+  - Mobile: `npm run lint` passed (0 warnings, 0 errors).
+  - Web: `npm run build` passed (0 errors, 5.89s).
+  - Backend: `dotnet build` passed (0 warnings, 0 errors).
+
 
 

@@ -1,0 +1,53 @@
+diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
+index 610d303..b380a8e 100644
+--- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
++++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
+@@ -5,6 +5,7 @@ import android.content.Context
+ import android.content.pm.PackageManager
+ import android.graphics.Bitmap
+ import android.graphics.BitmapFactory
++import android.net.Uri
+ import android.os.Build
+ import android.os.Bundle
+ import android.os.Parcel
+@@ -96,6 +97,8 @@ open class ExpoNotificationBuilder(
+     builder.setPriority(priority)
+ 
+     val content = notificationContent
++    val extrasData = content.body
++    val bigText = extrasData?.optString("bigText")?.takeIf { it.isNotEmpty() } ?: content.text
+ 
+     builder.setAutoCancel(content.isAutoDismiss)
+     builder.setOngoing(content.isSticky)
+@@ -104,9 +107,8 @@ open class ExpoNotificationBuilder(
+     builder.setContentTitle(content.title)
+     builder.setContentText(content.text)
+     builder.setSubText(content.subText)
+-    // Sets the text/contentText as the bigText to allow the notification to be expanded and the
+-    // entire text to be viewed.
+-    builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.text))
++    // Sets the bigText to allow the notification to show expanded messages when pulled down.
++    builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
+ 
+     color?.let { builder.color = it.toInt() }
+     notificationContent.badgeCount?.toInt()?.let { builder.setNumber(it) }
+@@ -147,7 +149,18 @@ open class ExpoNotificationBuilder(
+       )
+     )
+ 
+-    if (notificationContent.containsImage()) {
++    val customAvatarUrl = extrasData?.optString("senderAvatarUrl")?.takeIf { it.isNotEmpty() }
++    val avatarBitmap = customAvatarUrl?.let {
++      try {
++        downloadImage(Uri.parse(it))
++      } catch (e: Exception) {
++        null
++      }
++    }
++
++    if (avatarBitmap != null) {
++      builder.setLargeIcon(avatarBitmap)
++    } else if (notificationContent.containsImage()) {
+       val bitmap = notificationContent.getImage(context)
+       bitmap?.let { builder.setLargeIcon(it) }
+     } else {

@@ -44,7 +44,8 @@
         {
           "icon": "./assets/images/notification-icon.png",
           "color": "#6366F1",
-          "defaultChannel": "default"
+          "defaultChannel": "default",
+          "largeIcon": "./assets/images/circlehub-app-icon.png"
         }
       ],
       [

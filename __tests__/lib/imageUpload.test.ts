@@ -88,7 +88,7 @@ describe("prepareUploadImage", () => {
         );
 
         expect(error).toBeNull();
-        expect(mockResize).toHaveBeenCalledWith({ width: 1600 });
+        expect(mockResize).toHaveBeenCalledWith({ width: 2048 });
         expect(image).toEqual({
             uri: "file:///cache/shrunk.jpg",
             name: "photo.jpg",

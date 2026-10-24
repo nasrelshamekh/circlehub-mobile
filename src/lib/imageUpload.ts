@@ -6,9 +6,9 @@ import { ApiError } from "@/types/api";
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-export const MAX_UPLOAD_WIDTH = 1600;
+export const MAX_UPLOAD_WIDTH = 2048;
 const SHRINK_ABOVE_BYTES = 1024 * 1024;
-const UPLOAD_JPEG_QUALITY = 0.8;
+const UPLOAD_JPEG_QUALITY = 0.9;
 
 export const ALLOWED_IMAGE_TYPES = [
     "image/jpeg",
