@@ -1,6 +1,6 @@
 import { HubConnection } from "@microsoft/signalr";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import {
     createContext,
     useCallback,
@@ -11,6 +11,9 @@ import {
     useState,
 } from "react";
 import { Modal, Platform, Pressable, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import InAppMessageNotification from "@/components/messages/inappmessagenotification";
 
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
@@ -211,11 +214,30 @@ export function ChatConnectionProvider({
 }: {
     children: React.ReactNode;
 }) {
+    const pathname = usePathname();
+    const pathnameRef = useRef(pathname);
+
     const { status: authStatus, user } = useAuth();
+    const userRef = useRef(user);
+
+    useEffect(() => {
+        pathnameRef.current = pathname;
+        userRef.current = user;
+    }, [pathname, user]);
+
     const queryClient = useQueryClient();
     const [status, setStatus] = useState<ChatConnectionStatus>("connecting");
     const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
     const [recoveryPromptVisible, setRecoveryPromptVisible] = useState(false);
+    const [inAppNotification, setInAppNotification] = useState<{
+        conversationId: string;
+        senderId?: string;
+        senderName: string;
+        senderAvatarUrl?: string | null;
+        messages: string[];
+    } | null>(null);
+    const [inAppExpanded, setInAppExpanded] = useState(false);
+    const inAppDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const connectionRef = useRef<HubConnection | null>(null);
 
     const isAuthenticated = authStatus === "authenticated" && Boolean(user);
@@ -289,11 +311,17 @@ export function ChatConnectionProvider({
 
         connection.on(
             RECEIVE_MESSAGE_EVENT,
-            (message?: {
+            async (message?: {
                 encryptedPayload?: string | null;
                 EncryptedPayload?: string | null;
                 conversationId?: string | null;
                 ConversationId?: string | null;
+                senderId?: string | null;
+                SenderId?: string | null;
+                senderName?: string | null;
+                SenderName?: string | null;
+                senderAvatarUrl?: string | null;
+                SenderAvatarUrl?: string | null;
             }) => {
                 // The event carries the ciphertext, so it can be opened while the refetch below is
                 // still in flight. The bubble then mounts with its text already in the settled cache
@@ -301,8 +329,19 @@ export function ChatConnectionProvider({
                 // flash on the receiving end.
                 const payload =
                     message?.encryptedPayload ?? message?.EncryptedPayload;
+                let plaintext = "";
                 if (payload) {
-                    void decryptMessageContent(payload).catch(() => undefined);
+                    try {
+                        const decrypted = await decryptMessageContent(payload);
+                        if (
+                            decrypted &&
+                            decrypted !== "[Can't decrypt this message]"
+                        ) {
+                            plaintext = decrypted;
+                        }
+                    } catch {
+                        // ignore
+                    }
                 }
 
                 void queryClient.invalidateQueries({
@@ -317,6 +356,80 @@ export function ChatConnectionProvider({
                         queryKey: queryKeys.conversation(conversationId),
                         refetchType: "active",
                     });
+                }
+
+                const senderId = message?.senderId ?? message?.SenderId;
+                const currentUserId = userRef.current?.id;
+                const isOwnMessage = Boolean(
+                    senderId &&
+                        currentUserId &&
+                        String(senderId).toLowerCase() ===
+                            String(currentUserId).toLowerCase()
+                );
+
+                const currentPath = pathnameRef.current;
+                const isInActiveThread = Boolean(
+                    conversationId &&
+                        currentPath &&
+                        (currentPath.includes(`/messages/${conversationId}`) ||
+                            currentPath.endsWith(`/${conversationId}`))
+                );
+
+                if (!isOwnMessage && !isInActiveThread && conversationId) {
+                    const displayMsg =
+                        plaintext.trim().length > 0
+                            ? plaintext
+                            : "Sent you a message";
+
+                    const convs = queryClient.getQueryData<Conversation[]>(
+                        queryKeys.conversations()
+                    );
+                    const matchedConv = convs?.find(
+                        (c) =>
+                            String(c.id).toLowerCase() ===
+                            String(conversationId).toLowerCase()
+                    );
+
+                    const resolvedSenderName =
+                        message?.senderName ??
+                        message?.SenderName ??
+                        matchedConv?.otherUser?.name ??
+                        "New message";
+
+                    const resolvedAvatarUrl =
+                        message?.senderAvatarUrl ??
+                        message?.SenderAvatarUrl ??
+                        matchedConv?.otherUser?.avatarUrl ??
+                        null;
+
+                    setInAppNotification((prev) => {
+                        if (
+                            prev &&
+                            String(prev.conversationId).toLowerCase() ===
+                                String(conversationId).toLowerCase()
+                        ) {
+                            return {
+                                ...prev,
+                                messages: [...prev.messages, displayMsg],
+                            };
+                        }
+                        setInAppExpanded(false);
+                        return {
+                            conversationId,
+                            senderId: senderId ?? undefined,
+                            senderName: resolvedSenderName,
+                            senderAvatarUrl: resolvedAvatarUrl,
+                            messages: [displayMsg],
+                        };
+                    });
+
+                    if (inAppDismissTimerRef.current) {
+                        clearTimeout(inAppDismissTimerRef.current);
+                    }
+                    inAppDismissTimerRef.current = setTimeout(() => {
+                        setInAppNotification(null);
+                        setInAppExpanded(false);
+                    }, 6000);
                 }
             }
         );
@@ -486,7 +599,56 @@ export function ChatConnectionProvider({
 
     return (
         <ChatConnectionContext.Provider value={value}>
-            {children}
+            <View className="flex-1">
+                {children}
+
+                {inAppNotification && (
+                    <SafeAreaView
+                        edges={["top"]}
+                        pointerEvents="box-none"
+                        className="absolute top-0 left-0 right-0 z-50 px-3 pt-1 pointer-events-box-none"
+                    >
+                        <InAppMessageNotification
+                            senderName={inAppNotification.senderName}
+                            senderAvatarUrl={inAppNotification.senderAvatarUrl}
+                            messages={inAppNotification.messages}
+                            isExpanded={inAppExpanded}
+                            onToggleExpand={(expanded) => {
+                                setInAppExpanded(expanded);
+                                if (expanded && inAppDismissTimerRef.current) {
+                                    clearTimeout(inAppDismissTimerRef.current);
+                                }
+                            }}
+                            onPress={() => {
+                                if (inAppDismissTimerRef.current) {
+                                    clearTimeout(inAppDismissTimerRef.current);
+                                }
+                                const targetId = inAppNotification.conversationId;
+                                const targetName = inAppNotification.senderName;
+                                const targetAvatar = inAppNotification.senderAvatarUrl;
+                                setInAppNotification(null);
+                                setInAppExpanded(false);
+                                router.push({
+                                    pathname: "/messages/[id]",
+                                    params: {
+                                        id: targetId,
+                                        name: targetName,
+                                        avatarUrl: targetAvatar ?? "",
+                                    },
+                                });
+                            }}
+                            onDismiss={() => {
+                                if (inAppDismissTimerRef.current) {
+                                    clearTimeout(inAppDismissTimerRef.current);
+                                }
+                                setInAppNotification(null);
+                                setInAppExpanded(false);
+                            }}
+                        />
+                    </SafeAreaView>
+                )}
+            </View>
+
             <RecoveryUnlockPrompt
                 visible={recoveryPromptVisible}
                 onLater={handleLaterPress}

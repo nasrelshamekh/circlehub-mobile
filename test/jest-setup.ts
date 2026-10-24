@@ -12,3 +12,16 @@ jest.mock("expo-navigation-bar", () => ({
     setVisibilityAsync: jest.fn().mockResolvedValue(undefined),
     getVisibilityAsync: jest.fn().mockResolvedValue("visible"),
 }));
+
+jest.mock("lucide-react-native", () => ({
+    ChevronDown: () => null,
+    ChevronUp: () => null,
+    X: () => null,
+    RotateCcw: () => null,
+    Send: () => null,
+    Smile: () => null,
+    ChevronLeft: () => null,
+    Pencil: () => null,
+    Trash2: () => null,
+}));
+

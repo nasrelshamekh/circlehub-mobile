@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
-index 610d303..384ab2c 100644
+index 610d303..0fa27a6 100644
 --- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 +++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 @@ -5,6 +5,7 @@ import android.content.Context
@@ -19,19 +19,17 @@ index 610d303..384ab2c 100644
  
      builder.setAutoCancel(content.isAutoDismiss)
      builder.setOngoing(content.isSticky)
-@@ -104,9 +107,8 @@ open class ExpoNotificationBuilder(
+@@ -104,9 +107,6 @@ open class ExpoNotificationBuilder(
      builder.setContentTitle(content.title)
      builder.setContentText(content.text)
      builder.setSubText(content.subText)
 -    // Sets the text/contentText as the bigText to allow the notification to be expanded and the
 -    // entire text to be viewed.
 -    builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.text))
-+    // Sets the bigText to allow the notification to show expanded messages when pulled down.
-+    builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
  
      color?.let { builder.color = it.toInt() }
      notificationContent.badgeCount?.toInt()?.let { builder.setNumber(it) }
-@@ -147,7 +149,33 @@ open class ExpoNotificationBuilder(
+@@ -147,12 +147,118 @@ open class ExpoNotificationBuilder(
        )
      )
  
@@ -60,9 +58,94 @@ index 610d303..384ab2c 100644
 +      }
 +    }
 +
-+    if (avatarBitmap != null) {
-+      builder.setLargeIcon(avatarBitmap)
++    val channelId = extrasData?.optString("channelId")?.takeIf { it.isNotEmpty() }
++    val isMessage = channelId == "messages" ||
++        extrasData?.optString("type") == "message" ||
++        extrasData?.has("conversationId") == true ||
++        extrasData?.has("senderName") == true
++
++    val senderName = extrasData?.optString("senderName")?.takeIf { it.isNotEmpty() }
++      ?: content.title
++      ?: "User"
++
++    val finalAvatarBitmap = avatarBitmap ?: run {
++      try {
++        val size = 128
++        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
++        val canvas = android.graphics.Canvas(output)
++        val paint = android.graphics.Paint().apply {
++          isAntiAlias = true
++          color = android.graphics.Color.parseColor("#4648D4")
++        }
++        val radius = size / 2f
++        canvas.drawCircle(radius, radius, radius, paint)
++        val textPaint = android.graphics.Paint().apply {
++          isAntiAlias = true
++          color = android.graphics.Color.WHITE
++          textSize = 58f
++          textAlign = android.graphics.Paint.Align.CENTER
++          typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
++        }
++        val initial = senderName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "U"
++        val yPos = radius - ((textPaint.descent() + textPaint.ascent()) / 2)
++        canvas.drawText(initial, radius, yPos, textPaint)
++        output
++      } catch (e: Exception) {
++        null
++      }
++    }
++
++    if (finalAvatarBitmap != null) {
++      builder.setLargeIcon(finalAvatarBitmap)
 +    } else if (notificationContent.containsImage()) {
        val bitmap = notificationContent.getImage(context)
        bitmap?.let { builder.setLargeIcon(it) }
      } else {
+       builder.setLargeIcon(largeIcon)
+     }
++
++    if (isMessage) {
++      val senderKey = extrasData?.optString("senderId")?.takeIf { it.isNotEmpty() }
++        ?: extrasData?.optString("conversationId")?.takeIf { it.isNotEmpty() }
++        ?: senderName
++
++      val senderPersonBuilder = androidx.core.app.Person.Builder()
++        .setName(senderName)
++        .setKey(senderKey)
++
++      if (finalAvatarBitmap != null) {
++        senderPersonBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(finalAvatarBitmap))
++      }
++
++      val senderPerson = senderPersonBuilder.build()
++      val userPerson = androidx.core.app.Person.Builder().setName("You").build()
++
++      val messagingStyle = NotificationCompat.MessagingStyle(userPerson)
++        .setConversationTitle(null)
++        .setGroupConversation(false)
++
++      val rawBigText = extrasData?.optString("bigText")?.takeIf { it.isNotEmpty() }
++      val messageLines = rawBigText?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
++      val now = System.currentTimeMillis()
++
++      if (messageLines.isNotEmpty()) {
++        for ((idx, line) in messageLines.withIndex()) {
++          val timestamp = now - ((messageLines.size - 1 - idx) * 1000L)
++          messagingStyle.addMessage(
++            NotificationCompat.MessagingStyle.Message(line, timestamp, senderPerson)
++          )
++        }
++      } else {
++        val singleText = content.text ?: ""
++        messagingStyle.addMessage(
++          NotificationCompat.MessagingStyle.Message(singleText, now, senderPerson)
++        )
++      }
++
++      builder.setStyle(messagingStyle)
++    } else {
++      builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
++    }
+     return builder.build()
+   }
+ 
