@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
-index 610d303..b380a8e 100644
+index 610d303..384ab2c 100644
 --- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 +++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 @@ -5,6 +5,7 @@ import android.content.Context
@@ -31,7 +31,7 @@ index 610d303..b380a8e 100644
  
      color?.let { builder.color = it.toInt() }
      notificationContent.badgeCount?.toInt()?.let { builder.setNumber(it) }
-@@ -147,7 +149,18 @@ open class ExpoNotificationBuilder(
+@@ -147,7 +149,33 @@ open class ExpoNotificationBuilder(
        )
      )
  
@@ -39,7 +39,22 @@ index 610d303..b380a8e 100644
 +    val customAvatarUrl = extrasData?.optString("senderAvatarUrl")?.takeIf { it.isNotEmpty() }
 +    val avatarBitmap = customAvatarUrl?.let {
 +      try {
-+        downloadImage(Uri.parse(it))
++        downloadImage(Uri.parse(it))?.let { bmp ->
++          val size = Math.min(bmp.width, bmp.height)
++          val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
++          val canvas = android.graphics.Canvas(output)
++          val paint = android.graphics.Paint().apply {
++            isAntiAlias = true
++            color = -0x1
++          }
++          val radius = size / 2f
++          canvas.drawCircle(radius, radius, radius, paint)
++          paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
++          val srcRect = android.graphics.Rect((bmp.width - size) / 2, (bmp.height - size) / 2, (bmp.width + size) / 2, (bmp.height + size) / 2)
++          val dstRect = android.graphics.Rect(0, 0, size, size)
++          canvas.drawBitmap(bmp, srcRect, dstRect, paint)
++          output
++        }
 +      } catch (e: Exception) {
 +        null
 +      }
