@@ -7,6 +7,8 @@ const mockResize = jest.fn();
 const mockRenderAsync = jest.fn();
 const mockSaveAsync = jest.fn();
 const mockManipulate = jest.fn();
+const mockCopyAsync = jest.fn().mockResolvedValue(undefined);
+const mockDeleteAsync = jest.fn().mockResolvedValue(undefined);
 let mockShrunkSize = 300 * 1024;
 
 jest.mock("expo-image-manipulator", () => ({
@@ -17,10 +19,13 @@ jest.mock("expo-image-manipulator", () => ({
 }));
 
 jest.mock("expo-file-system/legacy", () => ({
+    cacheDirectory: "file:///cache/",
     getInfoAsync: jest.fn().mockImplementation(async () => ({
         exists: true,
         size: mockShrunkSize,
     })),
+    copyAsync: (...args: unknown[]) => mockCopyAsync(...args),
+    deleteAsync: (...args: unknown[]) => mockDeleteAsync(...args),
 }));
 
 function makeAsset(
@@ -98,6 +103,25 @@ describe("prepareUploadImage", () => {
         );
 
         expect(mockManipulate).toHaveBeenCalledWith("file:///cache/IMG_1234.jpg");
+    });
+
+    it("copies an Android content:// URI to cache before manipulating", async () => {
+        const { image, error } = await prepareUploadImage(
+            makeAsset({
+                uri: "content://media/external/images/media/41235",
+                width: 4032,
+                height: 3024,
+                fileSize: 4 * 1024 * 1024,
+            })
+        );
+
+        expect(error).toBeNull();
+        expect(mockCopyAsync).toHaveBeenCalled();
+        expect(mockManipulate).toHaveBeenCalledWith(
+            expect.stringContaining("temp_shrink_")
+        );
+        expect(mockDeleteAsync).toHaveBeenCalled();
+        expect(image.uri).toBe("file:///cache/shrunk.jpg");
     });
 
     it("never enlarges a photo whose dimensions are unknown", async () => {

@@ -94,45 +94,94 @@ export function imageFromAsset(asset: ImagePickerAsset): UploadImage {
     };
 }
 
-async function shrinkImage(asset: ImagePickerAsset): Promise<UploadImage> {
-    const context = ImageManipulator.manipulate(asset.uri);
-    const width = asset.width ?? 0;
-
-    if (width > 0) {
-        context.resize({ width: Math.min(width, MAX_UPLOAD_WIDTH) });
+async function ensureLocalFileUri(
+    uri: string,
+    fileName?: string | null
+): Promise<string> {
+    if (!uri.startsWith("content://") || !FileSystem.copyAsync) {
+        return uri;
     }
-
-    const rendered = await context.renderAsync();
-    const saved = await rendered.saveAsync({
-        compress: UPLOAD_JPEG_QUALITY,
-        format: SaveFormat.JPEG,
-    });
-
-    const releasableContext = context as { release?: () => void };
-    if (typeof releasableContext.release === "function") {
-        releasableContext.release();
-    }
-    const releasableRendered = rendered as { release?: () => void };
-    if (typeof releasableRendered.release === "function") {
-        releasableRendered.release();
-    }
-
-    let size: number | undefined;
+    const ext = extensionOf(fileName) ?? ".jpg";
+    const localTarget = `${FileSystem.cacheDirectory || ""}picked_${Date.now()}${ext}`;
     try {
-        const info = await FileSystem.getInfoAsync(saved.uri);
-        if (info.exists && typeof info.size === "number") {
-            size = info.size;
+        await FileSystem.copyAsync({
+            from: uri,
+            to: localTarget,
+        });
+        return localTarget;
+    } catch (e) {
+        console.warn("[Upload] Failed to copy content URI to cache:", e);
+        return uri;
+    }
+}
+
+async function shrinkImage(asset: ImagePickerAsset): Promise<UploadImage> {
+    let sourceUri = asset.uri;
+    let tempCopiedUri: string | null = null;
+
+    if (sourceUri.startsWith("content://") && FileSystem.copyAsync) {
+        const ext = extensionOf(asset.fileName) ?? ".jpg";
+        const tempPath = `${FileSystem.cacheDirectory || ""}temp_shrink_${Date.now()}${ext}`;
+        try {
+            await FileSystem.copyAsync({
+                from: sourceUri,
+                to: tempPath,
+            });
+            sourceUri = tempPath;
+            tempCopiedUri = tempPath;
+        } catch (copyErr) {
+            console.warn("[Upload] Failed to copy content URI for shrink:", copyErr);
         }
-    } catch {
-        // fallback
     }
 
-    return {
-        uri: saved.uri,
-        name: "photo.jpg",
-        type: "image/jpeg",
-        size,
-    };
+    try {
+        const context = ImageManipulator.manipulate(sourceUri);
+        const width = asset.width ?? 0;
+
+        if (width > 0) {
+            context.resize({ width: Math.min(width, MAX_UPLOAD_WIDTH) });
+        }
+
+        const rendered = await context.renderAsync();
+        const saved = await rendered.saveAsync({
+            compress: UPLOAD_JPEG_QUALITY,
+            format: SaveFormat.JPEG,
+        });
+
+        const releasableContext = context as { release?: () => void };
+        if (typeof releasableContext.release === "function") {
+            releasableContext.release();
+        }
+        const releasableRendered = rendered as { release?: () => void };
+        if (typeof releasableRendered.release === "function") {
+            releasableRendered.release();
+        }
+
+        let size: number | undefined;
+        try {
+            const info = await FileSystem.getInfoAsync(saved.uri);
+            if (info.exists && typeof info.size === "number") {
+                size = info.size;
+            }
+        } catch {
+            // fallback
+        }
+
+        return {
+            uri: saved.uri,
+            name: "photo.jpg",
+            type: "image/jpeg",
+            size,
+        };
+    } finally {
+        if (tempCopiedUri && FileSystem.deleteAsync) {
+            try {
+                await FileSystem.deleteAsync(tempCopiedUri, { idempotent: true });
+            } catch {
+                // ignore
+            }
+        }
+    }
 }
 
 export type PreparedUploadImage = {
@@ -170,7 +219,9 @@ export async function prepareUploadImage(
         size > SHRINK_ABOVE_BYTES;
 
     if (!needsShrink) {
-        return { image, error: validateUploadImage(image.type, size) };
+        const localUri = await ensureLocalFileUri(image.uri, asset.fileName);
+        const resolved = { ...image, uri: localUri };
+        return { image: resolved, error: validateUploadImage(resolved.type, size) };
     }
 
     try {
@@ -182,7 +233,20 @@ export async function prepareUploadImage(
         };
     } catch (e) {
         console.warn("[Upload] Failed to shrink image:", e);
-        return { image, error: validateUploadImage(image.type, size) };
+        const localUri = await ensureLocalFileUri(image.uri, asset.fileName);
+        const fallback = { ...image, uri: localUri };
+        let finalSize = size;
+        if (finalSize === null && localUri.startsWith("file://") && FileSystem.getInfoAsync) {
+            try {
+                const info = await FileSystem.getInfoAsync(localUri);
+                if (info.exists && typeof info.size === "number") {
+                    finalSize = info.size;
+                }
+            } catch {
+                // ignore
+            }
+        }
+        return { image: fallback, error: validateUploadImage(fallback.type, finalSize) };
     }
 }
 
@@ -210,10 +274,11 @@ export function appendImageToFormData(
     if (image.file) {
         formData.append(field, image.file);
     } else {
+        const uri = image.uri;
         formData.append(field, {
-            uri: image.uri,
-            name: image.name,
-            type: image.type,
+            uri,
+            name: image.name || "photo.jpg",
+            type: image.type || "image/jpeg",
         } as unknown as Blob);
     }
 }

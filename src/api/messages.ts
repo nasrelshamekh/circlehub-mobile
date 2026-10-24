@@ -6,6 +6,8 @@ import {
     MessageRecipient,
 } from "@/types/message";
 
+export type { MessageRecipient };
+
 export function getConversations() {
     return apiFetch<{ message: string; data: Conversation[] }>(
         "/api/Messages/conversations"
@@ -27,6 +29,7 @@ export function getMessageRecipients() {
 export type SendMessageInput = {
     recipientUsername: string;
     content?: string;
+    previewText?: string;
     postId?: string;
 };
 

@@ -1,4 +1,6 @@
-import { apiFetch } from "./client";
+import { Platform } from "react-native";
+
+import { apiFetch, apiUpload } from "./client";
 import { appendImageToFormData, UploadImage } from "@/lib/imageUpload";
 import { PageMeta } from "@/types/api";
 import { Post, PostComment, PostDetails } from "@/types/post";
@@ -27,14 +29,23 @@ export function createPost(
     image?: UploadImage | null,
     communityId?: string
 ) {
+    const endpoint = communityId
+        ? `/api/Communities/${communityId}/posts`
+        : "/api/Posts";
+
+    if (image && Platform.OS !== "web") {
+        return apiUpload<{ message: string; data: Post }>(endpoint, image.uri, {
+            method: "POST",
+            fieldName: "image",
+            mimeType: image.type,
+            parameters: { content },
+        });
+    }
+
     const formData = new FormData();
 
     formData.append("content", content);
     appendImageToFormData(formData, "image", image);
-
-    const endpoint = communityId
-        ? `/api/Communities/${communityId}/posts`
-        : "/api/Posts";
 
     return apiFetch<{ message: string; data: Post }>(endpoint, {
         method: "POST",
@@ -47,12 +58,23 @@ export function updatePost(
     content: string,
     image?: UploadImage | null
 ) {
+    const endpoint = `/api/Posts/${postId}`;
+
+    if (image && Platform.OS !== "web") {
+        return apiUpload<{ message: string; data: Post }>(endpoint, image.uri, {
+            method: "PATCH",
+            fieldName: "image",
+            mimeType: image.type,
+            parameters: { content },
+        });
+    }
+
     const formData = new FormData();
 
     formData.append("content", content);
     appendImageToFormData(formData, "image", image);
 
-    return apiFetch<{ message: string; data: Post }>(`/api/Posts/${postId}`, {
+    return apiFetch<{ message: string; data: Post }>(endpoint, {
         method: "PATCH",
         body: formData,
     });

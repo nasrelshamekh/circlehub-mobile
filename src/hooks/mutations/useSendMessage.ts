@@ -9,16 +9,18 @@ export default function useSendMessage() {
 
     return useMutation({
         mutationFn: async (input: SendMessageInput) => {
-            const content = input.content
+            const rawContent = input.content?.trim();
+            const content = rawContent
                 ? await encryptMessageContent({
                       recipientUsername: input.recipientUsername,
-                      plaintext: input.content,
+                      plaintext: rawContent,
                   })
                 : input.content;
 
             return sendMessage({
                 ...input,
                 content,
+                previewText: rawContent ? rawContent.slice(0, 150) : undefined,
             });
         },
 
