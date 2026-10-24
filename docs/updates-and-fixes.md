@@ -981,3 +981,28 @@ Tapping the 3 horizontal dots on a post or comment displayed a native OS `Alert.
   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
   - `npm run lint`: 0 errors.
 
+---
+
+## 36. Post Details Full Image Height Wiring & OnLoad Aspect Ratio Resolution
+
+### Symptom
+On mobile, tapping a post image or card navigated to the post details page, but the image remained cropped to a 200px fixed height box (`h-[200px]` with `resizeMode="cover"`).
+
+### Root Cause
+1. `src/app/(tabs)/post/[id].tsx` rendered `<PostCard />` without passing the `isDetailsPage={true}` prop.
+2. Because `isDetailsPage` was omitted (falsy), `PostCard` rendered the feed preview layout rather than the full-height details layout.
+
+### Fix
+- **Files:**
+  - `src/app/(tabs)/post/[id].tsx`
+  - `src/components/postcard.tsx`
+- **Changes:**
+  - Added `isDetailsPage={true}` to `<PostCard />` in `src/app/(tabs)/post/[id].tsx`.
+  - Added an `onLoad` handler to `<Image />` in `src/components/postcard.tsx` to read native pixel dimensions (`e.nativeEvent.source.width / height`) directly from the image decoder, complementing `Image.getSize`.
+  - Configured `style={{ width: "100%", aspectRatio }}` and `resizeMode="cover"` (with `minHeight: 250` fallback before load), showing 100% of the image at its natural proportions without cropping or letterboxing.
+- **Verification:**
+  - `npm test`: 17/17 test suites passed (108/108 tests).
+  - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors.
+
+
