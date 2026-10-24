@@ -173,21 +173,13 @@ const MessageBubble = memo(function MessageBubble({
                     {message.postId && <SharedPostCard post={message.post} />}
                 </View>
 
-                {isMine && (
-                    <Avatar
-                        src={message.sender?.avatarUrl}
-                        name={message.sender?.name ?? "Me"}
-                        className="h-8 w-8"
-                        textClassName="text-label-sm"
-                    />
-                )}
             </View>
 
             {isFailed && (
                 <View
                     className={
                         isMine
-                            ? "mt-1 flex-row items-center gap-2 pr-10"
+                            ? "mt-1 flex-row items-center gap-2"
                             : "mt-1 flex-row items-center gap-2 pl-10"
                     }
                 >
@@ -224,7 +216,7 @@ const MessageBubble = memo(function MessageBubble({
                 <View
                     className={
                         isMine
-                            ? "mt-1 flex-row items-center gap-3 pr-10"
+                            ? "mt-1 flex-row items-center gap-3"
                             : "mt-1 flex-row items-center gap-3 pl-10"
                     }
                 >

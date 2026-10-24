@@ -1088,3 +1088,22 @@ On mobile, tapping a post image or card navigated to the post details page, but 
 
 
 
+
+---
+
+## 38. Sent Messages Avatar Removal in Mobile Conversation Thread
+
+### Symptom
+In the mobile app, when viewing a conversation, the user's own avatar appeared next to every sent message bubble on the right side of the screen.
+
+### Root Cause
+An earlier commit (`7f6f67dd`) added `{isMine && <Avatar ... />}` to the sent message bubble layout in `src/components/messages/messagethread.tsx`, along with `pr-10` offsets on timestamp and failure rows. This departed from standard chat application conventions (and CircleHub web behavior), where only incoming messages on the left display the sender's avatar, while outgoing messages on the right align cleanly without an avatar.
+
+### Fix
+- **Files:** `src/components/messages/messagethread.tsx`
+- **Changes:**
+  - Removed `{isMine && <Avatar ... />}` from `MessageBubble`.
+  - Reverted the `pr-10` right-margin offsets on the status and timestamp rows back to natural right alignment (`items-end`).
+- **Verification:**
+  - `npm test`: 18/18 test suites passed (114/114 tests).
+  - `npm run lint`: 0 errors, 0 warnings.
