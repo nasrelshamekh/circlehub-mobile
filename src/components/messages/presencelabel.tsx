@@ -10,9 +10,13 @@ const REFRESH_MS = 60_000;
 export default function PresenceLabel({
     isOnline,
     lastSeenAt,
+    isTyping,
+    className,
 }: {
     isOnline?: boolean;
     lastSeenAt?: string | null;
+    isTyping?: boolean;
+    className?: string;
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -28,11 +32,23 @@ export default function PresenceLabel({
         return () => clearInterval(timer);
     }, [isOnline, lastSeenAt]);
 
+    if (isTyping) {
+        return (
+            <Text
+                numberOfLines={1}
+                className={className ?? "text-label-sm font-medium"}
+                style={{ color: colors.primary }}
+            >
+                Typing…
+            </Text>
+        );
+    }
+
     if (isOnline) {
         return (
             <Text
                 numberOfLines={1}
-                className="text-label-sm font-medium"
+                className={className ?? "text-label-sm font-medium"}
                 style={{ color: colors.success }}
             >
                 Online
@@ -43,7 +59,7 @@ export default function PresenceLabel({
     return (
         <Text
             numberOfLines={1}
-            className="text-label-sm text-text-secondary"
+            className={className ?? "text-label-sm text-text-secondary"}
         >
             {formatLastSeen(lastSeenAt) ?? "Offline"}
         </Text>

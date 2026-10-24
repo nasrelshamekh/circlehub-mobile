@@ -266,7 +266,11 @@ export function ChatConnectionProvider({
             ) {
                 router.push({
                     pathname: "/messages/[id]",
-                    params: { id: data.conversationId },
+                    params: {
+                        id: data.conversationId,
+                        name: typeof data.senderName === "string" ? data.senderName : undefined,
+                        avatarUrl: typeof data.senderAvatarUrl === "string" ? data.senderAvatarUrl : undefined,
+                    },
                 });
             } else if (data.type === "notification") {
                 router.push("/notifications");

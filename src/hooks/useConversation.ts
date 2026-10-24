@@ -5,7 +5,7 @@ import { getConversation } from "@/api/messages";
 import { mergeConversationPages } from "@/lib/messagePages";
 import { queryKeys } from "@/lib/queryKeys";
 import { decryptMessageContent, peekDecrypted } from "@/services/messageCrypto";
-import { ConversationThread } from "@/types/message";
+import { Conversation, ConversationThread } from "@/types/message";
 
 const PAGE_SIZE = 50;
 const STALE_TIME_MS = 1000 * 30;
@@ -131,10 +131,17 @@ export function useConversation(
         void refetch();
     }, [refetch]);
 
+    const conversationsCache = queryClient.getQueryData<Conversation[]>(
+        queryKeys.conversations()
+    );
+    const cachedConv = conversationsCache?.find(
+        (c) => String(c.id).toLowerCase() === String(id).toLowerCase()
+    );
+
     return {
         conversation: pages?.[0],
         messages,
-        otherUser: pages?.[0]?.otherUser,
+        otherUser: pages?.[0]?.otherUser ?? cachedConv?.otherUser,
         hasMore: Boolean(query.hasNextPage),
         isLoadingOlder: query.isFetchingNextPage,
         loadOlder,

@@ -17,11 +17,20 @@ import PresenceLabel from "@/components/messages/presencelabel";
 import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 
 export default function MessageThreadScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const params = useLocalSearchParams<{
+        id: string;
+        name?: string;
+        username?: string;
+        avatarUrl?: string;
+        isOnline?: string;
+        lastSeenAt?: string;
+    }>();
+    const id = params.id;
     const { isDark } = useTheme();
     const [isFocused, setIsFocused] = useState(true);
 
@@ -45,6 +54,21 @@ export default function MessageThreadScreen() {
         refetch,
         error,
     } = useConversation(id, { enabled: isFocused });
+
+    const resolvedOtherUser =
+        otherUser ??
+        (params.name
+            ? {
+                  id: "",
+                  name: params.name,
+                  username: params.username ?? "",
+                  avatarUrl: params.avatarUrl || null,
+                  isOnline: params.isOnline === "true",
+                  lastSeenAt: params.lastSeenAt || null,
+              }
+            : undefined);
+
+    const isOtherTyping = useTypingIndicator(resolvedOtherUser?.id);
 
     function goBack() {
         router.replace("/messages");
@@ -73,21 +97,25 @@ export default function MessageThreadScreen() {
                     <ChevronLeft size={24} color={colors.textPrimary} />
                 </Pressable>
 
-                {otherUser ? (
+                {resolvedOtherUser ? (
                     <Pressable
-                        onPress={() =>
-                            router.push({
-                                pathname: "/profile/[username]",
-                                params: { username: otherUser.username },
-                            })
-                        }
+                        onPress={() => {
+                            if (resolvedOtherUser.username) {
+                                router.push({
+                                    pathname: "/profile/[username]",
+                                    params: {
+                                        username: resolvedOtherUser.username,
+                                    },
+                                });
+                            }
+                        }}
                         accessibilityRole="button"
-                        accessibilityLabel={`View ${otherUser.name}'s profile`}
+                        accessibilityLabel={`View ${resolvedOtherUser.name}'s profile`}
                         className="min-w-0 flex-1 flex-row items-center gap-3"
                     >
                         <Avatar
-                            src={otherUser.avatarUrl}
-                            name={otherUser.name}
+                            src={resolvedOtherUser.avatarUrl}
+                            name={resolvedOtherUser.name}
                             className="h-9 w-9"
                             textClassName="text-label-sm"
                         />
@@ -97,17 +125,24 @@ export default function MessageThreadScreen() {
                                 numberOfLines={1}
                                 className="text-label-md font-semibold text-text-primary"
                             >
-                                {otherUser.name}
+                                {resolvedOtherUser.name}
                             </Text>
 
                             <PresenceLabel
-                                isOnline={otherUser.isOnline}
-                                lastSeenAt={otherUser.lastSeenAt}
+                                isOnline={resolvedOtherUser.isOnline}
+                                lastSeenAt={resolvedOtherUser.lastSeenAt}
+                                isTyping={isOtherTyping}
                             />
                         </View>
                     </Pressable>
                 ) : (
-                    <View className="flex-1" />
+                    <View className="min-w-0 flex-1 flex-row items-center gap-3">
+                        <View className="h-9 w-9 rounded-full bg-surface-medium" />
+                        <View className="min-w-0 flex-1 gap-1">
+                            <View className="h-4 w-28 rounded bg-surface-medium" />
+                            <View className="h-3 w-16 rounded bg-surface-medium" />
+                        </View>
+                    </View>
                 )}
 
                 <ChatConnectionStatus />
@@ -141,10 +176,10 @@ export default function MessageThreadScreen() {
                 >
                     <MessageThread
                         messages={messages}
-                        recipientId={otherUser?.id}
-                        recipientUsername={otherUser?.username ?? ""}
-                        recipientName={otherUser?.name}
-                        recipientAvatarUrl={otherUser?.avatarUrl}
+                        recipientId={resolvedOtherUser?.id}
+                        recipientUsername={resolvedOtherUser?.username ?? ""}
+                        recipientName={resolvedOtherUser?.name}
+                        recipientAvatarUrl={resolvedOtherUser?.avatarUrl}
                         isLoading={isLoading}
                         isLoadingOlder={isLoadingOlder}
                         onLoadOlder={loadOlder}
