@@ -1,5 +1,6 @@
+import { Image } from "expo-image";
 import { useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { getImageUrl } from "@/lib/imageUrl";
 
@@ -38,7 +39,9 @@ export default function Avatar({
             source={{ uri }}
             onError={handleError}
             className={`${className} rounded-full`}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
         />
     );
 }

@@ -54,8 +54,7 @@ export function validateRegister(values: RegisterValues): RegisterFieldErrors {
         errors.gender = "Please select a gender";
     } else if (
         values.gender !== "male" &&
-        values.gender !== "female" &&
-        values.gender !== "other"
+        values.gender !== "female"
     ) {
         errors.gender = "Gender is invalid";
     }

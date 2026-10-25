@@ -11,7 +11,7 @@ export type RegisterData = {
     name: string;
     username: string;
     jobTitle: string;
-    gender: "male" | "female" | "other" | string;
+    gender: "male" | "female" | string;
     dateOfBirth: string;
     location: string;
     email: string;

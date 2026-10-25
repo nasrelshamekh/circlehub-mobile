@@ -1,3 +1,4 @@
+import * as SecureStore from "expo-secure-store";
 import {
     createContext,
     useCallback,
@@ -17,6 +18,8 @@ type ThemeContextValue = {
     toggleTheme: () => void;
 };
 
+const THEME_STORAGE_KEY = "circlehub_user_theme";
+
 const ThemeContext = createContext<ThemeContextValue>({
     isDark: Appearance.getColorScheme() === "dark",
     toggleTheme: () => {},
@@ -29,6 +32,23 @@ function systemColorScheme(): ColorScheme {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [scheme, setScheme] = useState<ColorScheme>(systemColorScheme);
     const [isManual, setIsManual] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+        SecureStore.getItemAsync(THEME_STORAGE_KEY)
+            .then((saved) => {
+                if (mounted && (saved === "light" || saved === "dark")) {
+                    setIsManual(true);
+                    setScheme(saved);
+                    nativeColorScheme.set(saved);
+                }
+            })
+            .catch(() => {});
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     useEffect(() => {
         if (isManual) return;
@@ -45,6 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             const next: ColorScheme = current === "dark" ? "light" : "dark";
             setIsManual(true);
             nativeColorScheme.set(next);
+            SecureStore.setItemAsync(THEME_STORAGE_KEY, next).catch(() => {});
             return next;
         });
     }, []);

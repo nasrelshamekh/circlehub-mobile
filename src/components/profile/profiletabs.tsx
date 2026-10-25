@@ -7,6 +7,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState } from "react";
+import { Image as ExpoImage } from "expo-image";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 
 import PostCard from "@/components/postcard";

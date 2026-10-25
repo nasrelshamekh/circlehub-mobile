@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
+import { Image as ExpoImage } from "expo-image";
 import { Image, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
@@ -186,10 +187,10 @@ export default function PostCard({
                         accessibilityLabel="View post details"
                     >
                         {isDetailsPage ? (
-                            <Image
+                            <ExpoImage
                                 source={{ uri: imageUri }}
                                 onLoad={(e) => {
-                                    const { width, height } = e.nativeEvent.source;
+                                    const { width, height } = e.source;
                                     if (width > 0 && height > 0) {
                                         setAspectRatio(width / height);
                                     }
@@ -200,13 +201,17 @@ export default function PostCard({
                                         : { width: "100%", minHeight: 250 }
                                 }
                                 className="w-full rounded-2xl"
-                                resizeMode="cover"
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                                transition={150}
                             />
                         ) : (
-                            <Image
+                            <ExpoImage
                                 source={{ uri: imageUri }}
                                 className="h-[200px] w-full rounded-2xl"
-                                resizeMode="cover"
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                                transition={150}
                             />
                         )}
                     </Pressable>

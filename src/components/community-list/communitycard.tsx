@@ -10,7 +10,8 @@ import {
     ShieldUser,
     Users,
 } from "lucide-react-native";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image as ExpoImage } from "expo-image";
+import { Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/context/themecontext";
 import { getImageUrl } from "@/lib/imageUrl";
@@ -57,10 +58,12 @@ export default function CommunityCard({
             >
                 <View className="h-36 w-full bg-surface-high">
                     {coverUri ? (
-                        <Image
+                        <ExpoImage
                             source={{ uri: coverUri }}
                             className="h-full w-full"
-                            resizeMode="cover"
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={150}
                         />
                     ) : (
                         <View className="h-full w-full items-center justify-center">

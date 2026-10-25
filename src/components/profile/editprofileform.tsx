@@ -41,7 +41,6 @@ function parseDateOfBirth(value: string | null): Date | null {
 const GENDERS = [
     { label: "Male", value: "male" },
     { label: "Female", value: "female" },
-    { label: "Other", value: "other" },
 ];
 
 export default function EditProfileForm() {
