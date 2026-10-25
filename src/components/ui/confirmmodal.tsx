@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 import { themes } from "@/theme/themes";
@@ -83,28 +84,46 @@ export default function ConfirmModal({
                             </Pressable>
                         )}
 
-                        <Pressable
-                            disabled={loading}
-                            onPress={onConfirm}
-                            accessibilityRole="button"
-                            accessibilityLabel={confirmText}
-                            className={`${
-                                showCancel ? "flex-1" : "w-full"
-                            } items-center justify-center rounded-xl py-3 active:opacity-90 ${
-                                destructive ? "bg-error" : "bg-primary"
-                            }`}
-                        >
-                            {loading ? (
-                                <ActivityIndicator
-                                    size="small"
-                                    color={colors.buttonGradientText}
-                                />
-                            ) : (
-                                <Text className="text-label-md font-semibold text-on-primary">
-                                    {confirmText}
-                                </Text>
-                            )}
-                        </Pressable>
+                        {destructive ? (
+                            <Pressable
+                                disabled={loading}
+                                onPress={onConfirm}
+                                accessibilityRole="button"
+                                accessibilityLabel={confirmText}
+                                className={`${
+                                    showCancel ? "flex-1" : "w-full"
+                                } items-center justify-center rounded-xl bg-error py-3 active:opacity-90`}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color="#ffffff"
+                                    />
+                                ) : (
+                                    <Text className="text-label-md font-semibold text-white">
+                                        {confirmText}
+                                    </Text>
+                                )}
+                            </Pressable>
+                        ) : (
+                            <GradientButton
+                                disabled={loading}
+                                onPress={onConfirm}
+                                accessibilityLabel={confirmText}
+                                label={loading ? undefined : confirmText}
+                                icon={
+                                    loading ? (
+                                        <ActivityIndicator
+                                            size="small"
+                                            color={colors.buttonGradientText}
+                                        />
+                                    ) : undefined
+                                }
+                                className={showCancel ? "flex-1" : "w-full"}
+                                contentStyle={{ paddingVertical: 12 }}
+                                textClassName="text-label-md font-semibold"
+                            />
+                        )}
                     </View>
                 </Pressable>
             </Pressable>

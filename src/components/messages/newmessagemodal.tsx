@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 import Avatar from "@/components/avatar";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import useSendMessage from "@/hooks/mutations/useSendMessage";
 import { useMessageRecipients } from "@/hooks/useMessageRecipients";
@@ -274,41 +275,29 @@ export default function NewMessageModal({
                                     </Text>
                                 </Pressable>
 
-                                <Pressable
+                                <GradientButton
                                     onPress={handleSendFirstMessage}
                                     disabled={
                                         !messageText.trim() ||
                                         sendMessage.isPending
                                     }
-                                    className={
-                                        messageText.trim() &&
-                                        !sendMessage.isPending
-                                            ? "flex-row items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5"
-                                            : "flex-row items-center gap-1.5 rounded-xl bg-surface-highest px-4 py-2.5"
-                                    }
-                                >
-                                    <Send
-                                        size={15}
-                                        color={
-                                            messageText.trim() &&
-                                            !sendMessage.isPending
-                                                ? colors.buttonGradientText
-                                                : colors.textSecondary
-                                        }
-                                    />
-                                    <Text
-                                        className={
-                                            messageText.trim() &&
-                                            !sendMessage.isPending
-                                                ? "text-label-md font-semibold text-on-primary"
-                                                : "text-label-md font-semibold text-text-secondary"
-                                        }
-                                    >
-                                        {sendMessage.isPending
+                                    label={
+                                        sendMessage.isPending
                                             ? "Sending…"
-                                            : "Send Message"}
-                                    </Text>
-                                </Pressable>
+                                            : "Send Message"
+                                    }
+                                    icon={
+                                        <Send
+                                            size={15}
+                                            color={colors.buttonGradientText}
+                                        />
+                                    }
+                                    contentStyle={{
+                                        paddingHorizontal: 16,
+                                        paddingVertical: 10,
+                                    }}
+                                    textClassName="text-label-md font-semibold"
+                                />
                             </View>
                         </View>
                     )}

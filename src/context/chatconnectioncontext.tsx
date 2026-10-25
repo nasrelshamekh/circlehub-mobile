@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import InAppMessageNotification from "@/components/messages/inappmessagenotification";
 
 import { useAuth } from "@/context/authcontext";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { emitPostCreated } from "@/lib/feedEvents";
 import { queryKeys } from "@/lib/queryKeys";
@@ -185,16 +186,14 @@ function RecoveryUnlockPrompt({
                             </Text>
                         </Pressable>
 
-                        <Pressable
+                        <GradientButton
                             onPress={onUnlock}
-                            accessibilityRole="button"
                             accessibilityLabel="Unlock"
-                            className="flex-1 items-center rounded-xl bg-primary py-3"
-                        >
-                            <Text className="text-label-md font-semibold text-on-primary">
-                                Unlock
-                            </Text>
-                        </Pressable>
+                            label="Unlock"
+                            className="flex-1"
+                            contentStyle={{ paddingVertical: 12 }}
+                            textClassName="text-label-md font-semibold"
+                        />
                     </View>
                 </View>
             </View>

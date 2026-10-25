@@ -1,4 +1,5 @@
 import * as Clipboard from "expo-clipboard";
+import { LinearGradient } from "expo-linear-gradient";
 import { RotateCcw, Send, Smile } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -646,18 +647,31 @@ export default function MessageThread({
                             hitSlop={6}
                             className={
                                 text.trim()
-                                    ? "h-10 w-10 items-center justify-center rounded-full bg-primary"
-                                    : "h-10 w-10 items-center justify-center rounded-full bg-surface-highest"
+                                    ? "h-10 w-10 items-center justify-center overflow-hidden rounded-full"
+                                    : "h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-surface-highest"
                             }
                         >
-                            <Send
-                                size={18}
-                                color={
-                                    text.trim()
-                                        ? colors.buttonGradientText
-                                        : colors.textSecondary
-                                }
-                            />
+                            {text.trim() ? (
+                                <LinearGradient
+                                    colors={[
+                                        colors.primaryGradientStart,
+                                        colors.primaryGradientEnd,
+                                    ]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    className="h-full w-full items-center justify-center"
+                                >
+                                    <Send
+                                        size={18}
+                                        color={colors.buttonGradientText}
+                                    />
+                                </LinearGradient>
+                            ) : (
+                                <Send
+                                    size={18}
+                                    color={colors.textSecondary}
+                                />
+                            )}
                         </Pressable>
                     </View>
 

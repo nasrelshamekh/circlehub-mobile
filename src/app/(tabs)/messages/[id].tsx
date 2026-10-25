@@ -15,6 +15,7 @@ import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import MessageThread from "@/components/messages/messagethread";
 import PresenceLabel from "@/components/messages/presencelabel";
 import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useChatConnection } from "@/context/chatconnectioncontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
@@ -170,16 +171,14 @@ export default function MessageThreadScreen() {
                             : "Could not load this conversation."}
                     </Text>
 
-                    <Pressable
+                    <GradientButton
                         onPress={refetch}
-                        accessibilityRole="button"
                         accessibilityLabel="Try loading this conversation again"
-                        className="mt-4 rounded-full bg-primary px-5 py-2.5"
-                    >
-                        <Text className="text-label-md font-semibold text-on-primary">
-                            Try again
-                        </Text>
-                    </Pressable>
+                        label="Try again"
+                        className="mt-4 rounded-full"
+                        contentStyle={{ paddingHorizontal: 20, paddingVertical: 10 }}
+                        textClassName="text-label-md font-semibold"
+                    />
                 </View>
             ) : (
                 <KeyboardAvoidingView

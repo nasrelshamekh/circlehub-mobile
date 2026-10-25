@@ -14,6 +14,7 @@ import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import ConversationList from "@/components/messages/conversationlist";
 import NewMessageModal from "@/components/messages/newmessagemodal";
 import ConversationsSkeleton from "@/components/skeletons/conversationsskeleton";
+import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
 import { themeColors } from "@/theme/colors";
@@ -70,18 +71,15 @@ export default function Messages() {
                     <ChatConnectionStatus />
                 </View>
 
-                <Pressable
+                <GradientButton
                     onPress={() => setNewMessageOpen(true)}
-                    accessibilityRole="button"
                     accessibilityLabel="New message"
-                    hitSlop={8}
-                    className="mr-2 flex-row items-center gap-1.5 rounded-xl bg-primary px-3 py-2"
-                >
-                    <SquarePen size={16} color={colors.buttonGradientText} />
-                    <Text className="text-label-sm font-semibold text-on-primary">
-                        New
-                    </Text>
-                </Pressable>
+                    icon={<SquarePen size={16} color={colors.buttonGradientText} />}
+                    label="New"
+                    className="mr-2 rounded-xl"
+                    contentStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
+                    textClassName="text-label-sm font-semibold"
+                />
             </View>
 
             {isLoading ? (

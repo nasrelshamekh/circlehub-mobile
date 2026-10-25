@@ -26,6 +26,7 @@ import {
 
 import { KeyBackupDto } from "@/api/keys";
 import { useTheme } from "@/context/themecontext";
+import GradientButton from "@/components/ui/gradientbutton";
 import { formatPostDate } from "@/lib/formatPostDate";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -259,38 +260,29 @@ export default function MessageRecoveryCard() {
 
             <View className="gap-2.5">
                 {!backupInfo ? (
-                    <Pressable
+                    <GradientButton
                         disabled={loading}
                         onPress={handleOpenSetup}
-                        accessibilityRole="button"
                         accessibilityLabel="Set up 12-word recovery phrase"
-                        className="flex-row items-center justify-center gap-2 rounded-xl bg-primary py-3.5"
-                    >
-                        <KeyRound size={17} color={colors.buttonGradientText} />
-                        <Text className="text-label-md font-semibold text-on-primary">
-                            Set Up 12-Word Recovery Phrase
-                        </Text>
-                    </Pressable>
+                        label="Set Up 12-Word Recovery Phrase"
+                        icon={<KeyRound size={17} color={colors.buttonGradientText} />}
+                        contentStyle={{ paddingVertical: 14 }}
+                        textClassName="text-label-md font-semibold"
+                    />
                 ) : (
                     <>
-                        <Pressable
+                        <GradientButton
                             onPress={() => {
                                 setRestoreError(null);
                                 setRestoreInput("");
                                 setRestoreModalOpen(true);
                             }}
-                            accessibilityRole="button"
                             accessibilityLabel="Unlock with recovery phrase"
-                            className="flex-row items-center justify-center gap-2 rounded-xl bg-primary py-3.5"
-                        >
-                            <Unlock
-                                size={17}
-                                color={colors.buttonGradientText}
-                            />
-                            <Text className="text-label-md font-semibold text-on-primary">
-                                Unlock with Recovery Phrase
-                            </Text>
-                        </Pressable>
+                            label="Unlock with Recovery Phrase"
+                            icon={<Unlock size={17} color={colors.buttonGradientText} />}
+                            contentStyle={{ paddingVertical: 14 }}
+                            textClassName="text-label-md font-semibold"
+                        />
 
                         <View className="flex-row gap-2">
                             <Pressable
@@ -462,25 +454,14 @@ export default function MessageRecoveryCard() {
                                     />
                                 </View>
 
-                                <Pressable
+                                <GradientButton
                                     disabled={!confirmedSaved}
                                     onPress={() => setSetupModalOpen(false)}
-                                    className={
-                                        confirmedSaved
-                                            ? "mt-4 items-center rounded-xl bg-primary py-3.5"
-                                            : "mt-4 items-center rounded-xl bg-surface-highest py-3.5"
-                                    }
-                                >
-                                    <Text
-                                        className={
-                                            confirmedSaved
-                                                ? "text-label-md font-semibold text-on-primary"
-                                                : "text-label-md font-semibold text-text-secondary"
-                                        }
-                                    >
-                                        Done
-                                    </Text>
-                                </Pressable>
+                                    label="Done"
+                                    className="mt-4 rounded-xl"
+                                    contentStyle={{ paddingVertical: 14 }}
+                                    textClassName="text-label-md font-semibold"
+                                />
                             </ScrollView>
                         )}
                     </View>
@@ -558,31 +539,21 @@ export default function MessageRecoveryCard() {
                             </Text>
                         )}
 
-                        <Pressable
+                        <GradientButton
                             disabled={!checksumOk || restoring}
                             onPress={handleRestoreSubmit}
-                            className={
-                                checksumOk && !restoring
-                                    ? "mt-4 items-center rounded-xl bg-primary py-3.5"
-                                    : "mt-4 items-center rounded-xl bg-surface-highest py-3.5"
+                            label={restoring ? undefined : "Restore and Unlock Key"}
+                            icon={
+                                restoring ? (
+                                    <ActivityIndicator
+                                        color={colors.buttonGradientText}
+                                    />
+                                ) : undefined
                             }
-                        >
-                            {restoring ? (
-                                <ActivityIndicator
-                                    color={colors.buttonGradientText}
-                                />
-                            ) : (
-                                <Text
-                                    className={
-                                        checksumOk
-                                            ? "text-label-md font-semibold text-on-primary"
-                                            : "text-label-md font-semibold text-text-secondary"
-                                    }
-                                >
-                                    Unlock Key Backup
-                                </Text>
-                            )}
-                        </Pressable>
+                            className="mt-4 rounded-xl"
+                            contentStyle={{ paddingVertical: 14 }}
+                            textClassName="text-label-md font-semibold"
+                        />
                     </View>
                 </View>
             </Modal>
