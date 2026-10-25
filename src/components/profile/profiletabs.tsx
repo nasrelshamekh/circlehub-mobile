@@ -5,6 +5,7 @@ import {
     Info,
     Lock,
 } from "lucide-react-native";
+import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 
@@ -59,9 +60,16 @@ export default function ProfileTabs({
     const colors = isDark ? themeColors.dark : themeColors.light;
     const [activeTab, setActiveTab] = useState<TabValue>("posts");
 
-    const userPosts = posts.filter((post) => post.author.id === user.id);
-    const mediaPosts = posts.filter(
-        (post) => post.author.id === user.id && post.imageUrl
+    const isUserAuthor = (author?: Post["author"]) => {
+        if (!author) return true;
+        if (user?.id && author?.id && author.id.toLowerCase() === user.id.toLowerCase()) return true;
+        if (user?.username && author?.username && author.username.toLowerCase() === user.username.toLowerCase()) return true;
+        return true;
+    };
+
+    const userPosts = (posts ?? []).filter((post) => isUserAuthor(post.author));
+    const mediaPosts = (posts ?? []).filter(
+        (post) => isUserAuthor(post.author) && Boolean(post.imageUrl)
     );
 
     if (user.isProfileLocked) {
@@ -140,7 +148,25 @@ export default function ProfileTabs({
                 ))}
 
             {activeTab === "media" &&
-                (mediaPosts.length > 0 ? (
+                (isLoadingPosts ? (
+                    <View className="rounded-2xl bg-surface-lowest p-4 shadow-sm">
+                        <View className="mb-4 h-6 w-24 rounded bg-surface-low" />
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                flexWrap: "wrap",
+                                gap: 12,
+                            }}
+                        >
+                            {[1, 2, 3, 4].map((i) => (
+                                <View
+                                    key={i}
+                                    className="w-[48%] aspect-square rounded-xl bg-surface-low"
+                                />
+                            ))}
+                        </View>
+                    </View>
+                ) : mediaPosts.length > 0 ? (
                     <View className="rounded-2xl bg-surface-lowest p-4 shadow-sm">
                         <Text className="mb-4 text-title-lg font-semibold text-text-primary">
                             Media
@@ -152,14 +178,28 @@ export default function ProfileTabs({
                                 gap: 12,
                             }}
                         >
-                            {mediaPosts.map((post) => (
+                            {mediaPosts.map((post) => {
+                                const imgUrl = getImageUrl(post.imageUrl);
+                                if (!imgUrl) return null;
+                                return (
+                                    <Pressable
+                                        key={post.id}
+                                        onPress={() =>
+                                            router.push(`/post/${post.id}` as any)
+                                        }
+                                        accessibilityRole="button"
+                                        accessibilityLabel="View post"
+                                        className="w-[48%] aspect-square rounded-xl overflow-hidden bg-surface-low active:opacity-85"
+                                    >
                                 <Image
                                     key={post.id}
-                                    source={{ uri: getImageUrl(post.imageUrl)! }}
-                                    className="w-[48%] aspect-square rounded-lg"
+                                    source={{ uri: imgUrl }}
+                                    className="h-full w-full"
                                     resizeMode="cover"
                                 />
-                            ))}
+                                    </Pressable>
+                                );
+                            })}
                         </View>
                     </View>
                 ) : (

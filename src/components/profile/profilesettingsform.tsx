@@ -151,7 +151,8 @@ export default function ProfileSettingsForm() {
 
             Alert.alert(
                 "Settings saved",
-                "Your preferences have been updated."
+                "Your preferences have been updated.",
+                [{ text: "Done" }]
             );
         } catch (caught) {
             setError(

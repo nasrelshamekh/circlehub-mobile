@@ -26,7 +26,7 @@ function getNotifications(): typeof NotificationsType | null {
         const mod = require("expo-notifications") as typeof NotificationsType;
         mod.setNotificationHandler({
             handleNotification: async () => ({
-                shouldShowBanner: true,
+                shouldShowBanner: false,
                 shouldShowList: true,
                 shouldPlaySound: true,
                 shouldSetBadge: false,

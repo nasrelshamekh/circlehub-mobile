@@ -180,15 +180,21 @@ export default function MessageRecoveryCard() {
         try {
             await restoreRecovery(restoreInput);
             await markRecoveryRestored().catch(() => {});
+            queryClient.removeQueries({
+                queryKey: ["messages"],
+            });
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.conversations(),
             });
             closeRestoreModal();
             await refreshStatus();
-            Alert.alert(
-                "Recovery complete",
-                "Your recovery phrase was verified and this device is now registered for encrypted messages."
-            );
+            setTimeout(() => {
+                Alert.alert(
+                    "Recovery complete",
+                    "Your recovery phrase was verified and this device is now registered for encrypted messages.",
+                    [{ text: "Done" }]
+                );
+            }, 120);
         } catch (error) {
             setRestoreError(
                 error instanceof Error

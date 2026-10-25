@@ -15,6 +15,7 @@ import { Platform, StatusBar, View } from "react-native";
 
 import ErrorFallback from "@/components/errors/errorfallback";
 import AppLoadingScreen from "@/components/ui/apploadingscreen";
+import { AlertProvider } from "@/context/alertcontext";
 import { AuthProvider, useAuth } from "@/context/authcontext";
 import { ChatConnectionProvider } from "@/context/chatconnectioncontext";
 import { ThemeProvider, useTheme } from "@/context/themecontext";
@@ -33,11 +34,13 @@ export default function RootLayout() {
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
-                <AuthProvider>
-                    <ChatConnectionProvider>
-                        <RootNavigator />
-                    </ChatConnectionProvider>
-                </AuthProvider>
+                <AlertProvider>
+                    <AuthProvider>
+                        <ChatConnectionProvider>
+                            <RootNavigator />
+                        </ChatConnectionProvider>
+                    </AuthProvider>
+                </AlertProvider>
             </ThemeProvider>
         </QueryClientProvider>
     );

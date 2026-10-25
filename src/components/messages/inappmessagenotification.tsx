@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { ChevronDown, ChevronUp, X } from "lucide-react-native";
 
 import Avatar from "@/components/avatar";
@@ -16,6 +16,7 @@ export interface InAppMessageNotificationProps {
     onPress?: () => void;
     onDismiss?: () => void;
     className?: string;
+    style?: StyleProp<ViewStyle>;
     testID?: string;
 }
 
@@ -29,11 +30,31 @@ export default function InAppMessageNotification({
     onPress,
     onDismiss,
     className = "",
+    style,
     testID = "in-app-message-notification",
 }: InAppMessageNotificationProps) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
     const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+
+    const translateY = useRef(new Animated.Value(-100)).current;
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.spring(translateY, {
+                toValue: 0,
+                useNativeDriver: true,
+                tension: 65,
+                friction: 10,
+            }),
+            Animated.timing(opacity, {
+                toValue: 1,
+                duration: 180,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [translateY, opacity]);
 
     const isExpanded =
         controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
@@ -58,14 +79,35 @@ export default function InAppMessageNotification({
 
     function handleDismiss(e: any) {
         e?.stopPropagation?.();
+        Animated.parallel([
+            Animated.timing(translateY, {
+                toValue: -100,
+                duration: 160,
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+                toValue: 0,
+                duration: 160,
+                useNativeDriver: true,
+            }),
+        ]).start();
         onDismiss?.();
     }
 
     return (
-        <View
+        <Animated.View
             testID={testID}
             accessibilityRole="alert"
-            className={`rounded-2xl border border-border bg-surface-lowest shadow-lg overflow-hidden ${className}`}
+            style={[
+                {
+                    backgroundColor: colors.surfaceLowest,
+                    borderColor: colors.border,
+                    transform: [{ translateY }],
+                    opacity,
+                },
+                style,
+            ]}
+            className={`rounded-2xl border bg-surface-lowest shadow-lg overflow-hidden ${className}`}
         >
             <Pressable
                 onPress={onPress}
@@ -178,6 +220,6 @@ export default function InAppMessageNotification({
                     )}
                 </View>
             </Pressable>
-        </View>
+        </Animated.View>
     );
 }

@@ -2,9 +2,12 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react-native";
 import React from "react";
 
 import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
+import AlertModal from "@/components/ui/alertmodal";
 import AppLoadingScreen from "@/components/ui/apploadingscreen";
 import ConfirmModal from "@/components/ui/confirmmodal";
+import { AlertProvider } from "@/context/alertcontext";
 import { ThemeProvider } from "@/context/themecontext";
+import { Alert, Pressable, Text } from "react-native";
 
 async function renderWithTheme(ui: React.ReactElement) {
     let result: any;
@@ -91,5 +94,98 @@ describe("ConfirmModal", () => {
             fireEvent.press(getByText("Delete"));
         });
         expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("renders single button notice when showCancel is false", async () => {
+        const onConfirm = jest.fn();
+
+        const { getByText, queryByText } = await renderWithTheme(
+            <ConfirmModal
+                visible={true}
+                title="Notice"
+                message="Your changes have been saved."
+                showCancel={false}
+                confirmText="Done"
+                onConfirm={onConfirm}
+                onCancel={jest.fn()}
+            />
+        );
+
+        expect(getByText("Notice")).toBeTruthy();
+        expect(getByText("Your changes have been saved.")).toBeTruthy();
+        expect(getByText("Done")).toBeTruthy();
+        expect(queryByText("Cancel")).toBeNull();
+
+        await act(async () => {
+            fireEvent.press(getByText("Done"));
+        });
+        expect(onConfirm).toHaveBeenCalled();
+    });
+});
+
+describe("AlertModal", () => {
+    it("renders as single-button notice modal and handles dismiss", async () => {
+        const onClose = jest.fn();
+
+        const { getByText, queryByText } = await renderWithTheme(
+            <AlertModal
+                visible={true}
+                title="Recovery complete"
+                message="Your recovery phrase was verified."
+                buttonText="Done"
+                onClose={onClose}
+            />
+        );
+
+        expect(getByText("Recovery complete")).toBeTruthy();
+        expect(getByText("Your recovery phrase was verified.")).toBeTruthy();
+        expect(getByText("Done")).toBeTruthy();
+        expect(queryByText("Cancel")).toBeNull();
+
+        await act(async () => {
+            fireEvent.press(getByText("Done"));
+        });
+        expect(onClose).toHaveBeenCalled();
+    });
+});
+
+describe("AlertProvider (Global Alert Interceptor)", () => {
+    function TestConsumer() {
+        return (
+            <Pressable
+                onPress={() => {
+                    Alert.alert("Settings saved", "Your preferences have been updated.", [
+                        { text: "Done" },
+                    ]);
+                }}
+            >
+                <Text>Trigger Save Alert</Text>
+            </Pressable>
+        );
+    }
+
+    it("intercepts Alert.alert and renders in-app themed modal", async () => {
+        const { getByText } = await renderWithTheme(
+            <AlertProvider>
+                <TestConsumer />
+            </AlertProvider>
+        );
+
+        expect(getByText("Trigger Save Alert")).toBeTruthy();
+
+        // Fire Alert.alert
+        await act(async () => {
+            fireEvent.press(getByText("Trigger Save Alert"));
+        });
+
+        // The in-app modal renders with title, message, and button
+        expect(getByText("Settings saved")).toBeTruthy();
+        expect(getByText("Your preferences have been updated.")).toBeTruthy();
+        expect(getByText("Done")).toBeTruthy();
+
+        // Tapping Done closes the in-app modal
+        await act(async () => {
+            fireEvent.press(getByText("Done"));
+        });
     });
 });

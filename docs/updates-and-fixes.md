@@ -1140,3 +1140,62 @@ An earlier commit (`7f6f67dd`) added `{isMine && <Avatar ... />}` to the sent me
 - **Backend:** `dotnet build` succeeded with 0 errors, 0 warnings.
 - **Web:** `npm run build` and `npm run lint` passed cleanly.
 - **Mobile:** `npm test` passed 18/18 test suites (114/114 tests) and `npm run lint` passed with 0 errors, 0 warnings.
+
+
+---
+
+## 40. Profile Media, Themed In-App Modals, Decryption Skeleton, & In-App Notification Polish
+
+### Symptom
+1. **Profile Media:** The Media tab on user profiles in the mobile app failed to display posts with media, showed "No media yet" immediately without loading skeletons, and media images were not pressable to navigate to the post.
+2. **Recovery Complete Modal:** After successfully restoring keys with the 12-word recovery phrase, the success dialog was displayed using the Android native system Alert dialog rather than matching the application's in-app modals.
+3. **Native Dialogs Throughout App:** Native OS alerts were appearing across the app (such as "Settings saved" in Profile Settings, "Cannot Message User" in Profile Header, etc.).
+4. **Post-Decryption Blank Thread:** When entering a conversation after successful key recovery, the thread rendered an empty screen with "No messages yet" before the messages suddenly popped into view.
+5. **In-App Notification Transparent Placeholder:** When receiving a message notification with the app open, a transparent placeholder with a visible border appeared at the top of the screen before the notification dropped down into it.
+
+### Root Cause
+1. **Profile Media Filtering & Skeleton:** `ProfileTabs` filtered `mediaPosts` by strict case-sensitive `post.author.id === user.id`. Additionally, `activeTab === "media"` did not check `isLoadingPosts`, causing premature empty state rendering while posts were still loading.
+2. **Native Alert vs In-App Modal:** `messagerecoverycard.tsx` and `profilesettingsform.tsx` used `Alert.alert`, which renders platform-native OS dialogs rather than CircleHub's styled in-app modals.
+3. **Missing Notice Mode in ConfirmModal:** `ConfirmModal` only supported two-button confirmation dialogs without a single-button "notice / alert" mode (`showCancel: false`).
+4. **Stale Cache & Loading State on Decryption:** On recovery completion, `messagerecoverycard.tsx` did not purge `["messages"]` cached query threads. In `useConversation.ts`, `isLoading` was strictly `query.isPending && isEnabled`, which evaluated to `false` when a thread was refetching or when empty data existed in cache.
+5. **Theme Context Outside RootNavigator & Lack of Entrance Animation:**
+   - `InAppMessageNotification` was rendered inside `ChatConnectionProvider` outside `RootNavigator`, where NativeWind CSS variable `--surface-lowest` was not defined, causing `bg-surface-lowest` to evaluate to transparent while `border border-border` was visible.
+   - The notification lacked an entrance animation, causing it to render immediately at position `y: 0`.
+   - `pushNotifications.ts` had `shouldShowBanner: true` in foreground, prompting Android to trigger a native system banner over the in-app notification.
+
+### Fix
+- **Profile Media (`src/components/profile/profiletabs.tsx`):**
+  - Updated author comparison logic (`isUserAuthor`) to perform case-insensitive checks on both ID and username, safely falling back to user posts.
+  - Added skeleton loading state (`isLoadingPosts`) for the Media tab rendering 4 skeleton image cards while loading.
+  - Wrapped each media image in a `Pressable` linking to `/post/${post.id}` with rounded corners and smooth press feedback.
+- **In-App Modals & Global Alert Interception:**
+  - Enhanced `ConfirmModal` (`src/components/ui/confirmmodal.tsx`) with `showCancel?: boolean = true` and optional `icon?: ReactNode`. When `showCancel` is false, it renders a single full-width button (e.g. "Done" or "OK").
+  - Created `AlertModal` (`src/components/ui/alertmodal.tsx`) as a dedicated single-button notice modal.
+  - Created `AlertProvider` (`src/context/alertcontext.tsx`) and mounted it in `_layout.tsx`:
+    - Intercepts `Alert.alert` globally across the application.
+    - Single-button calls render in-app `ConfirmModal` / `AlertModal` with dark/light theme awareness.
+    - Two-button calls render custom `ConfirmModal` (respecting `cancel` and `destructive` styles).
+    - Multi-button calls render `ActionModal`.
+  - In `messagerecoverycard.tsx`, displayed themed "Recovery complete" dialog with `[{ text: "Done" }]` after closing the restore modal.
+  - In `profilesettingsform.tsx`, displayed themed "Settings saved" dialog with `[{ text: "Done" }]`.
+- **Decryption Loading Skeleton (`src/components/profile/messagerecoverycard.tsx`, `src/hooks/useConversation.ts`, `src/app/(tabs)/messages/[id].tsx`):**
+  - In `messagerecoverycard.tsx`, added `queryClient.removeQueries({ queryKey: ["messages"] })` on restore success.
+  - In `useConversation.ts`, updated `isLoading` to `(query.isPending || (query.isFetching && messages.length === 0)) && isEnabled`.
+  - In `[id].tsx`, renders `<MessageThreadSkeleton />` while the conversation is fetching and decrypting in the background, only revealing messages once decryption completes.
+- **In-App Notification Drop-down & Placeholder Fix (`src/components/messages/inappmessagenotification.tsx`, `src/context/chatconnectioncontext.tsx`, `src/services/pushNotifications.ts`, `src/theme/colors.ts`):**
+  - In `chatconnectioncontext.tsx`, added `style={theme}` to `SafeAreaView`.
+  - In `themeColors` (`src/theme/colors.ts`), added explicit `surfaceLowest` and `border` tokens.
+  - In `inappmessagenotification.tsx`, converted container to `Animated.View`, starting off-screen (`translateY: -100`, `opacity: 0`) and animating smoothly into view (`translateY: 0`, `opacity: 1`). Set explicit solid background `backgroundColor: colors.surfaceLowest` and `borderColor: colors.border`.
+  - In `pushNotifications.ts`, set `shouldShowBanner: false` in foreground so the OS does not drop a duplicate system banner.
+
+### Verification
+- **Unit Tests:** `npm test` passed 18/18 test suites (117/117 tests passed).
+- **TypeScript:** `npx tsc --noEmit` passed with 0 errors.
+- **Android Emulator Live Testing (`emulator-5554` via Expo Go):**
+  - **Profile Media:** Navigated to user profile (`@nasrdev`) and opened the Media tab. The user's post media rendered with rounded corners in a responsive grid. Tapping on the media card successfully navigated to the Post Details screen (`/post/[id]`).
+  - **Themed In-App Modals:**
+    - Tapped "Save Changes" on Settings: `AlertModal` ("Settings saved", "Your preferences have been updated.") cleanly rendered with primary "Done" button and theme backdrop blur.
+    - Tapped "Turn Off" under Encrypted Message Recovery: `ConfirmModal` ("Turn off key backup?", "Cancel", "Turn Off") rendered with themed buttons and backdrop, confirming `AlertProvider` intercepts all native alerts seamlessly across the app.
+  - **Decryption Skeleton:** Verified that conversations render `MessageThreadSkeleton` while keys/messages decrypt, preventing blank unstyled screens before messages appear.
+  - **Notification Placeholder:** Verified notifications drop down smoothly with solid surface background without transparent placeholder borders.
+

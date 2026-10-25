@@ -146,7 +146,10 @@ export function useConversation(
         isLoadingOlder: query.isFetchingNextPage,
         loadOlder,
         refetch: refetchThread,
-        isLoading: query.isPending && isEnabled,
+        isLoading:
+            (query.isPending || (query.isFetching && messages.length === 0)) &&
+            isEnabled,
+        isFetching: query.isFetching,
         error: query.error,
     };
 }

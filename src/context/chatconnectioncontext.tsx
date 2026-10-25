@@ -225,6 +225,8 @@ export function ChatConnectionProvider({
         userRef.current = user;
     }, [pathname, user]);
 
+    const { isDark } = useTheme();
+    const theme = isDark ? themes.dark : themes.light;
     const queryClient = useQueryClient();
     const [status, setStatus] = useState<ChatConnectionStatus>("connecting");
     const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
@@ -606,6 +608,7 @@ export function ChatConnectionProvider({
                     <SafeAreaView
                         edges={["top"]}
                         pointerEvents="box-none"
+                        style={theme}
                         className="absolute top-0 left-0 right-0 z-50 px-3 pt-1 pointer-events-box-none"
                     >
                         <InAppMessageNotification
