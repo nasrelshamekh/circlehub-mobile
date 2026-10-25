@@ -26,6 +26,35 @@ export function getMessageRecipients() {
     );
 }
 
+export type StartConversationInput = {
+    recipientId?: string;
+    recipientUsername?: string;
+};
+
+export type StartConversationResult = {
+    conversationId: string;
+    otherUser: {
+        id: string;
+        name: string;
+        username: string;
+        avatarUrl: string | null;
+        isOnline: boolean;
+        lastSeenAt: string | null;
+    };
+    isNew: boolean;
+};
+
+export function getOrCreateConversation(input: StartConversationInput) {
+    return apiFetch<{
+        message: string;
+        data: StartConversationResult;
+    }>("/api/Messages/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+    });
+}
+
 export type SendMessageInput = {
     recipientUsername: string;
     content?: string;

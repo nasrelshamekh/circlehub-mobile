@@ -1107,3 +1107,36 @@ An earlier commit (`7f6f67dd`) added `{isMine && <Avatar ... />}` to the sent me
 - **Verification:**
   - `npm test`: 18/18 test suites passed (114/114 tests).
   - `npm run lint`: 0 errors, 0 warnings.
+
+---
+
+## 39. User Profile Messaging Button & Privacy Policy Enforcement (Web & Mobile)
+
+### Symptom
+1. On the web app, viewing another user's profile showed an unconditional, unclickable placeholder "Message" button that did not respect the user's messaging privacy setting (`everyone`, `followers`, `none`) and did not navigate or open a conversation with that person.
+2. On the mobile app, there was no Message button at all on another user's profile header (only the Follow button was present).
+
+### Root Cause
+1. **Backend Privacy Settings Not Exposed on Profile:** `UserProfileDto` exposed `ProfileVisibility` and follower/following flags, but did not expose `MessagesFrom` or an evaluated `CanMessage` flag, requiring clients to either guess or blindly attempt to message.
+2. **Missing Conversation Retrieval Endpoint by Recipient:** `MessagesController` had `GET /api/messages/conversations` and `GET /api/messages/conversations/{id}`, but no endpoint to retrieve or atomically initialize a conversation between the current user and a target recipient before any messages are sent.
+3. **Mobile Profile Header Missing Action:** `src/components/profile/profileheader.tsx` only rendered `<FollowButton user={user} variant="text" />` for non-current-user profiles, with no entry point to initiate direct messages.
+
+### Fix
+- **Backend (`CircleHub.Api`):**
+  - Added `MessagesFrom` and `CanMessage` to `UserProfileDto.cs`.
+  - In `UsersController.cs`, computed `CanMessage = !isCurrentUser && (user.MessagesFrom switch { MessagesFrom.Everyone => true, MessagesFrom.Followers => isFollowedByMe, _ => false })`.
+  - Added `StartConversationDto.cs` and `POST /api/messages/conversations` in `MessagesController.cs` to retrieve or create a conversation with the target recipient, verifying permission via `MessagePolicyService.CanMessageAsync`.
+- **Web Application (`CircleHub`):**
+  - Exported `getOrCreateConversation` in `src/services/messageApi.js`.
+  - In `src/components/profile/ProfileHeader.jsx`, wired the Message button to evaluate `canMessage`. If disallowed, the button is disabled and dimmed (`opacity-50 cursor-not-allowed`) with an informative tooltip. If allowed, clicking opens or creates the conversation and navigates to `/messages/:conversationId`.
+  - In `src/hooks/mutations/useToggleFollow.jsx`, optimistically updated `canMessage` in cache when following/unfollowing a `followers`-only user.
+- **Mobile Application (`circlehub-mobile`):**
+  - Added `canMessage?: boolean;` to `UserProfile` in `src/types/user.ts`.
+  - Added `getOrCreateConversation` in `src/api/messages.ts`.
+  - In `src/components/profile/profileheader.tsx`, added the Message button beside `FollowButton` in the action bar. Disallowed states are dimmed (`opacity-50`) and tapping displays an informative alert explaining the restriction. Allowed states show an `ActivityIndicator` while resolving and navigate to `/messages/[id]` passing recipient identity params so the conversation header renders immediately while loading.
+  - In `src/hooks/mutations/useToggleFollow.ts`, optimistically updated `canMessage` in the React Query cache when toggling follow status.
+
+### Verification
+- **Backend:** `dotnet build` succeeded with 0 errors, 0 warnings.
+- **Web:** `npm run build` and `npm run lint` passed cleanly.
+- **Mobile:** `npm test` passed 18/18 test suites (114/114 tests) and `npm run lint` passed with 0 errors, 0 warnings.

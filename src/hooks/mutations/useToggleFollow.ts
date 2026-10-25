@@ -44,10 +44,16 @@ export default function useToggleFollow() {
                         isProfileLocked = !shouldFollow;
                     }
 
+                    let canMessage = old.canMessage;
+                    if (old.messagesFrom === "followers") {
+                        canMessage = shouldFollow;
+                    }
+
                     return {
                         ...old,
                         isFollowedByMe: shouldFollow,
                         isProfileLocked,
+                        canMessage,
                         followersCount: Math.max(0, old.followersCount + delta),
                     };
                 }

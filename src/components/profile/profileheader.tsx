@@ -1,18 +1,44 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { CalendarDays, MapPin, Pencil, Settings } from "lucide-react-native";
-import { Image, Pressable, Text, View } from "react-native";
+import {
+    CalendarDays,
+    MapPin,
+    MessageCircle,
+    Pencil,
+    Settings,
+} from "lucide-react-native";
+import { useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Pressable,
+    Text,
+    View,
+} from "react-native";
 
+import { getOrCreateConversation } from "@/api/messages";
 import Avatar from "@/components/avatar";
 import FollowButton from "@/components/followers/followbutton";
 import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { getImageUrl } from "@/lib/imageUrl";
+import { queryKeys } from "@/lib/queryKeys";
 import { themeColors } from "@/theme/colors";
+import { ApiError } from "@/types/api";
 import { UserProfile } from "@/types/user";
 
 export default function ProfileHeader({ user }: { user: UserProfile }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
+    const queryClient = useQueryClient();
+    const [isStartingChat, setIsStartingChat] = useState(false);
+
+    const isFollowedByMe = Boolean(user.isFollowedByMe);
+    const messagesFrom = (user.messagesFrom || "").toLowerCase();
+    const canMessage = typeof user.canMessage === "boolean"
+        ? (messagesFrom === "followers" ? isFollowedByMe : user.canMessage)
+        : (messagesFrom === "everyone" || (messagesFrom === "followers" && isFollowedByMe));
 
     const joined = new Date(user.createdAt).toLocaleDateString("en-US", {
         month: "long",
@@ -30,6 +56,54 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 pathname: "/followers/[username]",
                 params: { username: user.username, tab },
             });
+        }
+    }
+
+    async function handleMessagePress() {
+        if (!canMessage) {
+            Alert.alert(
+                "Cannot Message User",
+                messagesFrom === "none"
+                    ? "This user is not accepting messages."
+                    : messagesFrom === "followers"
+                    ? "Only followers can send messages to this user. Follow them first to message."
+                    : "You cannot send messages to this user based on their privacy settings."
+            );
+            return;
+        }
+
+        if (isStartingChat) return;
+
+        try {
+            setIsStartingChat(true);
+            const res = await getOrCreateConversation({
+                recipientId: user.id,
+                recipientUsername: user.username,
+            });
+
+            const conversationId = res.data?.conversationId;
+            if (conversationId) {
+                void queryClient.invalidateQueries({
+                    queryKey: queryKeys.conversations(),
+                });
+                router.push({
+                    pathname: "/messages/[id]",
+                    params: {
+                        id: conversationId,
+                        name: user.name,
+                        username: user.username,
+                        avatarUrl: user.avatarUrl ?? "",
+                    },
+                });
+            }
+        } catch (err: unknown) {
+            const error = err as ApiError;
+            Alert.alert(
+                "Error",
+                error?.message || "Failed to start conversation"
+            );
+        } finally {
+            setIsStartingChat(false);
         }
     }
 
@@ -112,6 +186,38 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                 ) : (
                     <View className="mt-4 flex-row gap-2">
                         <FollowButton user={user} variant="text" />
+
+                        <Pressable
+                            onPress={handleMessagePress}
+                            disabled={isStartingChat}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                                canMessage
+                                    ? `Message ${user.name}`
+                                    : `Cannot message ${user.name}`
+                            }
+                            className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-surface-low px-4 py-2 ${
+                                !canMessage ? "opacity-50" : ""
+                            }`}
+                            style={{ minHeight: 40 }}
+                        >
+                            {isStartingChat ? (
+                                <ActivityIndicator
+                                    size="small"
+                                    color={colors.textPrimary}
+                                />
+                            ) : (
+                                <>
+                                    <MessageCircle
+                                        size={16}
+                                        color={colors.textPrimary}
+                                    />
+                                    <Text className="text-label-md font-semibold text-text-primary">
+                                        Message
+                                    </Text>
+                                </>
+                            )}
+                        </Pressable>
                     </View>
                 )}
 

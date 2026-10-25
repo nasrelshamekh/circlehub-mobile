@@ -29,6 +29,7 @@ export type UserProfile = User & {
     isFollowedByMe: boolean;
     followsMe: boolean;
     isProfileLocked: boolean;
+    canMessage?: boolean;
 };
 
 export type FollowUser = {
