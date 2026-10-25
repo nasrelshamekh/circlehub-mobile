@@ -9,6 +9,7 @@ describe("Feed post events & new post indicator logic", () => {
         const dummyPost: Post = {
             id: "post-123",
             content: "Hello from mobile or web!",
+            imageUrl: null,
             author: {
                 id: "user-1",
                 name: "Alice",

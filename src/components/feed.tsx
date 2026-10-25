@@ -1,4 +1,5 @@
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
 import { ArrowUp } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
@@ -142,13 +143,36 @@ export default function Feed() {
                         accessibilityLabel={`Show ${pendingPosts.length} new ${
                             pendingPosts.length === 1 ? "post" : "posts"
                         }`}
-                        className="flex-row items-center gap-1.5 rounded-full bg-primary px-4 py-2 shadow-lg active:opacity-90"
+                        className="overflow-hidden rounded-full active:opacity-90 active:scale-95"
+                        style={{
+                            shadowColor: colors.primary,
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: isDark ? 0.4 : 0.25,
+                            shadowRadius: 8,
+                            elevation: 6,
+                        }}
                     >
-                        <ArrowUp size={16} color="#FFFFFF" />
-                        <Text className="text-label-md font-semibold text-white">
-                            {pendingPosts.length} New{" "}
-                            {pendingPosts.length === 1 ? "Post" : "Posts"}
-                        </Text>
+                        <LinearGradient
+                            colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingHorizontal: 16,
+                                paddingVertical: 9,
+                                gap: 6,
+                            }}
+                        >
+                            <ArrowUp size={16} color={colors.buttonGradientText} strokeWidth={2.5} />
+                            <Text
+                                className="text-label-md font-semibold"
+                                style={{ color: colors.buttonGradientText }}
+                            >
+                                {pendingPosts.length} New{" "}
+                                {pendingPosts.length === 1 ? "Post" : "Posts"}
+                            </Text>
+                        </LinearGradient>
                     </Pressable>
                 </View>
             )}
