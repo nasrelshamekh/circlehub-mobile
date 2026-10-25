@@ -17,10 +17,12 @@ import InAppMessageNotification from "@/components/messages/inappmessagenotifica
 
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
+import { emitPostCreated } from "@/lib/feedEvents";
 import { queryKeys } from "@/lib/queryKeys";
 import {
     createChatConnection,
     NOTIFICATION_CREATED_EVENT,
+    POST_CREATED_EVENT,
     PRESENCE_CHANGED_EVENT,
     RECEIVE_MESSAGE_EVENT,
     sendTyping,
@@ -565,6 +567,12 @@ export function ChatConnectionProvider({
             }
         );
 
+        connection.on(POST_CREATED_EVENT, (post?: any) => {
+            if (post?.id) {
+                emitPostCreated(post);
+            }
+        });
+
         connection.onreconnecting(() => {
             if (!disposed) setStatus("reconnecting");
         });
@@ -613,6 +621,7 @@ export function ChatConnectionProvider({
             connection.off(PRESENCE_CHANGED_EVENT);
             connection.off(TYPING_CHANGED_EVENT);
             connection.off(NOTIFICATION_CREATED_EVENT);
+            connection.off(POST_CREATED_EVENT);
             connection.stop().catch(() => {});
             setTypingUsers({});
         };

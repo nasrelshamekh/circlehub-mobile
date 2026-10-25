@@ -12,6 +12,7 @@ export const RECEIVE_MESSAGE_EVENT = "ReceiveEncryptedMessage";
 export const PRESENCE_CHANGED_EVENT = "PresenceChanged";
 export const TYPING_CHANGED_EVENT = "TypingChanged";
 export const NOTIFICATION_CREATED_EVENT = "NotificationCreated";
+export const POST_CREATED_EVENT = "PostCreated";
 export const SEND_TYPING_METHOD = "SendTyping";
 
 const HUB_PATH = "/hubs/chat";
