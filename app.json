@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "circlehub-mobile",
+    "name": "CircleHub",
     "slug": "circlehub-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,6 +21,7 @@
         "foregroundImage": "./assets/images/circlehub-adaptive-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true,
       "package": "com.nasrdev97.circlehubmobile",
       "googleServicesFile": "./google-services.json"
     },
