@@ -62,6 +62,7 @@ type ChatConnectionContextValue = {
     status: ChatConnectionStatus;
     typingUsers: Record<string, number>;
     notifyTyping: (recipientId: string, isTyping: boolean) => boolean;
+    setActiveConversationId: (id: string | null) => void;
 };
 
 const CONNECT_RETRY_MS = 5_000;
@@ -72,6 +73,7 @@ const ChatConnectionContext = createContext<ChatConnectionContextValue>({
     status: "idle",
     typingUsers: {},
     notifyTyping: () => false,
+    setActiveConversationId: () => {},
 });
 
 function withPresence(
@@ -220,10 +222,7 @@ export function ChatConnectionProvider({
     const { status: authStatus, user } = useAuth();
     const userRef = useRef(user);
 
-    useEffect(() => {
-        pathnameRef.current = pathname;
-        userRef.current = user;
-    }, [pathname, user]);
+    const activeConversationIdRef = useRef<string | null>(null);
 
     const { isDark } = useTheme();
     const theme = isDark ? themes.dark : themes.light;
@@ -241,6 +240,47 @@ export function ChatConnectionProvider({
     const [inAppExpanded, setInAppExpanded] = useState(false);
     const inAppDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const connectionRef = useRef<HubConnection | null>(null);
+
+    const setActiveConversationId = useCallback((id: string | null) => {
+        activeConversationIdRef.current = id;
+        if (id) {
+            const targetId = String(id).trim().toLowerCase();
+            setInAppNotification((prev) => {
+                if (
+                    prev &&
+                    String(prev.conversationId).trim().toLowerCase() === targetId
+                ) {
+                    return null;
+                }
+                return prev;
+            });
+            setInAppExpanded(false);
+            if (inAppDismissTimerRef.current) {
+                clearTimeout(inAppDismissTimerRef.current);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        pathnameRef.current = pathname;
+        userRef.current = user;
+
+        if (pathname) {
+            const match = pathname.match(/\/messages\/([^/?#]+)/i);
+            if (match && match[1]) {
+                const openConvId = match[1].trim().toLowerCase();
+                setInAppNotification((prev) => {
+                    if (
+                        prev &&
+                        String(prev.conversationId).trim().toLowerCase() === openConvId
+                    ) {
+                        return null;
+                    }
+                    return prev;
+                });
+            }
+        }
+    }, [pathname, user]);
 
     const isAuthenticated = authStatus === "authenticated" && Boolean(user);
 
@@ -369,13 +409,28 @@ export function ChatConnectionProvider({
                             String(currentUserId).toLowerCase()
                 );
 
-                const currentPath = pathnameRef.current;
-                const isInActiveThread = Boolean(
-                    conversationId &&
-                        currentPath &&
-                        (currentPath.includes(`/messages/${conversationId}`) ||
-                            currentPath.endsWith(`/${conversationId}`))
+                const currentPath = (pathnameRef.current ?? "").toLowerCase();
+                const activeConvId = activeConversationIdRef.current;
+                const targetConvId = conversationId
+                    ? String(conversationId).trim().toLowerCase()
+                    : "";
+
+                const isViewingActiveConv = Boolean(
+                    targetConvId &&
+                        activeConvId &&
+                        String(activeConvId).trim().toLowerCase() === targetConvId
                 );
+
+                const isPathInActiveThread = Boolean(
+                    targetConvId &&
+                        currentPath &&
+                        (currentPath.includes(`/messages/${targetConvId}`) ||
+                            currentPath.endsWith(`/${targetConvId}`) ||
+                            currentPath.includes(`/${targetConvId}`))
+                );
+
+                const isInActiveThread =
+                    isViewingActiveConv || isPathInActiveThread;
 
                 if (!isOwnMessage && !isInActiveThread && conversationId) {
                     const displayMsg =
@@ -595,8 +650,9 @@ export function ChatConnectionProvider({
             status: isAuthenticated ? status : "idle",
             typingUsers,
             notifyTyping,
+            setActiveConversationId,
         }),
-        [isAuthenticated, status, typingUsers, notifyTyping]
+        [isAuthenticated, status, typingUsers, notifyTyping, setActiveConversationId]
     );
 
     return (

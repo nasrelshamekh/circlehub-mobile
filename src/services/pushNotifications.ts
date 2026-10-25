@@ -26,9 +26,10 @@ function getNotifications(): typeof NotificationsType | null {
         const mod = require("expo-notifications") as typeof NotificationsType;
         mod.setNotificationHandler({
             handleNotification: async () => ({
+                shouldShowAlert: false,
                 shouldShowBanner: false,
-                shouldShowList: true,
-                shouldPlaySound: true,
+                shouldShowList: false,
+                shouldPlaySound: false,
                 shouldSetBadge: false,
             }),
         });
@@ -39,6 +40,14 @@ function getNotifications(): typeof NotificationsType | null {
     }
 
     return cachedNotifications;
+}
+
+if (Platform.OS !== "web" && !isRunningInExpoGo()) {
+    try {
+        getNotifications();
+    } catch {
+        // ignore
+    }
 }
 
 async function savePushTokenLocally(token: string): Promise<void> {

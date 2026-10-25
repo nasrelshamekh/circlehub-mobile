@@ -15,6 +15,7 @@ import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import MessageThread from "@/components/messages/messagethread";
 import PresenceLabel from "@/components/messages/presencelabel";
 import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
+import { useChatConnection } from "@/context/chatconnectioncontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
@@ -32,16 +33,27 @@ export default function MessageThreadScreen() {
     }>();
     const id = params.id;
     const { isDark } = useTheme();
+    const { setActiveConversationId } = useChatConnection();
     const [isFocused, setIsFocused] = useState(true);
 
     useFocusEffect(
         useCallback(() => {
             setIsFocused(true);
+            if (id) {
+                setActiveConversationId(id);
+            }
             return () => {
                 setIsFocused(false);
+                setActiveConversationId(null);
             };
-        }, [])
+        }, [id, setActiveConversationId])
     );
+
+    useEffect(() => {
+        return () => {
+            setActiveConversationId(null);
+        };
+    }, [setActiveConversationId]);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
