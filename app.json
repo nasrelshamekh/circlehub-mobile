@@ -21,7 +21,8 @@
         "foregroundImage": "./assets/images/circlehub-adaptive-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true,
+      "usesCleartextTraffic": false,
+      "versionCode": 2,
       "package": "com.nasrdev97.circlehubmobile",
       "googleServicesFile": "./google-services.json"
     },
