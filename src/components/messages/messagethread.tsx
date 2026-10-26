@@ -1,5 +1,5 @@
 import * as Clipboard from "expo-clipboard";
-import { AlertCircle, Check, CheckCheck, Clock, RotateCcw, Send, Smile } from "lucide-react-native";
+import { AlertCircle, Check, CheckCheck, RotateCcw, Send, Smile } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     ActivityIndicator,
@@ -79,12 +79,12 @@ const MessageBubble = memo(function MessageBubble({
     const isFailed = Boolean(message.failed);
     const hasContent = Boolean(message.content && message.content.length > 0);
 
-    let deliveryState: "sending" | "sent" | "delivered" | "failed" | null = null;
+    let deliveryState: "sent" | "delivered" | "failed" | null = null;
     if (isMine) {
         if (isFailed) {
             deliveryState = "failed";
         } else if (isPending) {
-            deliveryState = "sending";
+            deliveryState = null;
         } else if (message.deliveryStatus === "sent") {
             deliveryState = "sent";
         } else {
@@ -189,15 +189,6 @@ const MessageBubble = memo(function MessageBubble({
 
             </View>
 
-            {isPending && isMine && (
-                <View className="mt-1 flex-row items-center gap-1.5">
-                    <Clock size={12} color={colors.textSecondary} />
-                    <Text className="text-label-sm text-text-secondary">
-                        Sending…
-                    </Text>
-                </View>
-            )}
-
             {isFailed && (
                 <View
                     className={
@@ -210,7 +201,7 @@ const MessageBubble = memo(function MessageBubble({
                         onPress={() => onRetry?.(message)}
                         disabled={isRetrying}
                         accessibilityRole="button"
-                        accessibilityLabel="Retry Sending… message"
+                        accessibilityLabel="Retry failed message"
                         accessibilityState={{ disabled: Boolean(isRetrying) }}
                         hitSlop={6}
                         className="flex-row items-center gap-1.5"
@@ -236,15 +227,11 @@ const MessageBubble = memo(function MessageBubble({
                 </View>
             )}
 
-            {isMine && !isFailed && !isExpanded && (
+            {isMine && !isFailed && !isExpanded && deliveryState && (
                 <View
                     testID={`message-status-${deliveryState}`}
                     accessibilityLabel={
-                        deliveryState === "delivered"
-                            ? "Delivered"
-                            : deliveryState === "sent"
-                              ? "Sent"
-                              : "Sending…"
+                        deliveryState === "delivered" ? "Delivered" : "Sent"
                     }
                     className="mt-0.5 flex-row items-center justify-end pr-0.5"
                 >
@@ -253,9 +240,6 @@ const MessageBubble = memo(function MessageBubble({
                     )}
                     {deliveryState === "sent" && (
                         <Check size={12} color={colors.textSecondary} />
-                    )}
-                    {deliveryState === "sending" && (
-                        <Clock size={11} color={colors.textSecondary} />
                     )}
                 </View>
             )}
@@ -286,15 +270,6 @@ const MessageBubble = memo(function MessageBubble({
                             <Check size={13} color={colors.textSecondary} />
                             <Text className="text-label-sm text-text-secondary">
                                 Sent
-                            </Text>
-                        </View>
-                    )}
-
-                    {isMine && deliveryState === "sending" && (
-                        <View className="flex-row items-center gap-1">
-                            <Clock size={12} color={colors.textSecondary} />
-                            <Text className="text-label-sm text-text-secondary">
-                                Sending…
                             </Text>
                         </View>
                     )}

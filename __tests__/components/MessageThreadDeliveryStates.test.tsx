@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe("MessageThread delivery states", () => {
-    it("renders Sending… and clock icon for in-flight pending messages", async () => {
+    it("does not render clock or Sending… text for in-flight pending messages (matching webapp behavior)", async () => {
         const pendingMessage: Message = {
             id: "temp-1",
             content: "Hello in flight",
@@ -80,7 +80,7 @@ describe("MessageThread delivery states", () => {
             sender: mockUser,
         };
 
-        const { getByText, getByTestId } = await renderWithProviders(
+        const { queryByText, queryByTestId } = await renderWithProviders(
             <MessageThread
                 messages={[pendingMessage]}
                 recipientUsername="bob"
@@ -88,8 +88,10 @@ describe("MessageThread delivery states", () => {
             />
         );
 
-        expect(getByText("Sending…")).toBeTruthy();
-        expect(getByTestId("message-status-sending")).toBeTruthy();
+        expect(queryByText("Sending…")).toBeNull();
+        expect(queryByTestId("message-status-sending")).toBeNull();
+        expect(queryByTestId("message-status-sent")).toBeNull();
+        expect(queryByTestId("message-status-delivered")).toBeNull();
     });
 
     it("renders single checkmark for acknowledged sent messages", async () => {
