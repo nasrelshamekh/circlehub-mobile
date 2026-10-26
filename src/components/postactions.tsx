@@ -122,8 +122,8 @@ export default function PostActions({
                     hitSlop={6}
                     className={
                         compact
-                            ? `${buttonClass} ml-auto`
-                            : "ml-auto flex-row items-center gap-2 rounded-full px-4 py-3"
+                            ? buttonClass
+                            : "flex-row items-center gap-2 rounded-full px-4 py-3"
                     }
                 >
                     <Bookmark
