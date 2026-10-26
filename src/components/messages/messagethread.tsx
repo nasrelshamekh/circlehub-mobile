@@ -674,33 +674,22 @@ export default function MessageThread({
                             accessibilityRole="button"
                             accessibilityLabel="Send message"
                             hitSlop={6}
-                            className={
-                                text.trim()
-                                    ? "h-10 w-10 items-center justify-center overflow-hidden rounded-full"
-                                    : "h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-surface-highest"
-                            }
+                            className="h-10 w-10 items-center justify-center overflow-hidden rounded-full"
                         >
-                            {text.trim() ? (
-                                <LinearGradient
-                                    colors={[
-                                        colors.primaryGradientStart,
-                                        colors.primaryGradientEnd,
-                                    ]}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    className="h-full w-full items-center justify-center"
-                                >
-                                    <Send
-                                        size={18}
-                                        color={colors.buttonGradientText}
-                                    />
-                                </LinearGradient>
-                            ) : (
+                            <LinearGradient
+                                colors={[
+                                    colors.primaryGradientStart,
+                                    colors.primaryGradientEnd,
+                                ]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                className="h-full w-full items-center justify-center"
+                            >
                                 <Send
                                     size={18}
-                                    color={colors.textSecondary}
+                                    color={colors.buttonGradientText}
                                 />
-                            )}
+                            </LinearGradient>
                         </Pressable>
                     </View>
 
