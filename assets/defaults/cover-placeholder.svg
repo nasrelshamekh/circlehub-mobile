@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">Cover image placeholder</title>
+  <desc id="desc">A simple profile cover image placeholder.</desc>
+  <defs>
+    <linearGradient id="cover-gradient" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="0.55" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#006577"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="420" fill="url(#cover-gradient)"/>
+  <circle cx="1020" cy="70" r="150" fill="#ffffff" opacity="0.16"/>
+  <circle cx="170" cy="350" r="190" fill="#ffffff" opacity="0.12"/>
+  <path d="M0 310c160-44 314-38 462 18s302 66 470 2 260-58 268-54v144H0Z" fill="#ffffff" opacity="0.18"/>
+</svg>

@@ -63,6 +63,8 @@ export type UpdateProfileInput = {
     skills: string[];
     avatarImage?: UploadImage | null;
     coverImage?: UploadImage | null;
+    removeAvatar?: boolean;
+    removeCoverImage?: boolean;
 };
 
 export function updateProfile(input: UpdateProfileInput) {
@@ -83,6 +85,14 @@ export function updateProfile(input: UpdateProfileInput) {
     }
 
     input.skills.forEach((skill) => formData.append("skills", skill));
+
+    if (input.removeAvatar) {
+        formData.append("removeAvatar", "true");
+    }
+
+    if (input.removeCoverImage) {
+        formData.append("removeCoverImage", "true");
+    }
 
     appendImageToFormData(formData, "avatarImage", input.avatarImage);
     appendImageToFormData(formData, "coverImage", input.coverImage);

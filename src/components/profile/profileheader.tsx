@@ -22,7 +22,7 @@ import Avatar from "@/components/avatar";
 import FollowButton from "@/components/followers/followbutton";
 import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
-import { getImageUrl } from "@/lib/imageUrl";
+import { DEFAULT_AVATAR_URL, DEFAULT_COVER_URL, getImageUrl } from "@/lib/imageUrl";
 import { queryKeys } from "@/lib/queryKeys";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
@@ -110,21 +110,21 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
     return (
         <View>
             <View className="relative h-56 w-full">
-                {user.coverImageUrl ? (
-                    <Image
-                        source={{ uri: getImageUrl(user.coverImageUrl)! }}
-                        className="h-full w-full rounded-lg"
-                        resizeMode="cover"
-                    />
-                ) : (
-                    <View className="h-full w-full bg-surface-high" />
-                )}
+                <Image
+                    source={{
+                        uri:
+                            getImageUrl(user.coverImageUrl) ??
+                            DEFAULT_COVER_URL,
+                    }}
+                    className="h-full w-full rounded-lg"
+                    resizeMode="cover"
+                />
                 <View className="absolute inset-0 bg-black/25" />
             </View>
 
             <View className="mx-4 -mt-8 rounded-2xl bg-surface-lowest p-4 shadow-sm">
                 <Avatar
-                    src={user.avatarUrl}
+                    src={user.avatarUrl || DEFAULT_AVATAR_URL}
                     name={user.name}
                     className="h-24 w-24"
                     textClassName="text-headline-lg"

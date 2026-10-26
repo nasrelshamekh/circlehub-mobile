@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">Community placeholder</title>
+  <desc id="desc">A simple community image placeholder.</desc>
+  <rect width="240" height="240" fill="#e2e7ff"/>
+  <circle cx="120" cy="102" r="34" fill="#6366f1"/>
+  <circle cx="84" cy="168" r="26" fill="#8b5cf6" opacity="0.85"/>
+  <circle cx="156" cy="168" r="26" fill="#8b5cf6" opacity="0.85"/>
+  <path d="M70 196c6-24 24-38 50-38s44 14 50 38" fill="#006577"/>
+</svg>

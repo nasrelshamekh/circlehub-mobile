@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">Avatar placeholder</title>
+  <desc id="desc">A simple profile avatar placeholder.</desc>
+  <rect width="240" height="240" fill="#e2e7ff"/>
+  <circle cx="120" cy="92" r="42" fill="#6366f1"/>
+  <path d="M48 214c8-44 36-70 72-70s64 26 72 70" fill="#8b5cf6"/>
+</svg>

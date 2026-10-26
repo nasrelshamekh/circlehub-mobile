@@ -61,6 +61,8 @@ export default function EditProfileForm() {
     );
     const [avatarImage, setAvatarImage] = useState<UploadImage | null>(null);
     const [coverImage, setCoverImage] = useState<UploadImage | null>(null);
+    const [removeAvatar, setRemoveAvatar] = useState(false);
+    const [removeCover, setRemoveCover] = useState(false);
     const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +82,8 @@ export default function EditProfileForm() {
             setDateOfBirth(parseDateOfBirth(user.dateOfBirth));
             setAvatarImage(null);
             setCoverImage(null);
+            setRemoveAvatar(false);
+            setRemoveCover(false);
             setError(null);
         }, [user])
     );
@@ -89,8 +93,8 @@ export default function EditProfileForm() {
     }
 
     const isSaving = updateProfile.isPending;
-    const coverUri = coverImage?.uri ?? getImageUrl(user.coverImageUrl);
-    const avatarUri = avatarImage?.uri ?? getImageUrl(user.avatarUrl);
+    const coverUri = removeCover ? null : (coverImage?.uri ?? getImageUrl(user.coverImageUrl));
+    const avatarUri = removeAvatar ? null : (avatarImage?.uri ?? getImageUrl(user.avatarUrl));
 
     function close() {
         if (router.canGoBack()) {
@@ -121,8 +125,10 @@ export default function EditProfileForm() {
 
         if (target === "avatar") {
             setAvatarImage(picked);
+            setRemoveAvatar(false);
         } else {
             setCoverImage(picked);
+            setRemoveCover(false);
         }
     }
 
@@ -160,8 +166,10 @@ export default function EditProfileForm() {
                 gender: gender || undefined,
                 dateOfBirth: dateOfBirth ? toApiDate(dateOfBirth) : undefined,
                 skills,
-                avatarImage,
-                coverImage,
+                avatarImage: removeAvatar ? null : avatarImage,
+                coverImage: removeCover ? null : coverImage,
+                removeAvatar,
+                removeCoverImage: removeCover,
             });
 
             close();
@@ -184,6 +192,14 @@ export default function EditProfileForm() {
                 coverUri={coverUri}
                 onPickAvatar={() => pickImage("avatar")}
                 onPickCover={() => pickImage("cover")}
+                onRemoveAvatar={() => {
+                    setAvatarImage(null);
+                    setRemoveAvatar(true);
+                }}
+                onRemoveCover={() => {
+                    setCoverImage(null);
+                    setRemoveCover(true);
+                }}
             />
 
             <View className="gap-5 p-4">

@@ -1,5 +1,4 @@
 import * as Clipboard from "expo-clipboard";
-import { LinearGradient } from "expo-linear-gradient";
 import { AlertCircle, Check, Clock, RotateCcw, Send, Smile } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -627,13 +626,6 @@ export default function MessageThread({
             <View className="bg-surface-lowest">
                 <View className="px-4 py-3">
                     <View className="flex-row items-center gap-2">
-                        <Avatar
-                            src={user?.avatarUrl}
-                            name={user?.name ?? ""}
-                            className="h-9 w-9"
-                            textClassName="text-label-sm"
-                        />
-
                         <Pressable
                             onPress={() =>
                                 setShowEmojiPicker((open) => !open)
@@ -644,12 +636,12 @@ export default function MessageThread({
                             hitSlop={6}
                             className={
                                 showEmojiPicker
-                                    ? "h-9 w-9 items-center justify-center rounded-full bg-active"
-                                    : "h-9 w-9 items-center justify-center rounded-full"
+                                    ? "h-10 w-10 items-center justify-center rounded-full bg-active"
+                                    : "h-10 w-10 items-center justify-center rounded-full"
                             }
                         >
                             <Smile
-                                size={20}
+                                size={24}
                                 color={
                                     showEmojiPicker
                                         ? colors.primary
@@ -674,22 +666,12 @@ export default function MessageThread({
                             accessibilityRole="button"
                             accessibilityLabel="Send message"
                             hitSlop={6}
-                            className="h-10 w-10 items-center justify-center overflow-hidden rounded-full"
+                            className="h-10 w-10 items-center justify-center rounded-full bg-primary"
                         >
-                            <LinearGradient
-                                colors={[
-                                    colors.primaryGradientStart,
-                                    colors.primaryGradientEnd,
-                                ]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                className="h-full w-full items-center justify-center"
-                            >
-                                <Send
-                                    size={18}
-                                    color={colors.buttonGradientText}
-                                />
-                            </LinearGradient>
+                            <Send
+                                size={18}
+                                color={colors.buttonGradientText}
+                            />
                         </Pressable>
                     </View>
 
