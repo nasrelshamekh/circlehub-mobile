@@ -1199,3 +1199,39 @@ An earlier commit (`7f6f67dd`) added `{isMine && <Avatar ... />}` to the sent me
   - **Decryption Skeleton:** Verified that conversations render `MessageThreadSkeleton` while keys/messages decrypt, preventing blank unstyled screens before messages appear.
   - **Notification Placeholder:** Verified notifications drop down smoothly with solid surface background without transparent placeholder borders.
 
+---
+
+## 18. Resilient File Uploads, Chat Delivery Progression, Offline Banner & R2 Placeholders
+
+### Problem Description
+1. **Socket Drops on Profile/Community Uploads**: Mobile users uploading large avatars or community images encountered: `"The connection dropped before the photo finished uploading. Try again."` This occurred because standard Axios/fetch requests on React Native suffered socket timeouts and memory pressure when serializing large multipart blobs over mobile connections.
+2. **Missing Chat Delivery State Indicators**: Outgoing chat messages had no visible delivery progression (e.g. sent vs. delivered), leaving users unsure whether a message reached the recipient.
+3. **Feed Drop on Profile Edit Save**: Saving profile edits inadvertently called `router.back()`, which routed users back to the Home/Feed rather than their own profile.
+4. **Missing Avatar Placeholder on Null Profile**: When a user's avatar was null (or newly removed), avatar components did not fall back consistently to the unified Cloudflare R2 placeholder URL.
+5. **No Offline / Reconnecting State Banner**: When network connectivity was interrupted or SignalR reconnected, the UI provided no subtle, non-intrusive feedback about the connection status.
+
+### Fix
+- **Native FileSystem Multipart Uploads (`src/api/users.ts`, `src/api/communities.ts`):**
+  - Replaced Axios/fetch multipart requests with Expo's native `FileSystem.uploadAsync` (`FileSystemUploadType.MULTIPART`), streaming image bytes directly from native disk storage without JS bridge serialization overhead.
+  - Integrated automatic `Authorization: Bearer <token>` retrieval and retry handling.
+- **Chat Delivery States Progression (`src/components/messages/messagethread.tsx`, `src/types/message.ts`):**
+  - Added `MessageDeliveryStatus` (`"sending" | "sent" | "delivered" | "failed"`) to message interfaces.
+  - Implemented delivery icons next to outgoing message timestamps:
+    - **Sending**: Muted `Clock` (size 11).
+    - **Sent**: Muted single `Check` (size 12).
+    - **Delivered**: Primary-themed double checkmark `CheckCheck` (size 13).
+    - **Failed**: Red `AlertCircle` (size 12) with tap-to-retry callback.
+- **Profile Edit Redirection (`src/app/(tabs)/edit-profile.tsx`, `src/components/profile/editprofileform.tsx`):**
+  - Updated post-save navigation from `router.back()` to `router.replace("/(tabs)/profile")`.
+- **Cloudflare R2 Placeholder Fallback (`src/components/avatar.tsx`, `src/lib/imageUrl.ts`):**
+  - Defaulted `Avatar` fallback image to `DEFAULT_AVATAR_PLACEHOLDER_R2` whenever `src` is null or empty.
+- **Offline / Reconnecting Pill Banner (`src/components/ui/offlinebanner.tsx`, `src/app/_layout.tsx`):**
+  - Created a floating banner positioned safely below the status bar notch listening to NetInfo and SignalR hub status.
+  - Implemented React Native native-driver animated slide-in/fade-out transitions, dark/light theme support, and alert accessibility.
+
+### Verification
+- **Unit Tests:** `npm test` passed 26/26 test suites (143/143 tests passed).
+- **TypeScript:** `npx tsc --noEmit` passed with 0 errors.
+- **Lint:** `npm run lint` passed with 0 errors.
+
+

@@ -1,6 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import { Wifi, WifiOff } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -44,9 +44,9 @@ export default function OfflineBanner() {
         }
     }
 
-    const translateY = useRef(new Animated.Value(-40)).current;
-    const opacity = useRef(new Animated.Value(0)).current;
-    const pulseAnim = useRef(new Animated.Value(0.4)).current;
+    const [translateY] = useState(() => new Animated.Value(-40));
+    const [opacity] = useState(() => new Animated.Value(0));
+    const [pulseAnim] = useState(() => new Animated.Value(0.4));
 
     // Animate banner entry/exit
     useEffect(() => {

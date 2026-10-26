@@ -19,11 +19,10 @@ place and what is still open. Keep it current when parity work lands.
   About tabs).
 - **Manage community** (admins & moderators) — settings, members, and join requests (including
   `?tab=requests` deep-link support from notifications).
-- **Profile** — own profile, edit profile (avatar, cover, bio, skills, gender, birthdate), other
-  profiles, followers/following, follow/unfollow, and an account Settings tab (appearance + E2EE
-  12-word recovery phrase setup & unlock, matching the web app).
+- **Profile** — own profile, edit profile (avatar, cover, bio, skills, gender, birthdate) with post-save redirection to the Profile tab (`/(tabs)/profile`), photo removal support (`removeAvatar`, `removeCover`) with Cloudflare R2 fallback placeholders, other profiles, followers/following, follow/unfollow, and an account Settings tab (appearance + E2EE 12-word recovery phrase setup & unlock, matching the web app).
+- **Resilient Uploads & Storage Parity** — background multipart streaming via Expo `FileSystem.uploadAsync` for profile avatars and community images (`uploadProfileImageAsync`, `uploadCommunityImageAsync`) with automated authorization headers, completely resolving socket drop errors on larger photos.
 - **Messaging & Real-Time (SignalR + E2EE + Key Recovery)** — conversations list, message threads,
-  New Message recipient picker modal, categorized native emoji picker with keyword search, seamless
+  New Message recipient picker modal, categorized native emoji picker with keyword search and enlarged toggle icon, streamlined composer without redundant self-avatar and with consistent send button, delivery status progression (Clock for sending → Single check for sent → Double checkmark `CheckCheck` for delivered → Alert icon with tap-to-retry on failure), seamless
   optimistic sending (pre-seeded decrypt cache + server ID handoff with zero flicker) and 1-click
   retry on failure, real-time message delivery (`ReceiveEncryptedMessage`), online / last-seen
   presence (`PresenceChanged`), a live typing indicator shown only above the composer (`TypingBubble`,
@@ -32,6 +31,8 @@ place and what is still open. Keep it current when parity work lands.
   historical keyring support, and fast 12-word BIP39 recovery phrase setup & cross-device history
   unlock (`PBKDF2-HMAC-SHA-256`, reactive live re-decryption via `useSyncExternalStore`). See
   [`docs/updates-and-fixes.md`](./docs/updates-and-fixes.md) for detailed bug root causes and fixes.
+- **Offline / Reconnecting Pill Banner** — floating top pill banner (`OfflineBanner`) positioned below the safe area status bar tracking NetInfo connection and SignalR hub status with React Native native driver slide/fade animations and theme awareness.
+- **Tactile Haptics & Scroll-To-Top** — native haptic feedback (`expo-haptics`) on post likes, bookmarks, message sending, and refresh actions; tab re-tap / double-tap triggers smooth scroll-to-top and silent feed refresh.
 - **Notifications & Push** — in-app `/notifications` screen, live header bell unread badge,
   `NotificationCreated` real-time updates, once-per-visit seen stamp, "Mark all as read", per-row
   mark-as-read / delete, deep-linking (`CommunityJoinRequested` → Manage Community `requests` tab),
