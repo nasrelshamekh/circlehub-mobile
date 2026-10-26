@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import {
     KeyboardAvoidingView,
     ScrollView,
@@ -11,7 +12,16 @@ import ExploreTabs from "@/components/explore/exploretabs";
 import useSearch from "@/hooks/useSearch";
 
 export default function ExploreScreen() {
-    const [searchQuery, setSearchQuery] = useState("");
+    const params = useLocalSearchParams<{ q?: string }>();
+    const initialQuery = typeof params.q === "string" ? params.q : "";
+    const [searchQuery, setSearchQuery] = useState(initialQuery);
+
+    useEffect(() => {
+        if (typeof params.q === "string") {
+            setSearchQuery(params.q);
+        }
+    }, [params.q]);
+
     const { users, communities, posts, isLoading } = useSearch(searchQuery);
 
     return (

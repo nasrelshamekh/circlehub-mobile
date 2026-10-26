@@ -30,15 +30,15 @@ jest.mock("expo-image", () => ({
     Image: "Image",
 }));
 
-jest.mock("lucide-react-native", () => ({
-    ChevronDown: () => null,
-    ChevronUp: () => null,
-    X: () => null,
-    RotateCcw: () => null,
-    Send: () => null,
-    Smile: () => null,
-    ChevronLeft: () => null,
-    Pencil: () => null,
-    Trash2: () => null,
-    ArrowUp: () => null,
-}));
+jest.mock("lucide-react-native", () => {
+    return new Proxy(
+        {},
+        {
+            get: (_, name) => {
+                const IconComponent = () => null;
+                IconComponent.displayName = String(name);
+                return IconComponent;
+            },
+        }
+    );
+});

@@ -1,4 +1,5 @@
 import {
+    Bookmark,
     Grid2X2,
     Heart,
     Image as ImageIcon,
@@ -7,27 +8,19 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image as ExpoImage } from "expo-image";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 
 import PostCard from "@/components/postcard";
 import PostCardSkeleton from "@/components/skeletons/postcardskeleton";
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
+import useBookmarks from "@/hooks/useBookmarks";
 import { getImageUrl } from "@/lib/imageUrl";
 import { themeColors } from "@/theme/colors";
 import { Post } from "@/types/post";
 import { UserProfile } from "@/types/user";
 
 import type { LucideIcon } from "lucide-react-native";
-
-const TABS = [
-    { value: "posts", label: "Posts", icon: Grid2X2 },
-    { value: "media", label: "Media", icon: ImageIcon },
-    { value: "liked", label: "Liked", icon: Heart },
-    { value: "about", label: "About", icon: Info },
-] as const;
-
-type TabValue = (typeof TABS)[number]["value"];
 
 function formatLongDate(value: string) {
     return new Date(value).toLocaleDateString("en-US", {
@@ -59,7 +52,25 @@ export default function ProfileTabs({
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
-    const [activeTab, setActiveTab] = useState<TabValue>("posts");
+    const { user: authUser } = useAuth();
+    const { bookmarks } = useBookmarks();
+
+    const isSelf = Boolean(
+        authUser?.id &&
+        user?.id &&
+        authUser.id.toLowerCase() === user.id.toLowerCase()
+    );
+
+    const tabs = [
+        { value: "posts", label: "Posts", icon: Grid2X2 },
+        { value: "media", label: "Media", icon: ImageIcon },
+        { value: "liked", label: "Liked", icon: Heart },
+        ...(isSelf ? [{ value: "saved", label: "Saved", icon: Bookmark }] : []),
+        { value: "about", label: "About", icon: Info },
+    ] as const;
+
+    type TabValue = (typeof tabs)[number]["value"];
+    const [activeTab, setActiveTab] = useState<string>("posts");
 
     const isUserAuthor = (author?: Post["author"]) => {
         if (!author) return true;
@@ -92,7 +103,7 @@ export default function ProfileTabs({
     return (
         <View className="gap-5">
             <View className="flex-row flex-wrap rounded-lg bg-surface-lowest p-2 shadow-sm gap-2">
-                {TABS.map((tab) => {
+                {tabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.value;
 
@@ -192,12 +203,11 @@ export default function ProfileTabs({
                                         accessibilityLabel="View post"
                                         className="w-[48%] aspect-square rounded-xl overflow-hidden bg-surface-low active:opacity-85"
                                     >
-                                <Image
-                                    key={post.id}
-                                    source={{ uri: imgUrl }}
-                                    className="h-full w-full"
-                                    resizeMode="cover"
-                                />
+                                        <Image
+                                            source={{ uri: imgUrl }}
+                                            className="h-full w-full"
+                                            resizeMode="cover"
+                                        />
                                     </Pressable>
                                 );
                             })}
@@ -228,6 +238,21 @@ export default function ProfileTabs({
                         icon={Heart}
                         title="No liked posts yet"
                         subtitle="Liked posts will appear here."
+                    />
+                ))}
+
+            {activeTab === "saved" &&
+                (bookmarks.length > 0 ? (
+                    <View className="gap-4">
+                        {bookmarks.map((post) => (
+                            <PostCard key={post.id} post={post} />
+                        ))}
+                    </View>
+                ) : (
+                    <EmptyTabState
+                        icon={Bookmark}
+                        title="No saved posts yet"
+                        subtitle="Posts you bookmark will appear here for easy access."
                     />
                 ))}
 

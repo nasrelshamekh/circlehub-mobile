@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import RichText from "@/components/common/richtext";
 import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
 import ConfirmModal from "@/components/ui/confirmmodal";
 import { useAuth } from "@/context/authcontext";
@@ -105,9 +106,10 @@ export default function CommentItem({
                     </View>
                 </View>
 
-                <Text className="mt-1 text-body-sm text-text-secondary">
-                    {comment.content}
-                </Text>
+                <RichText
+                    text={comment.content}
+                    className="mt-1 text-body-sm text-text-secondary"
+                />
             </View>
 
             <ActionModal

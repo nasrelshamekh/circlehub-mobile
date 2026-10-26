@@ -1,10 +1,12 @@
-import { router } from "expo-router";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
-import { Image, Pressable, Text, View } from "react-native";
+import { router } from "expo-router";
+import { Copy, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { Image, Pressable, Share, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import RichText from "@/components/common/richtext";
 import EditPostModal from "@/components/editpostmodal";
 import PostActions from "@/components/postactions";
 import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
@@ -94,7 +96,34 @@ export default function PostCard({
         }
     }
 
-    const menuOptions: ActionOption[] = [];
+    const postUrl = `https://circlehub.app/post/${post.id}`;
+
+    const menuOptions: ActionOption[] = [
+        {
+            key: "copy-link",
+            label: "Copy link",
+            icon: <Copy size={18} color={colors.textPrimary} />,
+            onPress: async () => {
+                await Clipboard.setStringAsync(postUrl);
+            },
+        },
+        {
+            key: "share-post",
+            label: "Share post",
+            icon: <Share2 size={18} color={colors.textPrimary} />,
+            onPress: async () => {
+                try {
+                    await Share.share({
+                        title: `Post by ${post.author.name}`,
+                        message: post.content
+                            ? `${post.content}\n\n${postUrl}`
+                            : postUrl,
+                        url: postUrl,
+                    });
+                } catch {}
+            },
+        },
+    ];
 
     if (isOwner) {
         menuOptions.push({
@@ -154,16 +183,14 @@ export default function PostCard({
                         </View>
                     </Pressable>
 
-                    {(isOwner || canDeletePost) && (
-                        <Pressable
-                            onPress={openMenu}
-                            accessibilityRole="button"
-                            accessibilityLabel="Open post actions"
-                            className="h-10 w-10 items-center justify-center rounded-full"
-                        >
-                            <MoreHorizontal size={18} color={colors.textSecondary} />
-                        </Pressable>
-                    )}
+                    <Pressable
+                        onPress={openMenu}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open post actions"
+                        className="h-10 w-10 items-center justify-center rounded-full"
+                    >
+                        <MoreHorizontal size={18} color={colors.textSecondary} />
+                    </Pressable>
                 </View>
 
                 {post.content && (
@@ -173,9 +200,11 @@ export default function PostCard({
                         accessibilityRole={isDetailsPage ? "none" : "button"}
                         accessibilityLabel="View post details"
                     >
-                        <Text className="text-body-md text-text-secondary">
-                            {post.content}
-                        </Text>
+                        <RichText
+                            text={post.content}
+                            className="text-body-md text-text-secondary"
+                            onPressBase={openPost}
+                        />
                     </Pressable>
                 )}
 

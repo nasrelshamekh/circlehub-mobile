@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { Image, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import RichText from "@/components/common/richtext";
 import PostActions from "@/components/postactions";
 import { formatPostDate } from "@/lib/formatPostDate";
 import { getImageUrl } from "@/lib/imageUrl";
@@ -76,12 +77,12 @@ export default function ExplorePostCard({ post }: { post: Post }) {
                         accessibilityRole="button"
                         accessibilityLabel="Open post"
                     >
-                        <Text
+                        <RichText
+                            text={post.content}
                             numberOfLines={3}
                             className="text-body-sm text-text-secondary"
-                        >
-                            {post.content}
-                        </Text>
+                            onPressBase={openPost}
+                        />
                     </Pressable>
                 ) : null}
 

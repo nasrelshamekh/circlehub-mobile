@@ -14,6 +14,7 @@ place and what is still open. Keep it current when parity work lands.
   slide-up/slide-down Create Post modal (`presentation: "transparentModal"`, `animation: "slide_from_bottom"`);
   pressable post cards that navigate to post details with full natural image height display;
   consistent themed in-app `ActionModal` and `ConfirmModal` for post and comment options/deletion (replacing native OS alerts).
+- **Social Reach & Discovery (v1.2.0)** — RichText tokenizer (`@mentions`, `#hashtags`, clickable URLs) across posts and comments; universal post options (`...`) with one-click "Copy link" and native OS share sheet (`Share.share`); personal client-side post bookmarks (`useBookmarks` with `expo-secure-store` persistence) with interactive bookmark button and dedicated "Saved" tab on self-profile.
 - **Communities** — browse, create, join/leave, and the detail screen (Posts / Members / Media /
   About tabs).
 - **Manage community** (admins & moderators) — settings, members, and join requests (including
