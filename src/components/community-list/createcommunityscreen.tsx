@@ -18,7 +18,7 @@ import VisibilityOption from "@/components/ui/visibilityoption";
 import { useTheme } from "@/context/themecontext";
 import useCreateCommunity from "@/hooks/mutations/useCreateCommunity";
 import { useCommunityCategories } from "@/hooks/useCommunityCategories";
-import { UploadImage } from "@/lib/imageUpload";
+import { UploadImage, uploadFailureMessage } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 

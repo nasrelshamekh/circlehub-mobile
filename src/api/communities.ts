@@ -1,4 +1,6 @@
-import { apiFetch } from "./client";
+import { Platform } from "react-native";
+
+import { apiFetch, apiUpload } from "./client";
 import { appendImageToFormData, UploadImage } from "@/lib/imageUpload";
 import { PageMeta } from "@/types/api";
 import {
@@ -38,7 +40,54 @@ export type CreateCommunityInput = {
     coverImage?: UploadImage | null;
 };
 
-export function createCommunity(input: CreateCommunityInput) {
+export async function createCommunity(input: CreateCommunityInput) {
+    if (Platform.OS !== "web" && (input.image || input.coverImage)) {
+        const parameters: Record<string, string> = {
+            name: input.name,
+            category: input.category,
+            description: input.description,
+            visibility: input.visibility,
+        };
+
+        if (input.image) {
+            const res = await apiUpload<{ message: string; data: CreatedCommunity }>(
+                "/api/Communities",
+                input.image.uri,
+                {
+                    method: "POST",
+                    fieldName: "image",
+                    mimeType: input.image.type,
+                    parameters,
+                }
+            );
+
+            if (input.coverImage) {
+                await apiUpload<{ message: string; data: CommunityPatch }>(
+                    `/api/Communities/${res.data.id}`,
+                    input.coverImage.uri,
+                    {
+                        method: "PATCH",
+                        fieldName: "coverImage",
+                        mimeType: input.coverImage.type,
+                    }
+                );
+            }
+
+            return res;
+        }
+
+        return apiUpload<{ message: string; data: CreatedCommunity }>(
+            "/api/Communities",
+            input.coverImage!.uri,
+            {
+                method: "POST",
+                fieldName: "coverImage",
+                mimeType: input.coverImage!.type,
+                parameters,
+            }
+        );
+    }
+
     const formData = new FormData();
 
     formData.append("name", input.name);
@@ -90,10 +139,66 @@ export type UpdateCommunityInput = {
     coverImage?: UploadImage | null;
 };
 
-export function updateCommunity(
+export async function updateCommunity(
     communityId: string,
     input: UpdateCommunityInput
 ) {
+    if (Platform.OS !== "web" && (input.image || input.coverImage)) {
+        const parameters: Record<string, string> = {
+            name: input.name,
+            category: input.category,
+            description: input.description,
+            visibility: input.visibility,
+        };
+
+        if (input.image && input.coverImage) {
+            await apiUpload<{ message: string; data: CommunityPatch }>(
+                `/api/Communities/${communityId}`,
+                input.image.uri,
+                {
+                    method: "PATCH",
+                    fieldName: "image",
+                    mimeType: input.image.type,
+                    parameters,
+                }
+            );
+
+            return apiUpload<{ message: string; data: CommunityPatch }>(
+                `/api/Communities/${communityId}`,
+                input.coverImage.uri,
+                {
+                    method: "PATCH",
+                    fieldName: "coverImage",
+                    mimeType: input.coverImage.type,
+                }
+            );
+        }
+
+        if (input.image) {
+            return apiUpload<{ message: string; data: CommunityPatch }>(
+                `/api/Communities/${communityId}`,
+                input.image.uri,
+                {
+                    method: "PATCH",
+                    fieldName: "image",
+                    mimeType: input.image.type,
+                    parameters,
+                }
+            );
+        }
+
+        return apiUpload<{ message: string; data: CommunityPatch }>(
+            `/api/Communities/${communityId}`,
+            input.coverImage!.uri,
+            {
+                method: "PATCH",
+                fieldName: "coverImage",
+                mimeType: input.coverImage!.type,
+                parameters,
+            }
+        );
+    }
+
     const formData = new FormData();
 
     formData.append("name", input.name);

@@ -1,4 +1,6 @@
-import { apiFetch } from "./client";
+import { Platform } from "react-native";
+
+import { apiFetch, apiUpload } from "./client";
 import { appendImageToFormData, UploadImage } from "@/lib/imageUpload";
 import { UserCommunity } from "@/types/community";
 import { Post } from "@/types/post";
@@ -67,7 +69,84 @@ export type UpdateProfileInput = {
     removeCoverImage?: boolean;
 };
 
-export function updateProfile(input: UpdateProfileInput) {
+export async function updateProfile(input: UpdateProfileInput) {
+    if (Platform.OS !== "web" && (input.avatarImage || input.coverImage)) {
+        const parameters: Record<string, string> = {
+            name: input.name,
+            jobTitle: input.jobTitle,
+            bio: input.bio,
+            location: input.location,
+            website: input.website,
+        };
+
+        if (input.gender) {
+            parameters.gender = input.gender;
+        }
+
+        if (input.dateOfBirth) {
+            parameters.dateOfBirth = input.dateOfBirth;
+        }
+
+        if (input.removeAvatar) {
+            parameters.removeAvatar = "true";
+        }
+
+        if (input.removeCoverImage) {
+            parameters.removeCoverImage = "true";
+        }
+
+        input.skills.forEach((skill, idx) => {
+            parameters[`skills[${idx}]`] = skill;
+        });
+
+        if (input.avatarImage && input.coverImage) {
+            await apiUpload<{ message: string; data: User }>(
+                "/api/Users/me",
+                input.avatarImage.uri,
+                {
+                    method: "PATCH",
+                    fieldName: "avatarImage",
+                    mimeType: input.avatarImage.type,
+                    parameters,
+                }
+            );
+
+            return apiUpload<{ message: string; data: User }>(
+                "/api/Users/me",
+                input.coverImage.uri,
+                {
+                    method: "PATCH",
+                    fieldName: "coverImage",
+                    mimeType: input.coverImage.type,
+                }
+            );
+        }
+
+        if (input.avatarImage) {
+            return apiUpload<{ message: string; data: User }>(
+                "/api/Users/me",
+                input.avatarImage.uri,
+                {
+                    method: "PATCH",
+                    fieldName: "avatarImage",
+                    mimeType: input.avatarImage.type,
+                    parameters,
+                }
+            );
+        }
+
+        return apiUpload<{ message: string; data: User }>(
+            "/api/Users/me",
+            input.coverImage!.uri,
+            {
+                method: "PATCH",
+                fieldName: "coverImage",
+                mimeType: input.coverImage!.type,
+                parameters,
+            }
+        );
+    }
+
     const formData = new FormData();
 
     formData.append("name", input.name);

@@ -1,4 +1,4 @@
-import { Camera, Trash2 } from "lucide-react-native";
+import { Camera } from "lucide-react-native";
 import { Alert, Image, Pressable, View } from "react-native";
 
 import Avatar from "@/components/avatar";
@@ -72,21 +72,6 @@ export default function ProfileImagePicker({
                 <View className="absolute inset-0 items-center justify-center bg-black/25">
                     <Camera size={22} color="#ffffff" />
                 </View>
-
-                {hasRemovableCover && onRemoveCover && (
-                    <Pressable
-                        onPress={(e) => {
-                            e.stopPropagation();
-                            onRemoveCover();
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Remove cover photo"
-                        hitSlop={8}
-                        className="absolute right-3 top-3 h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/90 shadow-sm"
-                    >
-                        <Trash2 size={16} color="#ef4444" />
-                    </Pressable>
-                )}
             </Pressable>
 
             <View className="-mt-12 px-4">
@@ -103,21 +88,6 @@ export default function ProfileImagePicker({
                             className="h-24 w-24"
                             textClassName="text-headline-lg"
                         />
-
-                        {hasRemovableAvatar && onRemoveAvatar && (
-                            <Pressable
-                                onPress={(e) => {
-                                    e.stopPropagation();
-                                    onRemoveAvatar();
-                                }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Remove profile photo"
-                                hitSlop={8}
-                                className="absolute bottom-0 left-0 h-8 w-8 items-center justify-center rounded-full bg-surface-lowest shadow-sm"
-                            >
-                                <Trash2 size={14} color="#ef4444" />
-                            </Pressable>
-                        )}
 
                         <View className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full bg-surface-lowest">
                             <Camera size={16} color={colors.textPrimary} />

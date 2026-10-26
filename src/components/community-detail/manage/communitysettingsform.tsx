@@ -7,6 +7,7 @@ import GradientButton from "@/components/ui/gradientbutton";
 import ImageUploadField from "@/components/ui/imageuploadfield";
 import VisibilityOption from "@/components/ui/visibilityoption";
 import { useTheme } from "@/context/themecontext";
+import { uploadFailureMessage } from "@/lib/imageUpload";
 import useUpdateCommunity from "@/hooks/mutations/useUpdateCommunity";
 import { useCommunityCategories } from "@/hooks/useCommunityCategories";
 import { getImageUrl } from "@/lib/imageUrl";
