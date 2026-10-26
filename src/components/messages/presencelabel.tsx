@@ -56,12 +56,18 @@ export default function PresenceLabel({
         );
     }
 
-    return (
-        <Text
-            numberOfLines={1}
-            className={className ?? "text-label-sm text-text-secondary"}
-        >
-            {formatLastSeen(lastSeenAt) ?? "Offline"}
-        </Text>
-    );
+    // Only display Offline / last seen when presence status is actually known
+    if (isOnline === false) {
+        return (
+            <Text
+                numberOfLines={1}
+                className={className ?? "text-label-sm text-text-secondary"}
+            >
+                {formatLastSeen(lastSeenAt) ?? "Offline"}
+            </Text>
+        );
+    }
+
+    // isOnline is undefined (presence still resolving / loading) — avoid flashing "Offline"
+    return null;
 }

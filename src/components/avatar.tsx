@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
 import { getImageUrl } from "@/lib/imageUrl";
@@ -20,15 +20,20 @@ export default function Avatar({
     const [failed, setFailed] = useState(false);
     const uri = getImageUrl(src ?? null);
 
+    useEffect(() => {
+        setFailed(false);
+    }, [uri]);
+
     const handleError = () => setFailed(true);
 
     if (!uri || failed) {
+        const initial = (name?.trim()?.charAt(0) || "?").toUpperCase();
         return (
             <View
                 className={`${className} items-center justify-center rounded-full bg-surface-highest`}
             >
                 <Text className={`${textClassName} text-text-secondary`}>
-                    {name.charAt(0).toUpperCase()}
+                    {initial}
                 </Text>
             </View>
         );

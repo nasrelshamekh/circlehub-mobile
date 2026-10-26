@@ -46,7 +46,14 @@ function ConversationRow({
             onPress={() =>
                 router.push({
                     pathname: "/messages/[id]",
-                    params: { id: conversation.id },
+                    params: {
+                        id: conversation.id,
+                        name: conversation.otherUser.name,
+                        username: conversation.otherUser.username,
+                        avatarUrl: conversation.otherUser.avatarUrl || undefined,
+                        isOnline: String(conversation.otherUser.isOnline),
+                        lastSeenAt: conversation.otherUser.lastSeenAt || undefined,
+                    },
                 })
             }
             onPressIn={prewarmConversation}

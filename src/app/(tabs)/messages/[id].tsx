@@ -76,7 +76,10 @@ export default function MessageThreadScreen() {
                   name: params.name,
                   username: params.username ?? "",
                   avatarUrl: params.avatarUrl || null,
-                  isOnline: params.isOnline === "true",
+                  isOnline:
+                      params.isOnline === undefined
+                          ? undefined
+                          : params.isOnline === "true",
                   lastSeenAt: params.lastSeenAt || null,
               }
             : undefined);

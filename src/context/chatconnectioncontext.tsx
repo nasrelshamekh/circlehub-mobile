@@ -325,19 +325,35 @@ export function ChatConnectionProvider({
         if (!isAuthenticated || Platform.OS === "web") return undefined;
 
         return subscribeToNotificationResponses((data) => {
+            const type = data.type ?? data.Type;
+            const convId = data.conversationId ?? data.ConversationId;
             if (
-                data.type === "message" &&
-                typeof data.conversationId === "string"
+                type === "message" &&
+                convId !== undefined &&
+                convId !== null
             ) {
+                const sName =
+                    typeof data.senderName === "string"
+                        ? data.senderName
+                        : typeof data.SenderName === "string"
+                          ? data.SenderName
+                          : undefined;
+                const sAvatar =
+                    typeof data.senderAvatarUrl === "string"
+                        ? data.senderAvatarUrl
+                        : typeof data.SenderAvatarUrl === "string"
+                          ? data.SenderAvatarUrl
+                          : undefined;
+
                 router.push({
                     pathname: "/messages/[id]",
                     params: {
-                        id: data.conversationId,
-                        name: typeof data.senderName === "string" ? data.senderName : undefined,
-                        avatarUrl: typeof data.senderAvatarUrl === "string" ? data.senderAvatarUrl : undefined,
+                        id: String(convId),
+                        name: sName,
+                        avatarUrl: sAvatar,
                     },
                 });
-            } else if (data.type === "notification") {
+            } else if (type === "notification") {
                 router.push("/notifications");
             }
         });
@@ -700,7 +716,7 @@ export function ChatConnectionProvider({
                                     params: {
                                         id: targetId,
                                         name: targetName,
-                                        avatarUrl: targetAvatar ?? "",
+                                        avatarUrl: targetAvatar || undefined,
                                     },
                                 });
                             }}
