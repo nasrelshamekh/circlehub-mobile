@@ -97,11 +97,7 @@ export default function EditProfileForm() {
     const avatarUri = removeAvatar ? null : (avatarImage?.uri ?? getImageUrl(user.avatarUrl));
 
     function close() {
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.replace("/(tabs)");
-        }
+        router.replace("/(tabs)/profile");
     }
 
     async function pickImage(target: "avatar" | "cover") {
