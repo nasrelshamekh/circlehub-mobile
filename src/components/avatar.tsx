@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Image, Text, View } from "react-native";
 
-import { getImageUrl } from "@/lib/imageUrl";
+import { DEFAULT_AVATAR_URL, getImageUrl } from "@/lib/imageUrl";
 
 type AvatarProps = {
     src: string | null | undefined;
     name: string;
     className: string;
     textClassName?: string;
+    fallback?: "placeholder" | "initial";
 };
 
 export default function Avatar({
@@ -15,9 +16,11 @@ export default function Avatar({
     name,
     className,
     textClassName = "text-label-md",
+    fallback = "placeholder",
 }: AvatarProps) {
     const [failed, setFailed] = useState(false);
-    const uri = getImageUrl(src ?? null);
+    const resolvedSrc = src || (fallback === "placeholder" ? DEFAULT_AVATAR_URL : null);
+    const uri = getImageUrl(resolvedSrc);
 
     useEffect(() => {
         setFailed(false);

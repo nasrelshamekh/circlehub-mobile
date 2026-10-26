@@ -122,6 +122,7 @@ export default function InAppMessageNotification({
                         name={senderName}
                         className="h-10 w-10"
                         textClassName="text-label-md font-bold"
+                        fallback="initial"
                     />
                 </View>
 
