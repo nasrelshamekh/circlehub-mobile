@@ -28,6 +28,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/avatar";
 import Skeleton from "@/components/ui/skeleton";
 import { useAuth } from "@/context/authcontext";
+import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/context/themecontext";
 import {
     useDeleteNotification,

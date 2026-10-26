@@ -1,6 +1,6 @@
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
-import { RotateCcw, Send, Smile } from "lucide-react-native";
+import { AlertCircle, Check, Clock, RotateCcw, Send, Smile } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     ActivityIndicator,
@@ -27,6 +27,7 @@ import { useDecryptedContent } from "@/hooks/useDecryptedContent";
 import { useTypingBroadcast } from "@/hooks/useTypingBroadcast";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { formatMessageDate, formatMessageTime } from "@/lib/formatPostDate";
+import { haptics } from "@/lib/haptics";
 import { MAX_PLAINTEXT_LENGTH } from "@/services/messageCrypto";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
@@ -176,40 +177,56 @@ const MessageBubble = memo(function MessageBubble({
 
             </View>
 
+            {isPending && isMine && (
+                <View className="mt-1 flex-row items-center gap-1.5">
+                    <Clock size={12} color={colors.textSecondary} />
+                    <Text className="text-label-sm text-text-secondary">
+                        Sending…
+                    </Text>
+                </View>
+            )}
+
             {isFailed && (
                 <View
                     className={
                         isMine
-                            ? "mt-1 flex-row items-center gap-2"
-                            : "mt-1 flex-row items-center gap-2 pl-10"
+                            ? "mt-1 flex-row items-center gap-1.5"
+                            : "mt-1 flex-row items-center gap-1.5 pl-10"
                     }
                 >
-                    <Text className="text-label-sm text-error">
-                        Failed to send
-                    </Text>
+                    <Pressable
+                        onPress={() => onRetry?.(message)}
+                        disabled={isRetrying}
+                        accessibilityRole="button"
+                        accessibilityLabel="Retry sending message"
+                        accessibilityState={{ disabled: Boolean(isRetrying) }}
+                        hitSlop={6}
+                        className="flex-row items-center gap-1.5"
+                    >
+                        <AlertCircle size={13} color={colors.error} />
+                        <Text className="text-label-sm text-error">
+                            Failed to send
+                        </Text>
 
-                    {onRetry && (
-                        <Pressable
-                            onPress={() => onRetry(message)}
-                            disabled={isRetrying}
-                            accessibilityRole="button"
-                            accessibilityLabel="Retry sending message"
-                            accessibilityState={{ disabled: Boolean(isRetrying) }}
-                            hitSlop={6}
-                            className="flex-row items-center gap-1"
-                        >
-                            {isRetrying ? (
+                        {onRetry && (
+                            isRetrying ? (
                                 <ActivityIndicator size="small" color={colors.primary} />
                             ) : (
-                                <>
+                                <View className="ml-0.5 flex-row items-center gap-1">
                                     <RotateCcw size={12} color={colors.primary} />
                                     <Text className="text-label-sm font-semibold text-primary">
                                         Retry
                                     </Text>
-                                </>
-                            )}
-                        </Pressable>
-                    )}
+                                </View>
+                            )
+                        )}
+                    </Pressable>
+                </View>
+            )}
+
+            {isMine && !isPending && !isFailed && !isExpanded && (
+                <View className="mt-0.5 flex-row items-center justify-end pr-0.5">
+                    <Check size={11} color={colors.textSecondary} />
                 </View>
             )}
 
@@ -224,6 +241,15 @@ const MessageBubble = memo(function MessageBubble({
                     <Text className="text-label-sm text-text-secondary">
                         {formatMessageTime(message.createdAt)}
                     </Text>
+
+                    {isMine && (
+                        <View className="flex-row items-center gap-1">
+                            <Check size={12} color={colors.primary} />
+                            <Text className="text-label-sm text-text-secondary">
+                                Delivered
+                            </Text>
+                        </View>
+                    )}
 
                     {hasContent && Boolean(displayText) && (
                         <Pressable
@@ -479,6 +505,7 @@ export default function MessageThread({
                     );
                 }
             } catch (error) {
+                haptics.error();
                 updatePending((prev) =>
                     prev.map((m) =>
                         m.id === tempId
@@ -501,6 +528,7 @@ export default function MessageThread({
         const trimmed = text.trim();
         if (!trimmed) return;
 
+        haptics.medium();
         stopTyping();
         setShowEmojiPicker(false);
         setText("");
@@ -513,6 +541,7 @@ export default function MessageThread({
             const body = failedMsg.plaintext ?? failedMsg.content;
             if (!body) return;
 
+            haptics.light();
             setRetryingIds((prev) => new Set(prev).add(failedMsg.id));
             try {
                 await transmitMessage(body, failedMsg.id);

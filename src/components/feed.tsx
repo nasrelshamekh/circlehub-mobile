@@ -12,6 +12,7 @@ import { useTheme } from "@/context/themecontext";
 import useFeedPosts from "@/hooks/useFeedPosts";
 import { subscribePostCreated } from "@/lib/feedEvents";
 import { subscribeFeedScrollToTop } from "@/lib/feedScroll";
+import { haptics } from "@/lib/haptics";
 import { queryKeys } from "@/lib/queryKeys";
 import { ApiError, PageMeta } from "@/types/api";
 import { Post } from "@/types/post";
@@ -65,8 +66,15 @@ export default function Feed() {
         });
     }, [queryClient]);
 
+    const [refreshPending, setRefreshPending] = useState(false);
+
     useEffect(() => {
-        return subscribeFeedScrollToTop(() => setScrollToTopPending(true));
+        return subscribeFeedScrollToTop((options) => {
+            setScrollToTopPending(true);
+            if (options?.refresh) {
+                setRefreshPending(true);
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -106,13 +114,21 @@ export default function Feed() {
     }, [posts, queryClient]);
 
     useEffect(() => {
-        if (!scrollToTopPending || isLoading || posts.length === 0) return;
+        if (!scrollToTopPending) return;
 
         requestAnimationFrame(() => {
             listRef.current?.scrollToOffset({ offset: 0, animated: true });
+            if (pendingPostsRef.current.length > 0) {
+                handleRevealNewPosts();
+            }
             setScrollToTopPending(false);
+
+            if (refreshPending) {
+                refetch();
+                setRefreshPending(false);
+            }
         });
-    }, [scrollToTopPending, isLoading, posts.length]);
+    }, [scrollToTopPending, refreshPending, handleRevealNewPosts, refetch]);
 
     if (isLoading) {
         return <FeedSkeleton />;
@@ -202,7 +218,10 @@ export default function Feed() {
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefetching && !isLoadingMore}
-                        onRefresh={refetch}
+                        onRefresh={() => {
+                            haptics.light();
+                            refetch();
+                        }}
                         tintColor={colors.primary}
                     />
                 }

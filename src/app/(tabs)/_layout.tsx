@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import SidebarDrawer from "@/components/sidebar/sidebardrawer";
 import { useTheme } from "@/context/themecontext";
+import { haptics } from "@/lib/haptics";
+import { requestFeedScrollToTop } from "@/lib/feedScroll";
 import { themeColors } from "@/theme/colors";
 
 export default function TabsLayout() {
@@ -45,6 +47,14 @@ export default function TabsLayout() {
                         <Home size={size} color={color} />
                     ),
                 }}
+                listeners={({ navigation }) => ({
+                    tabPress: () => {
+                        if (navigation.isFocused()) {
+                            haptics.light();
+                            requestFeedScrollToTop({ refresh: true });
+                        }
+                    },
+                })}
             />
 
             <Tabs.Screen

@@ -16,6 +16,7 @@ import Avatar from "@/components/avatar";
 import { useTheme } from "@/context/themecontext";
 import useSendMessage from "@/hooks/mutations/useSendMessage";
 import { useMessageRecipients } from "@/hooks/useMessageRecipients";
+import { haptics } from "@/lib/haptics";
 import { ApiError } from "@/types/api";
 import { MessageRecipient } from "@/types/message";
 import { Post } from "@/types/post";
@@ -39,6 +40,7 @@ export default function SharePostModal({
     async function handleSend(recipient: MessageRecipient) {
         if (!recipient.canMessage || sendMessage.isPending) return;
 
+        haptics.medium();
         setSendingTo(recipient.username);
 
         try {
@@ -54,6 +56,7 @@ export default function SharePostModal({
                 params: { id: response.data.conversationId },
             });
         } catch (error) {
+            haptics.error();
             Alert.alert(
                 "Could not send post",
                 error instanceof ApiError

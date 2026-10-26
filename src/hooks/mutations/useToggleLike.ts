@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 
 import { toggleLike } from "@/api/posts";
+import { haptics } from "@/lib/haptics";
 import { queryKeys } from "@/lib/queryKeys";
 import { PageMeta } from "@/types/api";
 import { Post } from "@/types/post";
@@ -34,6 +35,7 @@ export default function useToggleLike() {
         mutationFn: (postId: string) => toggleLike(postId),
 
         onMutate: async (postId) => {
+            haptics.light();
             await queryClient.cancelQueries();
 
             const arrayPredicate = (query: { queryKey: QueryKey }) => {

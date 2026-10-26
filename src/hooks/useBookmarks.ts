@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/context/authcontext";
+import { haptics } from "@/lib/haptics";
 import { Post } from "@/types/post";
 
 type BookmarkListener = () => void;
@@ -76,6 +77,8 @@ export default function useBookmarks() {
     const toggleBookmark = useCallback(
         async (post: Post) => {
             if (!storageKey || !post) return false;
+
+            haptics.light();
 
             const current = memoryCache[storageKey] || bookmarks;
             const exists = current.some((p) => p.id === post.id);

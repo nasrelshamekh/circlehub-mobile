@@ -17,6 +17,7 @@ import ConversationsSkeleton from "@/components/skeletons/conversationsskeleton"
 import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
+import { haptics } from "@/lib/haptics";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 
@@ -31,6 +32,7 @@ export default function Messages() {
         useConversations();
 
     async function handlePullRefresh() {
+        haptics.light();
         setIsManualRefreshing(true);
         try {
             await refetch();

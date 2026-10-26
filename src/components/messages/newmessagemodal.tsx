@@ -17,6 +17,7 @@ import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import useSendMessage from "@/hooks/mutations/useSendMessage";
 import { useMessageRecipients } from "@/hooks/useMessageRecipients";
+import { haptics } from "@/lib/haptics";
 import { MAX_PLAINTEXT_LENGTH } from "@/services/messageCrypto";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
@@ -84,6 +85,8 @@ export default function NewMessageModal({
         const trimmed = messageText.trim();
         if (!selectedRecipient || !trimmed || sendMessage.isPending) return;
 
+        haptics.medium();
+
         try {
             const res = await sendMessage.mutateAsync({
                 recipientUsername: selectedRecipient.username,
@@ -98,6 +101,7 @@ export default function NewMessageModal({
                 });
             }
         } catch (error) {
+            haptics.error();
             Alert.alert(
                 "Message not sent",
                 error instanceof ApiError
