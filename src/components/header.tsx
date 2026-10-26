@@ -2,7 +2,7 @@ import { Bell, MessageCircle, Moon, Network } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Modal, Pressable, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
@@ -13,6 +13,7 @@ import { themeColors } from "@/theme/colors";
 import { useSidebarDrawer } from "@/context/sidebardrawercontext";
 
 export default function Header() {
+    const insets = useSafeAreaInsets();
     const { openSidebar } = useSidebarDrawer();
     const [menuOpen, setMenuOpen] = useState(false);
     const { isDark, toggleTheme } = useTheme();
@@ -134,7 +135,10 @@ export default function Header() {
                         onPress={() => setMenuOpen(false)}
                     />
 
-                    <View className="absolute right-4 top-[62px] w-[200px] rounded-lg bg-surface-lowest py-1 shadow-lg">
+                    <View
+                        style={{ top: insets.top + 68 }}
+                        className="absolute right-4 w-[200px] rounded-lg border border-border/50 bg-surface-lowest py-1 shadow-lg"
+                    >
                         <Text className="px-4 pb-1 pt-3 text-body-md font-bold text-text-secondary">
                             My Account
                         </Text>
