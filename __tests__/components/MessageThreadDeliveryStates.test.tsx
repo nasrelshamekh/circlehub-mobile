@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe("MessageThread delivery states", () => {
-    it("renders Sending… for in-flight pending messages", async () => {
+    it("renders Sending… and clock icon for in-flight pending messages", async () => {
         const pendingMessage: Message = {
             id: "temp-1",
             content: "Hello in flight",
@@ -76,10 +76,11 @@ describe("MessageThread delivery states", () => {
             isMine: true,
             pending: true,
             failed: false,
+            deliveryStatus: "sending",
             sender: mockUser,
         };
 
-        const { getByText } = await renderWithProviders(
+        const { getByText, getByTestId } = await renderWithProviders(
             <MessageThread
                 messages={[pendingMessage]}
                 recipientUsername="bob"
@@ -88,6 +89,38 @@ describe("MessageThread delivery states", () => {
         );
 
         expect(getByText("Sending…")).toBeTruthy();
+        expect(getByTestId("message-status-sending")).toBeTruthy();
+    });
+
+    it("renders single checkmark for acknowledged sent messages", async () => {
+        const sentMessage: Message = {
+            id: "temp-sent",
+            content: "Sent to server",
+            plaintext: "Sent to server",
+            createdAt: new Date().toISOString(),
+            isMine: true,
+            pending: false,
+            failed: false,
+            deliveryStatus: "sent",
+            sender: mockUser,
+        };
+
+        const { getByTestId, getByText } = await renderWithProviders(
+            <MessageThread
+                messages={[sentMessage]}
+                recipientUsername="bob"
+                isLoading={false}
+            />
+        );
+
+        expect(getByTestId("message-status-sent")).toBeTruthy();
+
+        // Expanding shows Sent label
+        await act(async () => {
+            fireEvent.press(getByText("Sent to server"));
+        });
+
+        expect(getByText("Sent")).toBeTruthy();
     });
 
     it("renders Failed to send with Retry for failed messages", async () => {
@@ -99,6 +132,7 @@ describe("MessageThread delivery states", () => {
             isMine: true,
             pending: false,
             failed: true,
+            deliveryStatus: "failed",
             sender: mockUser,
         };
 
@@ -114,7 +148,7 @@ describe("MessageThread delivery states", () => {
         expect(getByText("Retry")).toBeTruthy();
     });
 
-    it("shows Delivered and timestamp when expanding a delivered message", async () => {
+    it("renders double checkmark (delivered state) when delivered and shows Delivered label when expanded", async () => {
         const deliveredMessage: Message = {
             id: "msg-delivered",
             content: "Delivered content",
@@ -126,7 +160,7 @@ describe("MessageThread delivery states", () => {
             sender: mockUser,
         };
 
-        const { getByText, queryByText } = await renderWithProviders(
+        const { getByText, getByTestId, queryByText } = await renderWithProviders(
             <MessageThread
                 messages={[deliveredMessage]}
                 recipientUsername="bob"
@@ -134,7 +168,10 @@ describe("MessageThread delivery states", () => {
             />
         );
 
-        // Before tapping to expand, Delivered label is not shown in collapsed view
+        // Shows double checkmark indicator in collapsed bubble
+        expect(getByTestId("message-status-delivered")).toBeTruthy();
+
+        // Before tapping to expand, Delivered text is not in collapsed view
         expect(queryByText("Delivered")).toBeNull();
 
         // Tap the message bubble to expand

@@ -1,5 +1,5 @@
 import * as Clipboard from "expo-clipboard";
-import { AlertCircle, Check, Clock, RotateCcw, Send, Smile } from "lucide-react-native";
+import { AlertCircle, Check, CheckCheck, Clock, RotateCcw, Send, Smile } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     ActivityIndicator,
@@ -78,6 +78,19 @@ const MessageBubble = memo(function MessageBubble({
     const isPending = Boolean(message.pending);
     const isFailed = Boolean(message.failed);
     const hasContent = Boolean(message.content && message.content.length > 0);
+
+    let deliveryState: "sending" | "sent" | "delivered" | "failed" | null = null;
+    if (isMine) {
+        if (isFailed) {
+            deliveryState = "failed";
+        } else if (isPending) {
+            deliveryState = "sending";
+        } else if (message.deliveryStatus === "sent") {
+            deliveryState = "sent";
+        } else {
+            deliveryState = "delivered";
+        }
+    }
     const { text: decryptedText, isPending: isDecrypting } =
         useDecryptedContent(message.content);
 
@@ -197,7 +210,7 @@ const MessageBubble = memo(function MessageBubble({
                         onPress={() => onRetry?.(message)}
                         disabled={isRetrying}
                         accessibilityRole="button"
-                        accessibilityLabel="Retry sending message"
+                        accessibilityLabel="Retry Sending… message"
                         accessibilityState={{ disabled: Boolean(isRetrying) }}
                         hitSlop={6}
                         className="flex-row items-center gap-1.5"
@@ -223,13 +236,31 @@ const MessageBubble = memo(function MessageBubble({
                 </View>
             )}
 
-            {isMine && !isPending && !isFailed && !isExpanded && (
-                <View className="mt-0.5 flex-row items-center justify-end pr-0.5">
-                    <Check size={11} color={colors.textSecondary} />
+            {isMine && !isFailed && !isExpanded && (
+                <View
+                    testID={`message-status-${deliveryState}`}
+                    accessibilityLabel={
+                        deliveryState === "delivered"
+                            ? "Delivered"
+                            : deliveryState === "sent"
+                              ? "Sent"
+                              : "Sending…"
+                    }
+                    className="mt-0.5 flex-row items-center justify-end pr-0.5"
+                >
+                    {deliveryState === "delivered" && (
+                        <CheckCheck size={14} color={colors.primary} />
+                    )}
+                    {deliveryState === "sent" && (
+                        <Check size={12} color={colors.textSecondary} />
+                    )}
+                    {deliveryState === "sending" && (
+                        <Clock size={11} color={colors.textSecondary} />
+                    )}
                 </View>
             )}
 
-            {isExpanded && !isPending && !isFailed && (
+            {isExpanded && !isFailed && (
                 <View
                     className={
                         isMine
@@ -241,11 +272,29 @@ const MessageBubble = memo(function MessageBubble({
                         {formatMessageTime(message.createdAt)}
                     </Text>
 
-                    {isMine && (
+                    {isMine && deliveryState === "delivered" && (
                         <View className="flex-row items-center gap-1">
-                            <Check size={12} color={colors.primary} />
+                            <CheckCheck size={14} color={colors.primary} />
                             <Text className="text-label-sm text-text-secondary">
                                 Delivered
+                            </Text>
+                        </View>
+                    )}
+
+                    {isMine && deliveryState === "sent" && (
+                        <View className="flex-row items-center gap-1">
+                            <Check size={13} color={colors.textSecondary} />
+                            <Text className="text-label-sm text-text-secondary">
+                                Sent
+                            </Text>
+                        </View>
+                    )}
+
+                    {isMine && deliveryState === "sending" && (
+                        <View className="flex-row items-center gap-1">
+                            <Clock size={12} color={colors.textSecondary} />
+                            <Text className="text-label-sm text-text-secondary">
+                                Sending…
                             </Text>
                         </View>
                     )}
@@ -304,7 +353,7 @@ function TypingBubble({
                         />
                     ))}
                     <Text className="ml-1 text-label-sm font-medium italic text-primary">
-                        typing…
+                        typingâ€¦
                     </Text>
                 </View>
             </View>
@@ -458,6 +507,7 @@ export default function MessageThread({
                 isMine: true,
                 pending: true,
                 failed: false,
+                deliveryStatus: "sending",
                 sender: {
                     id: user?.id ?? "me",
                     name: user?.name ?? "",
@@ -490,6 +540,7 @@ export default function MessageThread({
                                           m.createdAt,
                                       pending: false,
                                       failed: false,
+                                      deliveryStatus: "sent",
                                   }
                                 : m
                         )
@@ -498,7 +549,7 @@ export default function MessageThread({
                     updatePending((prev) =>
                         prev.map((m) =>
                             m.id === tempId
-                                ? { ...m, pending: false, failed: false }
+                                ? { ...m, pending: false, failed: false, deliveryStatus: "sent" }
                                 : m
                         )
                     );
@@ -508,7 +559,7 @@ export default function MessageThread({
                 updatePending((prev) =>
                     prev.map((m) =>
                         m.id === tempId
-                            ? { ...m, pending: false, failed: true }
+                            ? { ...m, pending: false, failed: true, deliveryStatus: "failed" }
                             : m
                     )
                 );

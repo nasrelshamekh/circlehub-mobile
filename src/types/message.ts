@@ -25,6 +25,8 @@ export type Conversation = {
     lastMessage?: MessagePreview | null;
 };
 
+export type MessageDeliveryStatus = "sending" | "sent" | "delivered" | "failed";
+
 export type Message = {
     id: string;
     content?: string | null;
@@ -36,6 +38,7 @@ export type Message = {
     pending?: boolean;
     failed?: boolean;
     plaintext?: string;
+    deliveryStatus?: MessageDeliveryStatus;
 };
 
 export type ConversationThread = {
