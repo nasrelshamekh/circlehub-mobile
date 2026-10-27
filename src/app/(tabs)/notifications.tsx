@@ -43,42 +43,10 @@ import {
     navigateToNotificationTarget,
     notificationSentence,
 } from "@/lib/notificationCopy";
+import { NotificationTypeBadgeIcon } from "@/components/common/notificationbadge";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { NotificationItem, NotificationType } from "@/types/notification";
-
-function NotificationTypeBadgeIcon({
-    type,
-    size,
-    color,
-}: {
-    type: NotificationType;
-    size: number;
-    color: string;
-}) {
-    switch (type) {
-        case "Follow":
-            return <UserPlus size={size} color={color} />;
-        case "PostLike":
-            return <Heart size={size} color={color} />;
-        case "PostComment":
-            return <MessageCircle size={size} color={color} />;
-        case "CommunityJoinRequested":
-            return <Users size={size} color={color} />;
-        case "CommunityJoinRequestApproved":
-            return <CheckCircle2 size={size} color={color} />;
-        case "CommunityJoinRequestRejected":
-            return <XCircle size={size} color={color} />;
-        case "CommunityMemberRemoved":
-            return <UserMinus size={size} color={color} />;
-        case "CommunityRoleChanged":
-            return <ShieldCheck size={size} color={color} />;
-        case "CommunityPostRemoved":
-            return <Trash2 size={size} color={color} />;
-        default:
-            return <Bell size={size} color={color} />;
-    }
-}
 
 function NotificationRow({
     notification,

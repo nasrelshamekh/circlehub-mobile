@@ -13,12 +13,20 @@ import {
 import { Modal, Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { markNotificationRead } from "@/api/notifications";
+import { NotificationTypeBadgeIcon } from "@/components/common/notificationbadge";
 import InAppMessageNotification from "@/components/messages/inappmessagenotification";
 
 import { useAuth } from "@/context/authcontext";
 import GradientButton from "@/components/ui/gradientbutton";
 import { useTheme } from "@/context/themecontext";
 import { emitPostCreated } from "@/lib/feedEvents";
+import { haptics } from "@/lib/haptics";
+import {
+    hasNotificationTarget,
+    navigateToNotificationTarget,
+    notificationSentence,
+} from "@/lib/notificationCopy";
 import { queryKeys } from "@/lib/queryKeys";
 import {
     createChatConnection,
@@ -212,6 +220,25 @@ function dropTypingClaim(
     return next;
 }
 
+type ActiveInAppNotification =
+    | {
+          kind: "message";
+          conversationId: string;
+          senderId?: string;
+          senderName: string;
+          senderAvatarUrl?: string | null;
+          messages: string[];
+      }
+    | {
+          kind: "notification";
+          id: string;
+          actorId?: string;
+          senderName: string;
+          senderAvatarUrl?: string | null;
+          messages: string[];
+          notification: NotificationItem;
+      };
+
 export function ChatConnectionProvider({
     children,
 }: {
@@ -231,13 +258,8 @@ export function ChatConnectionProvider({
     const [status, setStatus] = useState<ChatConnectionStatus>("connecting");
     const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
     const [recoveryPromptVisible, setRecoveryPromptVisible] = useState(false);
-    const [inAppNotification, setInAppNotification] = useState<{
-        conversationId: string;
-        senderId?: string;
-        senderName: string;
-        senderAvatarUrl?: string | null;
-        messages: string[];
-    } | null>(null);
+    const [inAppNotification, setInAppNotification] =
+        useState<ActiveInAppNotification | null>(null);
     const [inAppExpanded, setInAppExpanded] = useState(false);
     const inAppDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const connectionRef = useRef<HubConnection | null>(null);
@@ -249,6 +271,7 @@ export function ChatConnectionProvider({
             setInAppNotification((prev) => {
                 if (
                     prev &&
+                    prev.kind === "message" &&
                     String(prev.conversationId).trim().toLowerCase() === targetId
                 ) {
                     return null;
@@ -273,8 +296,16 @@ export function ChatConnectionProvider({
                 setInAppNotification((prev) => {
                     if (
                         prev &&
+                        prev.kind === "message" &&
                         String(prev.conversationId).trim().toLowerCase() === openConvId
                     ) {
+                        return null;
+                    }
+                    return prev;
+                });
+            } else if (pathname.includes("/notifications")) {
+                setInAppNotification((prev) => {
+                    if (prev && prev.kind === "notification") {
                         return null;
                     }
                     return prev;
@@ -479,6 +510,7 @@ export function ChatConnectionProvider({
                     setInAppNotification((prev) => {
                         if (
                             prev &&
+                            prev.kind === "message" &&
                             String(prev.conversationId).toLowerCase() ===
                                 String(conversationId).toLowerCase()
                         ) {
@@ -489,6 +521,7 @@ export function ChatConnectionProvider({
                         }
                         setInAppExpanded(false);
                         return {
+                            kind: "message",
                             conversationId,
                             senderId: senderId ?? undefined,
                             senderName: resolvedSenderName,
@@ -574,6 +607,53 @@ export function ChatConnectionProvider({
                             ),
                         };
                     });
+
+                    // In-app banner: do not show if user is currently looking at notifications screen
+                    const currentPath = (pathnameRef.current ?? "").toLowerCase();
+                    const isViewingNotifications = currentPath.includes("/notifications");
+
+                    if (!isViewingNotifications) {
+                        const actorName = notification.actor?.name || "Someone";
+                        const actorAvatar = notification.actor?.avatarUrl ?? null;
+                        const actionText = notificationSentence(notification);
+                        const actorId = notification.actor?.id;
+
+                        haptics.light();
+
+                        setInAppNotification((prev) => {
+                            if (
+                                prev &&
+                                prev.kind === "notification" &&
+                                ((actorId && prev.actorId && prev.actorId === actorId) ||
+                                    prev.senderName === actorName)
+                            ) {
+                                return {
+                                    ...prev,
+                                    notification,
+                                    messages: [...prev.messages, actionText],
+                                };
+                            }
+
+                            setInAppExpanded(false);
+                            return {
+                                kind: "notification",
+                                id: notification.id,
+                                actorId,
+                                senderName: actorName,
+                                senderAvatarUrl: actorAvatar,
+                                messages: [actionText],
+                                notification,
+                            };
+                        });
+
+                        if (inAppDismissTimerRef.current) {
+                            clearTimeout(inAppDismissTimerRef.current);
+                        }
+                        inAppDismissTimerRef.current = setTimeout(() => {
+                            setInAppNotification(null);
+                            setInAppExpanded(false);
+                        }, 6000);
+                    }
                 }
 
                 void queryClient.invalidateQueries({
@@ -695,6 +775,20 @@ export function ChatConnectionProvider({
                             senderName={inAppNotification.senderName}
                             senderAvatarUrl={inAppNotification.senderAvatarUrl}
                             messages={inAppNotification.messages}
+                            countLabel={
+                                inAppNotification.kind === "notification"
+                                    ? "notifications"
+                                    : "messages"
+                            }
+                            badgeIcon={
+                                inAppNotification.kind === "notification" ? (
+                                    <NotificationTypeBadgeIcon
+                                        type={inAppNotification.notification.type}
+                                        size={9}
+                                        color="#FFFFFF"
+                                    />
+                                ) : undefined
+                            }
                             isExpanded={inAppExpanded}
                             onToggleExpand={(expanded) => {
                                 setInAppExpanded(expanded);
@@ -706,19 +800,37 @@ export function ChatConnectionProvider({
                                 if (inAppDismissTimerRef.current) {
                                     clearTimeout(inAppDismissTimerRef.current);
                                 }
-                                const targetId = inAppNotification.conversationId;
-                                const targetName = inAppNotification.senderName;
-                                const targetAvatar = inAppNotification.senderAvatarUrl;
+                                const currentNotif = inAppNotification;
                                 setInAppNotification(null);
                                 setInAppExpanded(false);
-                                router.push({
-                                    pathname: "/messages/[id]",
-                                    params: {
-                                        id: targetId,
-                                        name: targetName,
-                                        avatarUrl: targetAvatar || undefined,
-                                    },
-                                });
+
+                                if (currentNotif.kind === "message") {
+                                    router.push({
+                                        pathname: "/messages/[id]",
+                                        params: {
+                                            id: currentNotif.conversationId,
+                                            name: currentNotif.senderName,
+                                            avatarUrl:
+                                                currentNotif.senderAvatarUrl ||
+                                                undefined,
+                                        },
+                                    });
+                                } else {
+                                    markNotificationRead(currentNotif.id).catch(
+                                        () => {}
+                                    );
+                                    if (
+                                        hasNotificationTarget(
+                                            currentNotif.notification
+                                        )
+                                    ) {
+                                        navigateToNotificationTarget(
+                                            currentNotif.notification
+                                        );
+                                    } else {
+                                        router.push("/notifications");
+                                    }
+                                }
                             }}
                             onDismiss={() => {
                                 if (inAppDismissTimerRef.current) {

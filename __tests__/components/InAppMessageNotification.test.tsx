@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react-native";
 import React from "react";
 
+import { NotificationTypeBadgeIcon } from "@/components/common/notificationbadge";
 import InAppMessageNotification from "@/components/messages/inappmessagenotification";
 import { ThemeProvider } from "@/context/themecontext";
 
@@ -133,5 +134,28 @@ describe("InAppMessageNotification (Discord-inspired notification layout)", () =
         const dismissBtn = getByTestId("in-app-message-notification-dismiss-button");
         fireEvent.press(dismissBtn);
         expect(onDismiss).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders notification activity badge icon and custom count label for general notifications", async () => {
+        const { getByText, getByTestId } = await renderWithTheme(
+            <InAppMessageNotification
+                senderName="Dave Miller"
+                messages={["liked your post.", "commented on your post."]}
+                countLabel="notifications"
+                badgeIcon={
+                    <NotificationTypeBadgeIcon
+                        type="PostLike"
+                        size={10}
+                        color="#FFFFFF"
+                    />
+                }
+                defaultExpanded={true}
+            />
+        );
+
+        expect(getByText("Dave Miller")).toBeTruthy();
+        expect(getByText("2 notifications")).toBeTruthy();
+        expect(getByText("liked your post.")).toBeTruthy();
+        expect(getByText("commented on your post.")).toBeTruthy();
     });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { ChevronDown, ChevronUp, X } from "lucide-react-native";
 
@@ -10,6 +10,8 @@ export interface InAppMessageNotificationProps {
     senderName: string;
     senderAvatarUrl?: string | null;
     messages: string[] | string;
+    badgeIcon?: React.ReactNode;
+    countLabel?: string;
     isExpanded?: boolean;
     defaultExpanded?: boolean;
     onToggleExpand?: (isExpanded: boolean) => void;
@@ -24,6 +26,8 @@ export default function InAppMessageNotification({
     senderName,
     senderAvatarUrl,
     messages,
+    badgeIcon,
+    countLabel = "messages",
     isExpanded: controlledExpanded,
     defaultExpanded = false,
     onToggleExpand,
@@ -37,8 +41,8 @@ export default function InAppMessageNotification({
     const colors = isDark ? themeColors.dark : themeColors.light;
     const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
 
-    const translateY = useRef(new Animated.Value(-100)).current;
-    const opacity = useRef(new Animated.Value(0)).current;
+    const [translateY] = useState(() => new Animated.Value(-100));
+    const [opacity] = useState(() => new Animated.Value(0));
 
     useEffect(() => {
         Animated.parallel([
@@ -112,11 +116,15 @@ export default function InAppMessageNotification({
             <Pressable
                 onPress={onPress}
                 accessibilityRole="button"
-                accessibilityLabel={`Message notification from ${senderName}`}
+                accessibilityLabel={
+                    badgeIcon
+                        ? `Notification from ${senderName}: ${latestMessage}`
+                        : `Message notification from ${senderName}`
+                }
                 className="flex-row items-start p-3.5 gap-3"
             >
-                {/* Left: Circular Avatar with graceful missing avatar fallback */}
-                <View className="shrink-0 pt-0.5">
+                {/* Left: Circular Avatar with graceful missing avatar fallback & optional notification badge */}
+                <View className="relative shrink-0 pt-0.5">
                     <Avatar
                         src={senderAvatarUrl}
                         name={senderName}
@@ -124,11 +132,16 @@ export default function InAppMessageNotification({
                         textClassName="text-label-md font-bold"
                         fallback="initial"
                     />
+                    {badgeIcon && (
+                        <View className="absolute -bottom-0.5 -right-0.5 h-4.5 w-4.5 items-center justify-center rounded-full border border-surface-lowest bg-primary">
+                            {badgeIcon}
+                        </View>
+                    )}
                 </View>
 
                 {/* Center / Body: Sender Name + Grouped Messages */}
                 <View className="min-w-0 flex-1">
-                    {/* Top Header: Sender Name + message count pill */}
+                    {/* Top Header: Sender Name + count pill */}
                     <View className="flex-row items-center gap-2">
                         <Text
                             numberOfLines={1}
@@ -144,7 +157,7 @@ export default function InAppMessageNotification({
                                 testID={`${testID}-count-badge`}
                             >
                                 <Text className="text-label-xs font-medium text-text-secondary">
-                                    {messageList.length} messages
+                                    {messageList.length} {countLabel}
                                 </Text>
                             </View>
                         )}
