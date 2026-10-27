@@ -35,7 +35,9 @@ export default function GradientButton({
     // `className` is a layout override (flex-1, w-full, mt-4…). Keep the app's
     // 12px button radius unless the caller explicitly asks for a different one,
     // so a layout-only class can never flatten the button into a rectangle.
+    const isPill = /(^|\s)rounded-full(\s|$)/.test(className);
     const radiusClass = /(^|\s)rounded-/.test(className) ? "" : "rounded-xl";
+    const numericRadius = isPill ? 9999 : 12;
 
     return (
         <Pressable
@@ -44,7 +46,10 @@ export default function GradientButton({
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel ?? label}
             className={`overflow-hidden ${radiusClass} ${className}`.replace(/\s+/g, " ").trim()}
-            style={disabled ? { opacity: 0.6 } : undefined}
+            style={[
+                { borderRadius: numericRadius },
+                disabled ? { opacity: 0.6 } : undefined,
+            ]}
         >
             <LinearGradient
                 colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
@@ -56,6 +61,7 @@ export default function GradientButton({
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 8,
+                        borderRadius: numericRadius,
                     },
                     contentStyle,
                 ]}

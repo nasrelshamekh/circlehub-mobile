@@ -2,7 +2,7 @@ import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { CalendarDays, LoaderCircle, Save } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import ProfileImagePicker from "@/components/profile/profileimagepicker";
 import DatePicker, {
@@ -168,7 +168,18 @@ export default function EditProfileForm() {
                 removeCoverImage: removeCover,
             });
 
-            close();
+            Alert.alert(
+                "Changes saved",
+                "Your changes have been saved.",
+                [
+                    {
+                        text: "OK",
+                        onPress: () => {
+                            close();
+                        },
+                    },
+                ]
+            );
         } catch (caught) {
             setError(
                 uploadFailureMessage(

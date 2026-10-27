@@ -1,4 +1,4 @@
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Save } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, Switch, Text, View } from "react-native";
@@ -150,9 +150,16 @@ export default function ProfileSettingsForm() {
             });
 
             Alert.alert(
-                "Settings saved",
-                "Your preferences have been updated.",
-                [{ text: "Done" }]
+                "Changes saved",
+                "Your changes have been saved.",
+                [
+                    {
+                        text: "OK",
+                        onPress: () => {
+                            router.replace("/(tabs)/profile");
+                        },
+                    },
+                ]
             );
         } catch (caught) {
             setError(

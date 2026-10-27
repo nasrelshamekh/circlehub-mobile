@@ -199,8 +199,8 @@ function RecoveryUnlockPrompt({
                             onPress={onUnlock}
                             accessibilityLabel="Unlock"
                             label="Unlock"
-                            className="flex-1"
-                            contentStyle={{ paddingVertical: 12 }}
+                            className="flex-1 rounded-xl"
+                            contentStyle={{ paddingVertical: 12, borderRadius: 12 }}
                             textClassName="text-label-md font-semibold"
                         />
                     </View>

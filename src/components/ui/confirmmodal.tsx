@@ -77,6 +77,7 @@ export default function ConfirmModal({
                                 accessibilityRole="button"
                                 accessibilityLabel={cancelText}
                                 className="flex-1 items-center rounded-xl border border-border bg-surface-low py-3 active:bg-surface-high"
+                                style={{ borderRadius: 12 }}
                             >
                                 <Text className="text-label-md font-semibold text-text-primary">
                                     {cancelText}
@@ -93,6 +94,7 @@ export default function ConfirmModal({
                                 className={`${
                                     showCancel ? "flex-1" : "w-full"
                                 } items-center justify-center rounded-xl bg-error py-3 active:opacity-90`}
+                                style={{ borderRadius: 12 }}
                             >
                                 {loading ? (
                                     <ActivityIndicator
@@ -119,8 +121,8 @@ export default function ConfirmModal({
                                         />
                                     ) : undefined
                                 }
-                                className={showCancel ? "flex-1" : "w-full"}
-                                contentStyle={{ paddingVertical: 12 }}
+                                className={`${showCancel ? "flex-1" : "w-full"} rounded-xl`}
+                                contentStyle={{ paddingVertical: 12, borderRadius: 12 }}
                                 textClassName="text-label-md font-semibold"
                             />
                         )}
