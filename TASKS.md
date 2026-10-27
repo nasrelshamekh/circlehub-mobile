@@ -65,8 +65,9 @@ npm run lint
 npm test
 ```
 
-Release APKs are built locally from `android/` with Gradle. Use a **JDK 21**
-`JAVA_HOME` (the Android Studio JBR is JDK 25): on JDK 24+ the Google prefab CLI
-loads JNA through `System.load`, the resulting `--enable-native-access` warnings
-land in `prefab_stderr.txt`, and AGP's `GeneratePrefabPackages` reports the first
-stderr line as a build failure (`:react-native-worklets:configureCMakeRelWithDebInfo`).
+Release APKs are built locally from `android/` with Gradle. Use a **JDK 17 or 21**
+`JAVA_HOME` (e.g. `C:\Program Files\Microsoft\jdk-17.0.21.21-hotspot`): on JDK 24+
+(such as the Android Studio JBR JDK 25) the Google prefab CLI loads JNA through
+`System.load`, the resulting `--enable-native-access` warnings land in
+`prefab_stderr.txt`, and AGP's `GeneratePrefabPackages` reports the first stderr line
+as a build failure (`:react-native-worklets:configureCMakeRelWithDebInfo`).
