@@ -1,16 +1,16 @@
-import { Bell, MessageCircle, Moon, Network } from "lucide-react-native";
 import { router } from "expo-router";
+import { Bell, MessageCircle, Moon, Network } from "lucide-react-native";
 import { useState } from "react";
 import { Image, Modal, Pressable, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
+import { useSidebarDrawer } from "@/context/sidebardrawercontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversations } from "@/hooks/useConversations";
 import { useNotifications } from "@/hooks/useNotifications";
 import { themeColors } from "@/theme/colors";
-import { useSidebarDrawer } from "@/context/sidebardrawercontext";
 
 export default function Header() {
     const insets = useSafeAreaInsets();
@@ -136,8 +136,8 @@ export default function Header() {
                     />
 
                     <View
-                        style={{ top: insets.top + 68 }}
-                        className="absolute right-4 w-[200px] rounded-lg border border-border/50 bg-surface-lowest py-1 shadow-lg"
+                        style={{ top: insets.top + 58 }}
+                        className="absolute right-4 w-[200px] rounded-lg bg-surface-lowest py-1 shadow-lg"
                     >
                         <Text className="px-4 pb-1 pt-3 text-body-md font-bold text-text-secondary">
                             My Account
