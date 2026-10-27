@@ -9,6 +9,7 @@ import {
     clearConversationUnreadInCache,
     ConversationThreadWithMeta,
     patchConversationListOnMessage,
+    reconcileCachedThreadsWithList,
 } from "@/lib/messageCacheHelpers";
 import { queryKeys } from "@/lib/queryKeys";
 import * as session from "@/lib/session";
@@ -340,6 +341,17 @@ describe("messaging performance optimizations (P0 + P1 + P2)", () => {
             expect(hydratedThread?.pages[0].messages[0].plaintext).toBe(
                 secretPlaintext
             );
+            // Disk-hydrated queries MUST be stamped updatedAt=1 so they render in 0ms
+            // while remaining immediately stale for background revalidation on cold launch!
+            expect(
+                coldBootClient.getQueryState(queryKeys.conversations())
+                    ?.dataUpdatedAt
+            ).toBe(1);
+            expect(
+                coldBootClient.getQueryState(
+                    queryKeys.conversation("conv-alpha")
+                )?.dataUpdatedAt
+            ).toBe(1);
 
             // Sign-out wipes both hardware key and encrypted file
             await clearThreadCache();
@@ -390,5 +402,60 @@ describe("messaging performance optimizations (P0 + P1 + P2)", () => {
         await waitFor(() => {
             expect(peekDecrypted(thread.messages[0].content)).toBe("Message #1");
         });
+    });
+
+    it("invalidates cached thread when server conversations list reports a newer lastMessage received while closed", () => {
+        const queryClient = new QueryClient();
+        const convId = "conv-missed";
+
+        queryClient.setQueryData(queryKeys.conversation(convId), {
+            pages: [
+                {
+                    id: convId,
+                    otherUser: {
+                        id: "user-2",
+                        name: "Bob",
+                        username: "bob",
+                        avatarUrl: null,
+                    },
+                    messages: [makeMessage("msg-old", "Old message")],
+                    hasMore: false,
+                    _markedReadNewestId: "msg-old",
+                },
+            ],
+            pageParams: [1],
+        });
+
+        expect(
+            queryClient.getQueryState(queryKeys.conversation(convId))
+                ?.isInvalidated
+        ).toBe(false);
+
+        const reconciled = reconcileCachedThreadsWithList(queryClient, [
+            {
+                id: convId,
+                otherUser: {
+                    id: "user-2",
+                    name: "Bob",
+                    username: "bob",
+                    avatarUrl: null,
+                },
+                lastMessageAt: "2026-10-28T00:00:00.000Z",
+                unreadCount: 1,
+                lastMessage: {
+                    id: "msg-new-while-closed",
+                    content: "Hey, are you there?",
+                    hasPost: false,
+                    isMine: false,
+                    createdAt: "2026-10-28T00:00:00.000Z",
+                },
+            },
+        ]);
+
+        expect(reconciled[0].unreadCount).toBe(1);
+        expect(
+            queryClient.getQueryState(queryKeys.conversation(convId))
+                ?.isInvalidated
+        ).toBe(true);
     });
 });

@@ -260,10 +260,12 @@ export async function hydrateThreadCache(
         if (Array.isArray(snapshot.conversations)) {
             const listKey = queryKeys.conversations();
             const current = queryClient.getQueryState(listKey);
-            const savedAt = snapshot.conversationsUpdatedAt || snapshot.savedAt || 0;
-            if (!current?.dataUpdatedAt || current.dataUpdatedAt < savedAt) {
+            // Stamp `updatedAt: 1` so disk-hydrated data renders in 0 ms (zero skeletons) while
+            // always remaining stale relative to `STALE_TIME_MS`, guaranteeing an immediate
+            // background revalidation for any messages received while the app was closed.
+            if (!current?.dataUpdatedAt) {
                 queryClient.setQueryData(listKey, snapshot.conversations, {
-                    updatedAt: savedAt,
+                    updatedAt: 1,
                 });
             }
         }
@@ -282,16 +284,15 @@ export async function hydrateThreadCache(
 
                 const threadKey = queryKeys.conversation(entry.id);
                 const existing = queryClient.getQueryState(threadKey);
-                const savedAt = entry.updatedAt || snapshot.savedAt || 0;
 
-                if (!existing?.dataUpdatedAt || existing.dataUpdatedAt < savedAt) {
+                if (!existing?.dataUpdatedAt) {
                     queryClient.setQueryData<InfiniteData<ConversationThreadWithMeta>>(
                         threadKey,
                         {
                             pages: [{ ...entry.firstPage, _markedReadNewestId: null }],
                             pageParams: [1],
                         },
-                        { updatedAt: savedAt }
+                        { updatedAt: 1 }
                     );
                 }
             }

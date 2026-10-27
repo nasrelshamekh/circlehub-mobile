@@ -194,3 +194,76 @@ export function clearConversationUnreadInCache(
     );
     return { found: true, cleared: true };
 }
+
+/**
+ * Reconciles fresh server `conversations` list entries against any cached `conversation(id)`
+ * threads in memory. If a conversation's `lastMessage.id` is not yet present in its cached
+ * thread's page-1 messages (e.g., a message arrived while the app was closed/backgrounded),
+ * that thread query is immediately invalidated so opening or viewing it fetches the missed
+ * message even inside the 60s `staleTime` window.
+ */
+export function reconcileCachedThreadsWithList(
+    queryClient: QueryClient,
+    conversations: Conversation[]
+): Conversation[] {
+    if (!Array.isArray(conversations) || conversations.length === 0) {
+        return conversations;
+    }
+
+    const matchingQueries = queryClient.getQueriesData<
+        Conversation[] | InfiniteData<ConversationThreadWithMeta>
+    >({
+        queryKey: queryKeys.conversations(),
+    });
+
+    let adjusted: Conversation[] | null = null;
+
+    for (let i = 0; i < conversations.length; i += 1) {
+        const conv = conversations[i];
+        if (!conv?.id) continue;
+
+        const lastMsgId = conv.lastMessage?.id ?? null;
+
+        for (const [key, data] of matchingQueries) {
+            if (
+                !Array.isArray(key) ||
+                key.length !== 3 ||
+                !sameId(String(key[2]), conv.id)
+            ) {
+                continue;
+            }
+
+            if (!data || Array.isArray(data) || !Array.isArray(data.pages)) {
+                continue;
+            }
+
+            const firstPage = data.pages[0];
+            if (!firstPage) continue;
+
+            const cachedMessages = Array.isArray(firstPage.messages)
+                ? firstPage.messages
+                : [];
+
+            if (
+                lastMsgId &&
+                !cachedMessages.some((m) => sameId(m.id, lastMsgId))
+            ) {
+                void queryClient.invalidateQueries({
+                    queryKey: key,
+                    exact: true,
+                });
+            } else if (
+                conv.unreadCount > 0 &&
+                lastMsgId &&
+                sameId(firstPage._markedReadNewestId, lastMsgId)
+            ) {
+                if (!adjusted) {
+                    adjusted = [...conversations];
+                }
+                adjusted[i] = { ...conv, unreadCount: 0 };
+            }
+        }
+    }
+
+    return adjusted ?? conversations;
+}

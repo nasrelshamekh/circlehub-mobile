@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getConversations } from "@/api/messages";
+import { reconcileCachedThreadsWithList } from "@/lib/messageCacheHelpers";
 import { queryKeys } from "@/lib/queryKeys";
 import { decryptMessageContent, peekDecrypted } from "@/services/messageCrypto";
 import { Conversation } from "@/types/message";
@@ -32,16 +33,22 @@ function warmConversationPreviews(conversations: Conversation[]): void {
 }
 
 export function useConversations() {
+    const queryClient = useQueryClient();
+
     const query = useQuery({
         queryKey: queryKeys.conversations(),
         queryFn: async () => {
             const { data } = await getConversations();
-            if (Array.isArray(data) && data.length > 0) {
-                warmConversationPreviews(data);
+            const reconciled = Array.isArray(data)
+                ? reconcileCachedThreadsWithList(queryClient, data)
+                : data;
+            if (Array.isArray(reconciled) && reconciled.length > 0) {
+                warmConversationPreviews(reconciled);
             }
-            return data;
+            return reconciled;
         },
         staleTime: STALE_TIME_MS,
+        refetchOnWindowFocus: "always",
     });
 
     return {

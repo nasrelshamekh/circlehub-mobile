@@ -331,6 +331,7 @@ export function ChatConnectionProvider({
         if (!isAuthenticated || Platform.OS === "web") return undefined;
 
         let followUpTimer: ReturnType<typeof setTimeout> | null = null;
+        let previousAppState = AppState.currentState;
 
         const syncTrayWithVisibleScreen = () => {
             const activeConvId = activeConversationIdRef.current;
@@ -346,12 +347,38 @@ export function ChatConnectionProvider({
             }
         };
 
+        const revalidateOnForeground = () => {
+            void queryClient.invalidateQueries({
+                queryKey: queryKeys.conversations(),
+                exact: true,
+            });
+            void queryClient.invalidateQueries({
+                queryKey: queryKeys.notifications(),
+            });
+            const currentPath = pathnameRef.current || "";
+            const pathMatch = currentPath.match(/\/messages\/([^/?#]+)/i);
+            const openConvId =
+                activeConversationIdRef.current || pathMatch?.[1] || null;
+            if (openConvId) {
+                void queryClient.invalidateQueries({
+                    queryKey: queryKeys.conversation(openConvId),
+                    exact: true,
+                });
+            }
+        };
+
         const subscription = AppState.addEventListener("change", (nextState) => {
+            const wasNotActive = previousAppState !== "active";
+            previousAppState = nextState;
+
             if (followUpTimer) {
                 clearTimeout(followUpTimer);
                 followUpTimer = null;
             }
             if (nextState === "active") {
+                if (wasNotActive) {
+                    revalidateOnForeground();
+                }
                 syncTrayWithVisibleScreen();
                 followUpTimer = setTimeout(syncTrayWithVisibleScreen, 500);
             }
@@ -363,7 +390,7 @@ export function ChatConnectionProvider({
             }
             subscription.remove();
         };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, queryClient]);
 
     useEffect(() => {
         if (!isAuthenticated || !user?.username) return undefined;
@@ -875,13 +902,9 @@ export function ChatConnectionProvider({
             }
         });
 
-        connection.onreconnecting(() => {
-            if (!disposed) setStatus("reconnecting");
-        });
+        let wasOfflineOrClosed = false;
 
-        connection.onreconnected(() => {
-            if (disposed) return;
-            setStatus("live");
+        function resyncMissedRealtimeData() {
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.conversations(),
                 exact: true,
@@ -889,10 +912,37 @@ export function ChatConnectionProvider({
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.notifications(),
             });
+            const currentPath = pathnameRef.current || "";
+            const pathMatch = currentPath.match(/\/messages\/([^/?#]+)/i);
+            const openConvId =
+                activeConversationIdRef.current || pathMatch?.[1] || null;
+            if (openConvId) {
+                void queryClient.invalidateQueries({
+                    queryKey: queryKeys.conversation(openConvId),
+                    exact: true,
+                });
+            }
+        }
+
+        connection.onreconnecting(() => {
+            if (!disposed) setStatus("reconnecting");
+        });
+
+        connection.onreconnected(() => {
+            if (disposed) return;
+            setStatus("live");
+            resyncMissedRealtimeData();
         });
 
         connection.onclose(() => {
+            wasOfflineOrClosed = true;
             if (!disposed) setStatus("offline");
+            if (!disposed && !retryTimer) {
+                retryTimer = setTimeout(() => {
+                    retryTimer = null;
+                    connect();
+                }, CONNECT_RETRY_MS);
+            }
         });
 
         function connect() {
@@ -903,13 +953,22 @@ export function ChatConnectionProvider({
                 .start()
                 .then(() => {
                     connecting = false;
-                    if (!disposed) setStatus("live");
+                    if (disposed) return;
+                    setStatus("live");
+                    if (wasOfflineOrClosed) {
+                        wasOfflineOrClosed = false;
+                        resyncMissedRealtimeData();
+                    }
                 })
                 .catch(() => {
                     connecting = false;
+                    wasOfflineOrClosed = true;
                     if (disposed) return;
                     setStatus("offline");
-                    retryTimer = setTimeout(connect, CONNECT_RETRY_MS);
+                    retryTimer = setTimeout(() => {
+                        retryTimer = null;
+                        connect();
+                    }, CONNECT_RETRY_MS);
                 });
         }
 
