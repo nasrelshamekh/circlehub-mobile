@@ -294,6 +294,30 @@ export function ChatConnectionProvider({
         }
     }, []);
 
+    const [lastSyncedPathname, setLastSyncedPathname] = useState(pathname);
+    if (lastSyncedPathname !== pathname) {
+        setLastSyncedPathname(pathname);
+        if (pathname && inAppNotification) {
+            const match = pathname.match(/\/messages\/([^/?#]+)/i);
+            if (match && match[1] && inAppNotification.kind === "message") {
+                const openConvId = match[1].trim().toLowerCase();
+                if (
+                    String(inAppNotification.conversationId).trim().toLowerCase() ===
+                    openConvId
+                ) {
+                    setInAppNotification(null);
+                    setInAppExpanded(false);
+                }
+            } else if (
+                pathname.includes("/notifications") &&
+                inAppNotification.kind === "notification"
+            ) {
+                setInAppNotification(null);
+                setInAppExpanded(false);
+            }
+        }
+    }
+
     useEffect(() => {
         pathnameRef.current = pathname;
         userRef.current = user;
@@ -302,25 +326,8 @@ export function ChatConnectionProvider({
             const match = pathname.match(/\/messages\/([^/?#]+)/i);
             if (match && match[1]) {
                 void dismissConversationNotifications(match[1]);
-                const openConvId = match[1].trim().toLowerCase();
-                setInAppNotification((prev) => {
-                    if (
-                        prev &&
-                        prev.kind === "message" &&
-                        String(prev.conversationId).trim().toLowerCase() === openConvId
-                    ) {
-                        return null;
-                    }
-                    return prev;
-                });
             } else if (pathname.includes("/notifications")) {
                 void dismissActivityNotifications();
-                setInAppNotification((prev) => {
-                    if (prev && prev.kind === "notification") {
-                        return null;
-                    }
-                    return prev;
-                });
             }
         }
     }, [pathname, user]);
