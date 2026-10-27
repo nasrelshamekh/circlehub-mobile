@@ -57,15 +57,28 @@ type EncryptedEnvelope = {
 const decryptCache = new Map<string, Promise<string>>();
 const settledCache = new Map<string, string>();
 let cacheVersion = 0;
+let notifyPending = false;
 const cacheListeners = new Set<() => void>();
 let memoryKeys: StoredDeviceKey[] | null = null;
+let loadKeysPromise: Promise<StoredDeviceKey[]> | null = null;
 let memoryDeviceId: string | null = null;
+let deviceIdChecked = false;
+const decodedSecretCache = new WeakMap<StoredDeviceKey, Uint8Array>();
 
 function notifyDecryptCacheChanged(): void {
     cacheVersion += 1;
     for (const listener of cacheListeners) {
         listener();
     }
+}
+
+function scheduleNotifyDecryptCacheChanged(): void {
+    if (notifyPending) return;
+    notifyPending = true;
+    queueMicrotask(() => {
+        notifyPending = false;
+        notifyDecryptCacheChanged();
+    });
 }
 
 export function subscribeDecryptCache(listener: () => void): () => void {
@@ -142,10 +155,35 @@ async function writeStorageItem(key: string, value: string): Promise<void> {
     }
 }
 
+function getDecodedSecret(record: StoredDeviceKey): Uint8Array | null {
+    let bytes = decodedSecretCache.get(record);
+    if (!bytes) {
+        try {
+            bytes = fromBase64(record.secretKeyB64);
+            decodedSecretCache.set(record, bytes);
+        } catch {
+            return null;
+        }
+    }
+    return bytes;
+}
+
+async function peekStoredDeviceId(): Promise<string | null> {
+    if (memoryDeviceId) return memoryDeviceId;
+    if (deviceIdChecked) return null;
+    deviceIdChecked = true;
+    const stored = await readStorageItem(DEVICE_ID_KEY);
+    if (stored) {
+        memoryDeviceId = stored;
+    }
+    return memoryDeviceId;
+}
+
 export async function getDeviceId(): Promise<string> {
     if (memoryDeviceId) return memoryDeviceId;
 
     const stored = await readStorageItem(DEVICE_ID_KEY);
+    deviceIdChecked = true;
     if (stored) {
         memoryDeviceId = stored;
         return stored;
@@ -159,23 +197,36 @@ export async function getDeviceId(): Promise<string> {
 
 async function loadStoredKeys(): Promise<StoredDeviceKey[]> {
     if (memoryKeys) return memoryKeys;
+    if (loadKeysPromise) return loadKeysPromise;
 
-    const raw = await readStorageItem(PRIVATE_KEYS_KEY);
-    if (!raw) {
-        memoryKeys = [];
+    loadKeysPromise = (async () => {
+        const raw = await readStorageItem(PRIVATE_KEYS_KEY);
+        if (!raw) {
+            memoryKeys = [];
+            return memoryKeys;
+        }
+
+        try {
+            const parsed = JSON.parse(raw);
+            memoryKeys = Array.isArray(parsed) ? parsed : [];
+        } catch {
+            memoryKeys = [];
+        }
+
+        for (const entry of memoryKeys) {
+            getDecodedSecret(entry);
+        }
+
         return memoryKeys;
-    }
+    })().finally(() => {
+        loadKeysPromise = null;
+    });
 
-    try {
-        const parsed = JSON.parse(raw);
-        memoryKeys = Array.isArray(parsed) ? parsed : [];
-    } catch {
-        memoryKeys = [];
-    }
-    return memoryKeys;
+    return loadKeysPromise;
 }
 
 async function saveStoredKey(record: StoredDeviceKey): Promise<void> {
+    getDecodedSecret(record);
     const current = await loadStoredKeys();
     const updated = [
         ...current.filter((entry) => entry.publicKeyB64 !== record.publicKeyB64),
@@ -526,21 +577,32 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
         return UNREADABLE_PLACEHOLDER;
     }
 
-    const keys = await loadStoredKeys();
+    const [keys, activeDeviceId] = await Promise.all([
+        loadStoredKeys(),
+        peekStoredDeviceId(),
+    ]);
+
+    const orderedKeys = activeDeviceId
+        ? [
+              ...keys
+                  .filter((k) => k.deviceId === activeDeviceId)
+                  .reverse(),
+              ...keys.filter((k) => k.deviceId !== activeDeviceId),
+          ]
+        : keys;
 
     const candidates: {
         deviceId: string;
         secretKey: Uint8Array;
-        wrapKey?: Uint8Array;
+        wrapKey?: Uint8Array | null;
     }[] = [];
-    for (const record of keys) {
-        try {
+    for (const record of orderedKeys) {
+        const secretKey = getDecodedSecret(record);
+        if (secretKey) {
             candidates.push({
                 deviceId: record.deviceId,
-                secretKey: fromBase64(record.secretKeyB64),
+                secretKey,
             });
-        } catch {
-            continue;
         }
     }
 
@@ -549,28 +611,36 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
     // Deriving it per (key, wrap) pair made the fallback sweep quadratic: a seven-wrap envelope
     // against a three-key ring paid twenty-one ECDHs where three were needed, and one ECDH is
     // ~2 ms of BigInt arithmetic on Hermes.
-    function wrapKeyFor(index: number): Uint8Array {
+    function wrapKeyFor(index: number): Uint8Array | null {
         const candidate = candidates[index];
-        if (!candidate.wrapKey) {
-            candidate.wrapKey = deriveWrapKey(
-                candidate.secretKey,
-                ephemeralPublicKey
-            );
+        if (candidate.wrapKey === undefined) {
+            try {
+                candidate.wrapKey = deriveWrapKey(
+                    candidate.secretKey,
+                    ephemeralPublicKey
+                );
+            } catch {
+                candidate.wrapKey = null;
+            }
         }
         return candidate.wrapKey;
     }
 
     // Every wrap names the device it belongs to (`w[].d`), so try the wraps whose device id we
-    // actually hold a key for before falling back to the sweep below. The sweep costs one ECDH per
-    // local key, and a keyring of eight against a wide fan-out is still a lot of BigInt arithmetic
-    // to run inside one synchronous block while a conversation opens.
+    // actually hold a key for before falling back to the sweep below. Within a non-active device
+    // bucket, newer keys are placed ahead of older rotated keys.
     const byDeviceId = new Map<string, number[]>();
     for (let index = 0; index < candidates.length; index += 1) {
-        const bucket = byDeviceId.get(candidates[index].deviceId);
+        const deviceId = candidates[index].deviceId;
+        const bucket = byDeviceId.get(deviceId);
         if (bucket) {
-            bucket.push(index);
+            if (deviceId === activeDeviceId) {
+                bucket.push(index);
+            } else {
+                bucket.unshift(index);
+            }
         } else {
-            byDeviceId.set(candidates[index].deviceId, [index]);
+            byDeviceId.set(deviceId, [index]);
         }
     }
 
@@ -579,8 +649,10 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
         if (!bucket) continue;
 
         for (const index of bucket) {
+            const wrapKey = wrapKeyFor(index);
+            if (!wrapKey) continue;
             const plaintext = openWrap(
-                wrapKeyFor(index),
+                wrapKey,
                 wrap,
                 contentIv,
                 ciphertext
@@ -595,6 +667,7 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
     // reachable by the id alone, so the sweep still runs and the AEAD tag stays the only real check.
     for (let index = 0; index < candidates.length; index += 1) {
         const wrapKey = wrapKeyFor(index);
+        if (!wrapKey) continue;
         for (const wrap of envelope.w) {
             const plaintext = openWrap(wrapKey, wrap, contentIv, ciphertext);
             if (plaintext !== null) return plaintext;
@@ -624,7 +697,11 @@ async function decryptFresh(content: string): Promise<string> {
     } catch {
         return legacyDecode(content);
     }
-    return decryptEnvelope(envelope);
+    try {
+        return await decryptEnvelope(envelope);
+    } catch {
+        return UNREADABLE_PLACEHOLDER;
+    }
 }
 
 export function decryptMessageContent(
@@ -637,20 +714,41 @@ export function decryptMessageContent(
     const cached = decryptCache.get(content);
     if (cached) return cached;
 
-    const promise = decryptFresh(content).then((text) => {
-        settledCache.set(content, text);
-        if (decryptCache.size > DECRYPT_CACHE_LIMIT) {
-            const oldest = decryptCache.keys().next().value;
-            if (oldest) {
-                decryptCache.delete(oldest);
-                settledCache.delete(oldest);
+    const promise = decryptFresh(content)
+        .catch(() => UNREADABLE_PLACEHOLDER)
+        .then((text) => {
+            settledCache.set(content, text);
+            if (decryptCache.size > DECRYPT_CACHE_LIMIT) {
+                const oldest = decryptCache.keys().next().value;
+                if (oldest) {
+                    decryptCache.delete(oldest);
+                    settledCache.delete(oldest);
+                }
             }
-        }
-        return text;
-    });
+            scheduleNotifyDecryptCacheChanged();
+            return text;
+        });
 
     decryptCache.set(content, promise);
     return promise;
+}
+
+export function seedSettledPlaintext(
+    content?: string | null,
+    plaintext?: string | null
+): void {
+    if (!isEncryptedContent(content) || !plaintext) return;
+    if (settledCache.has(content)) return;
+
+    settledCache.set(content, plaintext);
+    decryptCache.set(content, Promise.resolve(plaintext));
+    if (decryptCache.size > DECRYPT_CACHE_LIMIT) {
+        const oldest = decryptCache.keys().next().value;
+        if (oldest) {
+            decryptCache.delete(oldest);
+            settledCache.delete(oldest);
+        }
+    }
 }
 
 export function peekDecrypted(content?: string | null): string | null {

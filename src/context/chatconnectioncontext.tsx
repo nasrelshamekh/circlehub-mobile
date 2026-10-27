@@ -23,6 +23,10 @@ import { useTheme } from "@/context/themecontext";
 import { emitPostCreated } from "@/lib/feedEvents";
 import { haptics } from "@/lib/haptics";
 import {
+    appendMessageToThreadCache,
+    patchConversationListOnMessage,
+} from "@/lib/messageCacheHelpers";
+import {
     hasNotificationTarget,
     navigateToNotificationTarget,
     notificationSentence,
@@ -48,8 +52,9 @@ import {
     isRecoveryPromptSettled,
     markRecoveryPromptDismissed,
 } from "@/services/recoveryPrompt";
-import { Conversation, ConversationThread } from "@/types/message";
+import { Conversation, ConversationThread, Message } from "@/types/message";
 import { NotificationItem, NotificationsResponse } from "@/types/notification";
+import { Post } from "@/types/post";
 import { themes } from "@/theme/themes";
 
 export type ChatConnectionStatus =
@@ -407,17 +412,23 @@ export function ChatConnectionProvider({
                 EncryptedPayload?: string | null;
                 conversationId?: string | null;
                 ConversationId?: string | null;
+                messageId?: string | null;
+                MessageId?: string | null;
+                sentAt?: string | null;
+                SentAt?: string | null;
                 senderId?: string | null;
                 SenderId?: string | null;
                 senderName?: string | null;
                 SenderName?: string | null;
+                senderUsername?: string | null;
+                SenderUsername?: string | null;
                 senderAvatarUrl?: string | null;
                 SenderAvatarUrl?: string | null;
+                postId?: string | null;
+                PostId?: string | null;
+                post?: Post | null;
+                Post?: Post | null;
             }) => {
-                // The event carries the ciphertext, so it can be opened while the refetch below is
-                // still in flight. The bubble then mounts with its text already in the settled cache
-                // and never shows the decrypt skeleton — which is what a burst of messages used to
-                // flash on the receiving end.
                 const payload =
                     message?.encryptedPayload ?? message?.EncryptedPayload;
                 let plaintext = "";
@@ -435,19 +446,14 @@ export function ChatConnectionProvider({
                     }
                 }
 
-                void queryClient.invalidateQueries({
-                    queryKey: queryKeys.conversations(),
-                    exact: true,
-                });
+                if (disposed) return;
 
                 const conversationId =
                     message?.conversationId ?? message?.ConversationId;
-                if (conversationId) {
-                    void queryClient.invalidateQueries({
-                        queryKey: queryKeys.conversation(conversationId),
-                        refetchType: "active",
-                    });
-                }
+                const messageId =
+                    message?.messageId ?? message?.MessageId;
+                const postId = message?.postId ?? message?.PostId ?? null;
+                const post = message?.post ?? message?.Post ?? null;
 
                 const senderId = message?.senderId ?? message?.SenderId;
                 const currentUserId = userRef.current?.id;
@@ -481,20 +487,117 @@ export function ChatConnectionProvider({
                 const isInActiveThread =
                     isViewingActiveConv || isPathInActiveThread;
 
+                const convs = queryClient.getQueryData<Conversation[]>(
+                    queryKeys.conversations()
+                );
+                const matchedConv = conversationId
+                    ? convs?.find(
+                          (c) =>
+                              String(c.id).toLowerCase() ===
+                              String(conversationId).toLowerCase()
+                      )
+                    : undefined;
+
+                const canApplyDirect =
+                    Boolean(conversationId && messageId) &&
+                    (!postId || Boolean(post));
+
+                if (canApplyDirect && conversationId && messageId) {
+                    const createdAt =
+                        message?.sentAt ??
+                        message?.SentAt ??
+                        new Date().toISOString();
+
+                    const senderName =
+                        message?.senderName ??
+                        message?.SenderName ??
+                        (isOwnMessage
+                            ? userRef.current?.name
+                            : matchedConv?.otherUser?.name) ??
+                        "";
+                    const senderUsername =
+                        message?.senderUsername ??
+                        message?.SenderUsername ??
+                        (isOwnMessage
+                            ? userRef.current?.username
+                            : matchedConv?.otherUser?.username) ??
+                        "";
+                    const senderAvatarUrl =
+                        message?.senderAvatarUrl ??
+                        message?.SenderAvatarUrl ??
+                        (isOwnMessage
+                            ? userRef.current?.avatarUrl
+                            : matchedConv?.otherUser?.avatarUrl) ??
+                        null;
+
+                    const directMessage: Message = {
+                        id: String(messageId),
+                        content: payload ?? null,
+                        ...(plaintext ? { plaintext } : {}),
+                        postId,
+                        post,
+                        createdAt,
+                        isMine: isOwnMessage,
+                        sender: {
+                            id: String(senderId ?? ""),
+                            name: senderName,
+                            username: senderUsername,
+                            avatarUrl: senderAvatarUrl,
+                        },
+                    };
+
+                    appendMessageToThreadCache(
+                        queryClient,
+                        conversationId,
+                        directMessage,
+                        { markReadUpTo: isOwnMessage }
+                    );
+
+                    const patchedList = patchConversationListOnMessage(
+                        queryClient,
+                        {
+                            conversationId,
+                            lastMessage: {
+                                id: String(messageId),
+                                content: payload ?? null,
+                                hasPost: Boolean(postId),
+                                isMine: isOwnMessage,
+                                createdAt,
+                            },
+                            lastMessageAt: createdAt,
+                            unreadDelta:
+                                isOwnMessage || isInActiveThread ? 0 : 1,
+                            resetUnread: isOwnMessage || isInActiveThread,
+                        }
+                    );
+
+                    if (!patchedList) {
+                        void queryClient.invalidateQueries({
+                            queryKey: queryKeys.conversations(),
+                            exact: true,
+                        });
+                    }
+                } else {
+                    void queryClient.invalidateQueries({
+                        queryKey: queryKeys.conversations(),
+                        exact: true,
+                    });
+
+                    if (conversationId) {
+                        void queryClient.invalidateQueries({
+                            queryKey: queryKeys.conversation(conversationId),
+                            refetchType: "active",
+                        });
+                    }
+                }
+
                 if (!isOwnMessage && !isInActiveThread && conversationId) {
                     const displayMsg =
                         plaintext.trim().length > 0
                             ? plaintext
-                            : "Sent you a message";
-
-                    const convs = queryClient.getQueryData<Conversation[]>(
-                        queryKeys.conversations()
-                    );
-                    const matchedConv = convs?.find(
-                        (c) =>
-                            String(c.id).toLowerCase() ===
-                            String(conversationId).toLowerCase()
-                    );
+                            : postId
+                              ? "Shared a post"
+                              : "Sent you a message";
 
                     const resolvedSenderName =
                         message?.senderName ??

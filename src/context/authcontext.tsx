@@ -10,6 +10,11 @@ import {
 import { clearToken, getToken, onSessionExpired, setToken } from "@/lib/session";
 import { clearDecryptCache } from "@/services/messageCrypto";
 import { unregisterCurrentDevicePushToken } from "@/services/pushNotifications";
+import {
+    attachThreadCachePersistence,
+    clearThreadCache,
+    hydrateThreadCache,
+} from "@/services/threadCache";
 import { User } from "@/types/user";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -32,12 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         return onSessionExpired(() => {
+            clearThreadCache().catch(() => undefined);
             clearDecryptCache();
             queryClient.clear();
             setUser(null);
             setStatus("unauthenticated");
         });
     }, [queryClient]);
+
+    useEffect(() => {
+        if (status !== "authenticated" || !user?.id) return undefined;
+        return attachThreadCachePersistence(queryClient, user.id);
+    }, [queryClient, status, user?.id]);
 
     useEffect(() => {
         let active = true;
@@ -55,10 +66,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (!active) return;
 
+                await hydrateThreadCache(queryClient, response.data.id).catch(
+                    () => undefined
+                );
+
+                if (!active) return;
+
                 setUser(response.data);
                 setStatus("authenticated");
             } catch {
                 await clearToken();
+                await clearThreadCache().catch(() => undefined);
                 clearDecryptCache();
                 queryClient.clear();
 
@@ -80,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await loginRequest({ usernameOrEmail, password });
 
         await setToken(response.data.token);
+        await clearThreadCache().catch(() => undefined);
         clearDecryptCache();
         queryClient.clear();
 
@@ -96,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function signOut() {
         await unregisterCurrentDevicePushToken();
         await clearToken();
+        await clearThreadCache().catch(() => undefined);
         clearDecryptCache();
         queryClient.clear();
         setUser(null);

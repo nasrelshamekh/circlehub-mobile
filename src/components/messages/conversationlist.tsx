@@ -1,19 +1,27 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { MessageCircleMore } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { memo, useEffect } from "react";
+import { InteractionManager, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
 import PresenceDot from "@/components/messages/presencedot";
 import PresenceLabel from "@/components/messages/presencelabel";
 import { useTheme } from "@/context/themecontext";
-import { conversationQueryOptions } from "@/hooks/useConversation";
+import {
+    conversationQueryOptions,
+    STALE_TIME_MS,
+} from "@/hooks/useConversation";
 import { useDecryptedContent } from "@/hooks/useDecryptedContent";
 import { formatShortTime } from "@/lib/formatPostDate";
+import { queryKeys } from "@/lib/queryKeys";
 import { themeColors } from "@/theme/colors";
 import { Conversation } from "@/types/message";
 
-function ConversationRow({
+const IDLE_PREWARM_COUNT = 2;
+const IDLE_PREWARM_DELAY_MS = 1000;
+
+const ConversationRow = memo(function ConversationRow({
     conversation,
 }: {
     conversation: Conversation;
@@ -32,12 +40,17 @@ function ConversationRow({
     }
 
     function prewarmConversation() {
-        // The prewarm has to use the very same options the thread screen uses.
-        // `prefetchInfiniteQuery` *replaces* the options of the query it shares with the
-        // thread, so an option that only exists on one of the two callers (e.g.
-        // `getNextPageParam`) gets dropped for both and breaks the next refetch.
+        const state = queryClient.getQueryState(
+            queryKeys.conversation(conversation.id)
+        );
+        if (
+            state?.dataUpdatedAt &&
+            Date.now() - state.dataUpdatedAt < STALE_TIME_MS
+        ) {
+            return;
+        }
         void queryClient.prefetchInfiniteQuery(
-            conversationQueryOptions(conversation.id)
+            conversationQueryOptions(conversation.id, { markRead: false })
         );
     }
 
@@ -112,7 +125,7 @@ function ConversationRow({
             </View>
         </Pressable>
     );
-}
+});
 
 export default function ConversationList({
     conversations,
@@ -121,6 +134,48 @@ export default function ConversationList({
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (!conversations.length) return undefined;
+
+        const candidates = conversations
+            .slice(0, IDLE_PREWARM_COUNT)
+            .filter((conv) => {
+                if (!conv?.id) return false;
+                const state = queryClient.getQueryState(
+                    queryKeys.conversation(conv.id)
+                );
+                return !state?.dataUpdatedAt;
+            });
+
+        if (candidates.length === 0) return undefined;
+
+        let cancelled = false;
+        let delayTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const interactionHandle = InteractionManager.runAfterInteractions(() => {
+            if (cancelled) return;
+            delayTimer = setTimeout(async () => {
+                for (const conv of candidates) {
+                    if (cancelled) break;
+                    try {
+                        await queryClient.prefetchInfiniteQuery(
+                            conversationQueryOptions(conv.id, { markRead: false })
+                        );
+                    } catch {
+                        // Best-effort idle pre-warm
+                    }
+                }
+            }, IDLE_PREWARM_DELAY_MS);
+        });
+
+        return () => {
+            cancelled = true;
+            interactionHandle.cancel();
+            if (delayTimer) clearTimeout(delayTimer);
+        };
+    }, [conversations, queryClient]);
 
     if (conversations.length === 0) {
         return (

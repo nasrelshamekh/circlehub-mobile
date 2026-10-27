@@ -92,7 +92,7 @@ const MessageBubble = memo(function MessageBubble({
         }
     }
     const { text: decryptedText, isPending: isDecrypting } =
-        useDecryptedContent(message.content);
+        useDecryptedContent(message.plaintext ? null : message.content);
 
     const displayText = message.plaintext ?? decryptedText;
     const isActuallyDecrypting = !message.plaintext && isDecrypting;
@@ -293,6 +293,29 @@ const MessageBubble = memo(function MessageBubble({
     );
 });
 
+const MessageRow = memo(function MessageRow({
+    message,
+    showDateDivider,
+    onRetry,
+    isRetrying,
+}: {
+    message: Message;
+    showDateDivider: boolean;
+    onRetry: (message: Message) => void;
+    isRetrying: boolean;
+}) {
+    return (
+        <View>
+            {showDateDivider && <DateDivider value={message.createdAt} />}
+            <MessageBubble
+                message={message}
+                onRetry={onRetry}
+                isRetrying={isRetrying}
+            />
+        </View>
+    );
+});
+
 function TypingBubble({
     name,
     avatarUrl,
@@ -443,6 +466,21 @@ export default function MessageThread({
         [combinedMessages]
     );
 
+    const newDayMessageIds = useMemo(() => {
+        const ids = new Set<string>();
+        for (let i = 0; i < orderedMessages.length; i += 1) {
+            if (
+                isNewDay(
+                    orderedMessages[i].createdAt,
+                    orderedMessages[i + 1]?.createdAt
+                )
+            ) {
+                ids.add(orderedMessages[i].id);
+            }
+        }
+        return ids;
+    }, [orderedMessages]);
+
     function handleChangeText(value: string) {
         setText(value);
         reportTyping(value.trim().length > 0);
@@ -584,21 +622,15 @@ export default function MessageThread({
     const keyExtractor = useCallback((message: Message) => message.id, []);
 
     const renderItem = useCallback(
-        ({ item, index }: { item: Message; index: number }) => (
-            <View key={item.id}>
-                {isNewDay(
-                    item.createdAt,
-                    orderedMessages[index + 1]?.createdAt
-                ) && <DateDivider value={item.createdAt} />}
-
-                <MessageBubble
-                    message={item}
-                    onRetry={handleRetry}
-                    isRetrying={retryingIds.has(item.id)}
-                />
-            </View>
+        ({ item }: { item: Message }) => (
+            <MessageRow
+                message={item}
+                showDateDivider={newDayMessageIds.has(item.id)}
+                onRetry={handleRetry}
+                isRetrying={retryingIds.has(item.id)}
+            />
         ),
-        [orderedMessages, handleRetry, retryingIds]
+        [newDayMessageIds, handleRetry, retryingIds]
     );
 
     const showCounter = text.length >= COUNTER_SHOW_THRESHOLD;
@@ -611,9 +643,9 @@ export default function MessageThread({
                 data={orderedMessages}
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
-                initialNumToRender={30}
-                maxToRenderPerBatch={20}
-                windowSize={21}
+                initialNumToRender={14}
+                maxToRenderPerBatch={10}
+                windowSize={9}
                 removeClippedSubviews={false}
                 contentContainerClassName="grow px-4 py-4"
                 keyboardShouldPersistTaps="handled"

@@ -14,10 +14,22 @@ export function getConversations() {
     );
 }
 
-export function getConversation(id: string, page = 1, pageSize = 50) {
+export function getConversation(
+    id: string,
+    page = 1,
+    pageSize = 25,
+    markRead = true
+) {
+    const suffix = markRead ? "" : "&markRead=false";
     return apiFetch<{ message: string; data: ConversationThread }>(
-        `/api/Messages/conversations/${id}?page=${page}&pageSize=${pageSize}`
+        `/api/Messages/conversations/${id}?page=${page}&pageSize=${pageSize}${suffix}`
     );
+}
+
+export function markConversationRead(id: string) {
+    return apiFetch<void>(`/api/Messages/conversations/${id}/read`, {
+        method: "POST",
+    });
 }
 
 export function getMessageRecipients() {

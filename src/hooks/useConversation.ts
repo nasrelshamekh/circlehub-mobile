@@ -1,52 +1,143 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { getConversation } from "@/api/messages";
+import { getConversation, markConversationRead } from "@/api/messages";
+import {
+    clearConversationUnreadInCache,
+    ConversationThreadWithMeta,
+    sameId,
+} from "@/lib/messageCacheHelpers";
 import { mergeConversationPages } from "@/lib/messagePages";
 import { queryKeys } from "@/lib/queryKeys";
 import { decryptMessageContent, peekDecrypted } from "@/services/messageCrypto";
-import { Conversation, ConversationThread } from "@/types/message";
+import { Conversation, Message } from "@/types/message";
 
-const PAGE_SIZE = 50;
-const STALE_TIME_MS = 1000 * 30;
+export const PAGE_SIZE = 25;
+export const STALE_TIME_MS = 1000 * 60;
+const VISIBLE_FIRST_COUNT = 12;
+const VISIBLE_SLICE_SIZE = 4;
+const BACKGROUND_SLICE_SIZE = 2;
+const BACKGROUND_YIELD_MS = 12;
+
+function scheduleBackgroundStep(fn: () => void): void {
+    const timer = setTimeout(fn, BACKGROUND_YIELD_MS);
+    if (typeof (timer as unknown as { unref?: () => void })?.unref === "function") {
+        (timer as unknown as { unref: () => void }).unref();
+    }
+}
+
+function warmOlderMessagesInBackground(messages: Message[]): void {
+    let cursor = messages.length - 1;
+
+    const step = () => {
+        if (cursor < 0) return;
+        const batch: Message[] = [];
+        while (cursor >= 0 && batch.length < BACKGROUND_SLICE_SIZE) {
+            const msg = messages[cursor];
+            cursor -= 1;
+            if (msg?.content && peekDecrypted(msg.content) === null) {
+                batch.push(msg);
+            }
+        }
+
+        if (batch.length === 0) {
+            if (cursor >= 0) {
+                scheduleBackgroundStep(step);
+            }
+            return;
+        }
+
+        void Promise.allSettled(
+            batch.map((m) =>
+                m.content
+                    ? decryptMessageContent(m.content)
+                    : Promise.resolve("")
+            )
+        ).finally(() => {
+            if (cursor >= 0) {
+                scheduleBackgroundStep(step);
+            }
+        });
+    };
+
+    scheduleBackgroundStep(step);
+}
 
 export async function fetchConversationThread(
     id: string,
     pageParam = 1,
-    pageSize = PAGE_SIZE
-): Promise<ConversationThread> {
-    const { data } = await getConversation(id, pageParam, pageSize);
+    pageSize = PAGE_SIZE,
+    markRead = true
+): Promise<ConversationThreadWithMeta> {
+    const { data } = markRead
+        ? await getConversation(id, pageParam, pageSize)
+        : await getConversation(id, pageParam, pageSize, false);
+
     if (data?.messages && data.messages.length > 0) {
-        // Synchronously attach any plaintexts already cached in settledCache
+        // 1. Synchronously attach any plaintexts already cached in settledCache.
         for (const m of data.messages) {
-            const cached = peekDecrypted(m.content);
-            if (cached !== null) {
-                m.plaintext = cached;
+            if (!m.plaintext && m.content) {
+                const cached = peekDecrypted(m.content);
+                if (cached !== null) {
+                    m.plaintext = cached;
+                }
             }
         }
-        // Decrypt all messages in parallel for instant display like Instagram
-        await Promise.allSettled(
-            data.messages.map(async (m: any) => {
-                if (m.plaintext || !m.content) return;
-                if (peekDecrypted(m.content) !== null) {
-                    const c = peekDecrypted(m.content);
-                    if (c) m.plaintext = c;
-                    return;
-                }
-                try {
-                    const text = await decryptMessageContent(m.content);
-                    if (text && text !== "[Can't decrypt this message]") {
-                        m.plaintext = text;
-                    } else if (text) {
-                        m.plaintext = text;
-                    }
-                } catch {
-                    // ignore
-                }
-            })
+
+        // 2. Phase 1 (Critical Path): Decrypt only the viewport-visible newest messages
+        // before resolving the query so Frame 0 paints completely with zero skeletons.
+        const visibleStartIndex = Math.max(
+            0,
+            data.messages.length - VISIBLE_FIRST_COUNT
         );
+        const visibleUncached = data.messages
+            .slice(visibleStartIndex)
+            .filter((m) => !m.plaintext && Boolean(m.content));
+
+        for (let i = 0; i < visibleUncached.length; i += VISIBLE_SLICE_SIZE) {
+            const slice = visibleUncached.slice(i, i + VISIBLE_SLICE_SIZE);
+            await Promise.allSettled(
+                slice.map(async (m) => {
+                    if (!m.content) return;
+                    const cached = peekDecrypted(m.content);
+                    if (cached !== null) {
+                        m.plaintext = cached;
+                        return;
+                    }
+                    try {
+                        const text = await decryptMessageContent(m.content);
+                        if (text) {
+                            m.plaintext = text;
+                        }
+                    } catch {
+                        // ignore
+                    }
+                })
+            );
+        }
+
+        // 3. Phase 2 (Background): Cooperatively decrypt any older offscreen messages
+        // across idle frame ticks so scrolling up hits a warm settledCache without
+        // blocking Hermes navigation transitions.
+        if (visibleStartIndex > 0) {
+            const olderUncached = data.messages
+                .slice(0, visibleStartIndex)
+                .filter((m) => !m.plaintext && Boolean(m.content));
+            if (olderUncached.length > 0) {
+                warmOlderMessagesInBackground(olderUncached);
+            }
+        }
     }
-    return data;
+
+    const threadWithMeta: ConversationThreadWithMeta = data;
+    if (data) {
+        threadWithMeta._markedReadNewestId =
+            markRead && pageParam === 1 && data.messages?.length > 0
+                ? data.messages[data.messages.length - 1].id
+                : null;
+    }
+
+    return threadWithMeta;
 }
 
 /**
@@ -54,24 +145,28 @@ export async function fetchConversationThread(
  * prewarm the conversation list starts when a row is touched.
  *
  * They have to agree on everything, because React Query keeps ONE query per key and
- * `prefetchInfiniteQuery` *replaces* that query's options with the ones it is handed. A prefetch
- * that left out `getNextPageParam` therefore stripped it off the shared query, and the
- * infinite-query behaviour — which calls `options.getNextPageParam(...)` to walk to the next page
- * when it refetches a thread that already holds more than one page — threw
- * "undefined is not a function". The failure landed in the query state, so the thread screen
- * rendered "Could not load this conversation." for a conversation that was perfectly readable.
- *
- * One factory, used by both callers, is what keeps that from drifting apart again.
+ * `prefetchInfiniteQuery` *replaces* that query's options with the ones it is handed.
  */
-export function conversationQueryOptions(id: string) {
+export function conversationQueryOptions(
+    id: string,
+    queryBehavior?: { markRead?: boolean }
+) {
+    const shouldMarkRead = queryBehavior?.markRead ?? true;
     return {
         queryKey: queryKeys.conversation(id),
-        queryFn: ({ pageParam }: { pageParam?: number }) =>
-            fetchConversationThread(id, pageParam ?? 1, PAGE_SIZE),
+        queryFn: ({ pageParam }: { pageParam?: number }) => {
+            const page = pageParam ?? 1;
+            return fetchConversationThread(
+                id,
+                page,
+                PAGE_SIZE,
+                page === 1 ? shouldMarkRead : false
+            );
+        },
         initialPageParam: 1,
         getNextPageParam: (
-            lastPage: ConversationThread,
-            pages: ConversationThread[]
+            lastPage: ConversationThreadWithMeta,
+            pages: ConversationThreadWithMeta[]
         ) => (lastPage?.hasMore ? pages.length + 1 : undefined),
         staleTime: STALE_TIME_MS,
     };
@@ -83,20 +178,25 @@ export function useConversation(
 ) {
     const queryClient = useQueryClient();
     const isEnabled = Boolean(id) && (hookOptions?.enabled ?? true);
+    const lastMarkedServerReadRef = useRef<{
+        conversationId: string | null;
+        messageId: string | null;
+    }>({
+        conversationId: null,
+        messageId: null,
+    });
 
     const options = useMemo(
-        () => ({ ...conversationQueryOptions(id), enabled: isEnabled }),
+        () => ({
+            ...conversationQueryOptions(id, { markRead: true }),
+            enabled: isEnabled,
+        }),
         [id, isEnabled]
     );
 
     const query = useInfiniteQuery(options);
 
-    const {
-        hasNextPage,
-        isFetchingNextPage,
-        fetchNextPage,
-        refetch,
-    } = query;
+    const { hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = query;
 
     const pages = query.data?.pages;
 
@@ -106,20 +206,47 @@ export function useConversation(
     );
 
     const hasLoadedPages = Boolean(pages);
-    const newestMessageId = messages[messages.length - 1]?.id ?? null;
+    const newestMessage = messages[messages.length - 1];
+    const newestMessageId = newestMessage?.id ?? null;
+    const newestIsMine = Boolean(newestMessage?.isMine);
+    const markedReadOnFetch = pages?.[0]?._markedReadNewestId ?? null;
     const messageCount = messages.length;
 
     useEffect(() => {
-        if (!hasLoadedPages || !isEnabled) return;
+        if (!hasLoadedPages || !isEnabled || !id) return;
 
-        // `exact` matters: `queryKeys.conversations()` is the *prefix* of
-        // `queryKeys.conversation(id)`, so a prefix match would invalidate the open thread as well
-        // and make it refetch every page it had loaded each time its own messages changed.
-        void queryClient.invalidateQueries({
-            queryKey: queryKeys.conversations(),
-            exact: true,
-        });
-    }, [hasLoadedPages, newestMessageId, messageCount, queryClient, isEnabled]);
+        const { found } = clearConversationUnreadInCache(queryClient, id);
+        if (!found) {
+            void queryClient.invalidateQueries({
+                queryKey: queryKeys.conversations(),
+                exact: true,
+            });
+        }
+
+        if (!newestMessageId) return;
+
+        const alreadyMarkedOnFetch = sameId(markedReadOnFetch, newestMessageId);
+        const alreadySentReceipt =
+            sameId(lastMarkedServerReadRef.current.conversationId, id) &&
+            sameId(lastMarkedServerReadRef.current.messageId, newestMessageId);
+
+        if (!newestIsMine && !alreadyMarkedOnFetch && !alreadySentReceipt) {
+            lastMarkedServerReadRef.current = {
+                conversationId: id,
+                messageId: newestMessageId,
+            };
+            Promise.resolve(markConversationRead(id)).catch(() => undefined);
+        }
+    }, [
+        hasLoadedPages,
+        id,
+        isEnabled,
+        markedReadOnFetch,
+        messageCount,
+        newestIsMine,
+        newestMessageId,
+        queryClient,
+    ]);
 
     const loadOlder = useCallback(() => {
         if (!hasNextPage || isFetchingNextPage) return;
