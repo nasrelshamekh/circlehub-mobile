@@ -1,7 +1,8 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { ChevronLeft, SquarePen } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
+    BackHandler,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -41,13 +42,27 @@ export default function Messages() {
         }
     }
 
-    function goBack() {
+    const goBack = useCallback(() => {
         if (router.canGoBack()) {
             router.back();
         } else {
             router.replace("/(tabs)");
         }
-    }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                goBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener(
+                "hardwareBackPress",
+                onBackPress
+            );
+            return () => sub.remove();
+        }, [goBack])
+    );
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>

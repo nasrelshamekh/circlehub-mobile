@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
+    BackHandler,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -234,13 +235,27 @@ export default function NotificationsScreen() {
         [notifications]
     );
 
-    function goBack() {
+    const goBack = useCallback(() => {
         if (router.canGoBack()) {
             router.back();
         } else {
             router.replace("/(tabs)");
         }
-    }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                goBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener(
+                "hardwareBackPress",
+                onBackPress
+            );
+            return () => sub.remove();
+        }, [goBack])
+    );
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>

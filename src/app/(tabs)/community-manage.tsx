@@ -1,6 +1,7 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { useCallback } from "react";
+import { BackHandler, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import ManageCommunityScreen from "@/components/community-detail/manage/managecommunityscreen";
@@ -13,13 +14,32 @@ export default function CommunityManageRoute() {
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    function goBack() {
-        if (router.canGoBack()) {
+    const goBack = useCallback(() => {
+        if (slug) {
+            router.replace({
+                pathname: "/community/[slug]",
+                params: { slug },
+            });
+        } else if (router.canGoBack()) {
             router.back();
         } else {
             router.replace("/(tabs)/communities");
         }
-    }
+    }, [slug]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                goBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener(
+                "hardwareBackPress",
+                onBackPress
+            );
+            return () => sub.remove();
+        }, [goBack])
+    );
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>

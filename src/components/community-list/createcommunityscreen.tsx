@@ -44,7 +44,7 @@ export default function CreateCommunityScreen() {
         if (router.canGoBack()) {
             router.back();
         } else {
-            router.replace("/(tabs)");
+            router.replace("/(tabs)/communities");
         }
     }
 
@@ -72,7 +72,7 @@ export default function CreateCommunityScreen() {
         setError(null);
 
         try {
-            await createCommunity.mutateAsync({
+            const response = await createCommunity.mutateAsync({
                 name: trimmedName,
                 category,
                 description: trimmedDescription,
@@ -81,7 +81,14 @@ export default function CreateCommunityScreen() {
                 coverImage,
             });
 
-            close();
+            if (response?.data?.slug) {
+                router.replace({
+                    pathname: "/community/[slug]",
+                    params: { slug: response.data.slug },
+                });
+            } else {
+                close();
+            }
         } catch (caught) {
             setError(
                 caught instanceof ApiError

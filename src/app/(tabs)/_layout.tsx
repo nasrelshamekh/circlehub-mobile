@@ -17,6 +17,7 @@ export default function TabsLayout() {
     return (
         <SidebarDrawer>
             <Tabs
+                backBehavior="history"
                 screenOptions={{
                     tabBarActiveTintColor: colors.primary,
                     tabBarInactiveTintColor: colors.textPrimary,

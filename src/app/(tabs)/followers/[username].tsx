@@ -1,9 +1,11 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { useCallback } from "react";
+import { BackHandler, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import FollowersScreen from "@/components/followers/followersscreen";
+import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import { themeColors } from "@/theme/colors";
 
@@ -12,17 +14,44 @@ export default function FollowersByUsernameScreen() {
         username: string;
         tab?: string;
     }>();
+    const { user } = useAuth();
     const { isDark } = useTheme();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    function goBack() {
+    const goBack = useCallback(() => {
         if (router.canGoBack()) {
             router.back();
+        } else if (username) {
+            if (
+                user?.username &&
+                user.username.toLowerCase() === username.toLowerCase()
+            ) {
+                router.replace("/(tabs)/profile");
+            } else {
+                router.replace({
+                    pathname: "/profile/[username]",
+                    params: { username },
+                });
+            }
         } else {
             router.replace("/(tabs)");
         }
-    }
+    }, [username, user?.username]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                goBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener(
+                "hardwareBackPress",
+                onBackPress
+            );
+            return () => sub.remove();
+        }, [goBack])
+    );
 
     const initialTab = tab === "following" ? "following" : "followers";
 

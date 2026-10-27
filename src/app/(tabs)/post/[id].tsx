@@ -1,6 +1,8 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
+import { useCallback } from "react";
 import {
+    BackHandler,
     KeyboardAvoidingView,
     Pressable,
     ScrollView,
@@ -30,13 +32,32 @@ export default function PostDetailsScreen() {
         community?.communityRole === "admin" ||
         community?.communityRole === "moderator";
 
-    function goBack() {
+    const goBack = useCallback(() => {
         if (router.canGoBack()) {
             router.back();
+        } else if (post?.community?.slug) {
+            router.replace({
+                pathname: "/community/[slug]",
+                params: { slug: post.community.slug },
+            });
         } else {
             router.replace("/(tabs)");
         }
-    }
+    }, [post?.community?.slug]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                goBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener(
+                "hardwareBackPress",
+                onBackPress
+            );
+            return () => sub.remove();
+        }, [goBack])
+    );
 
     return (
         <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>
