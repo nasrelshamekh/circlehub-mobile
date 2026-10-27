@@ -76,7 +76,6 @@ export default function CommunityMembersManager({
                     text: "Make moderator",
                     onPress: () => applyRole(member, "moderator"),
                 },
-                { text: "Cancel", style: "cancel" },
             ]
         );
     }
