@@ -328,7 +328,7 @@ function TypingBubble({
                         />
                     ))}
                     <Text className="ml-1 text-label-sm font-medium italic text-primary">
-                        typingâ€¦
+                        typing...
                     </Text>
                 </View>
             </View>
