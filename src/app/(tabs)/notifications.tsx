@@ -3,16 +3,8 @@ import {
     Bell,
     Check,
     CheckCheck,
-    CheckCircle2,
     ChevronLeft,
-    Heart,
-    MessageCircle,
-    ShieldCheck,
     Trash2,
-    UserMinus,
-    UserPlus,
-    Users,
-    XCircle,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -29,7 +21,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/avatar";
 import Skeleton from "@/components/ui/skeleton";
 import { useAuth } from "@/context/authcontext";
-import { haptics } from "@/lib/haptics";
 import { useTheme } from "@/context/themecontext";
 import {
     useDeleteNotification,
@@ -45,9 +36,10 @@ import {
     notificationSentence,
 } from "@/lib/notificationCopy";
 import { NotificationTypeBadgeIcon } from "@/components/common/notificationbadge";
+import { dismissActivityNotifications } from "@/services/pushNotifications";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
-import { NotificationItem, NotificationType } from "@/types/notification";
+import { NotificationItem } from "@/types/notification";
 
 function NotificationRow({
     notification,
@@ -199,6 +191,7 @@ export default function NotificationsScreen() {
     useFocusEffect(
         useCallback(() => {
             isFocusedRef.current = true;
+            void dismissActivityNotifications();
 
             // Stamp at most once when the screen gains focus, provided data is ready
             if (
@@ -322,7 +315,10 @@ export default function NotificationsScreen() {
                         {visitUnreadCount > 0 && (
                             <Pressable
                                 disabled={markAllRead.isPending}
-                                onPress={() => markAllRead.mutate()}
+                                onPress={() => {
+                                    void dismissActivityNotifications();
+                                    markAllRead.mutate();
+                                }}
                                 accessibilityRole="button"
                                 accessibilityLabel="Mark all as read"
                                 hitSlop={6}
@@ -379,8 +375,14 @@ export default function NotificationsScreen() {
                                 <NotificationRow
                                     key={item.id}
                                     notification={item}
-                                    onMarkRead={(id) => markRead.mutate(id)}
-                                    onDelete={(id) => deleteRow.mutate(id)}
+                                    onMarkRead={(id) => {
+                                        void dismissActivityNotifications(id);
+                                        markRead.mutate(id);
+                                    }}
+                                    onDelete={(id) => {
+                                        void dismissActivityNotifications(id);
+                                        deleteRow.mutate(id);
+                                    }}
                                     isMutating={
                                         markRead.isPending ||
                                         deleteRow.isPending

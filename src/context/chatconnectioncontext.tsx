@@ -10,7 +10,7 @@ import {
     useRef,
     useState,
 } from "react";
-import { Modal, Platform, Pressable, Text, View } from "react-native";
+import { AppState, Modal, Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { markNotificationRead } from "@/api/notifications";
@@ -45,6 +45,8 @@ import {
 import { getBackupInfo } from "@/services/keyRecovery";
 import { decryptMessageContent, ensureDeviceKey } from "@/services/messageCrypto";
 import {
+    dismissActivityNotifications,
+    dismissConversationNotifications,
     registerCurrentDevicePushToken,
     subscribeToNotificationResponses,
 } from "@/services/pushNotifications";
@@ -273,6 +275,7 @@ export function ChatConnectionProvider({
     const setActiveConversationId = useCallback((id: string | null) => {
         activeConversationIdRef.current = id;
         if (id) {
+            void dismissConversationNotifications(id);
             const targetId = String(id).trim().toLowerCase();
             setInAppNotification((prev) => {
                 if (
@@ -298,6 +301,7 @@ export function ChatConnectionProvider({
         if (pathname) {
             const match = pathname.match(/\/messages\/([^/?#]+)/i);
             if (match && match[1]) {
+                void dismissConversationNotifications(match[1]);
                 const openConvId = match[1].trim().toLowerCase();
                 setInAppNotification((prev) => {
                     if (
@@ -310,6 +314,7 @@ export function ChatConnectionProvider({
                     return prev;
                 });
             } else if (pathname.includes("/notifications")) {
+                void dismissActivityNotifications();
                 setInAppNotification((prev) => {
                     if (prev && prev.kind === "notification") {
                         return null;
@@ -321,6 +326,44 @@ export function ChatConnectionProvider({
     }, [pathname, user]);
 
     const isAuthenticated = authStatus === "authenticated" && Boolean(user);
+
+    useEffect(() => {
+        if (!isAuthenticated || Platform.OS === "web") return undefined;
+
+        let followUpTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const syncTrayWithVisibleScreen = () => {
+            const activeConvId = activeConversationIdRef.current;
+            if (activeConvId) {
+                void dismissConversationNotifications(activeConvId);
+            }
+            const currentPath = pathnameRef.current || "";
+            const match = currentPath.match(/\/messages\/([^/?#]+)/i);
+            if (match && match[1]) {
+                void dismissConversationNotifications(match[1]);
+            } else if (currentPath.includes("/notifications")) {
+                void dismissActivityNotifications();
+            }
+        };
+
+        const subscription = AppState.addEventListener("change", (nextState) => {
+            if (followUpTimer) {
+                clearTimeout(followUpTimer);
+                followUpTimer = null;
+            }
+            if (nextState === "active") {
+                syncTrayWithVisibleScreen();
+                followUpTimer = setTimeout(syncTrayWithVisibleScreen, 500);
+            }
+        });
+
+        return () => {
+            if (followUpTimer) {
+                clearTimeout(followUpTimer);
+            }
+            subscription.remove();
+        };
+    }, [isAuthenticated]);
 
     useEffect(() => {
         if (!isAuthenticated || !user?.username) return undefined;

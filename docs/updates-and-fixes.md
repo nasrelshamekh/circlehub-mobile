@@ -1286,3 +1286,19 @@ Achieve near-instant (`0 ms` warm/cold cached open, `< 50 ms` first-frame visibl
   - **Hardware-Keyed `AES-256-GCM` Disk Cache (`src/services/threadCache.ts`, `src/context/authcontext.tsx`):** Persists `conversations` + top `15` page-1 threads encrypted with `AES-256-GCM` (`@noble/ciphers/aes.js`) under a 256-bit key in `expo-secure-store` (`circlehub_thread_cache_key_v1`). Hydrates in ~1.5 ms during session restore before `status === "authenticated"`, and cryptographically erases both key and file on `signOut` / session expiry.
   - **Direct SignalR & Mutation Cache Sync (`src/lib/messageCacheHelpers.ts`, `src/hooks/mutations/useSendMessage.ts`, `src/context/chatconnectioncontext.tsx`):** Appends sent and live incoming messages directly into `queryKeys.conversation(id)` (case-insensitively deduplicated) and updates `queryKeys.conversations()` in memory instead of triggering full 25-message HTTP refetches.
   - **List & Bubble Rendering (`src/components/messages/messagethread.tsx`, `src/components/messages/conversationlist.tsx`):** Memoized `ConversationRow` and `MessageRow`, bypassed `useDecryptedContent` when `message.plaintext` is already present, precomputed `newDayMessageIds` so incoming messages do not re-render existing bubbles, tuned `FlatList` (`initialNumToRender={14}`, `maxToRenderPerBatch={10}`, `windowSize={9}`), and added post-interaction (`1000 ms`) sequential idle pre-warming for up to `2` uncached threads (`markRead: false`).
+
+---
+
+## 21. Automatic Android Status-Bar Notification Dismissal on Screen Navigation & Foreground Resume
+
+### Issue
+When push notifications arrived on the Android status bar while CircleHub was backgrounded or closed, Android's `autoCancel` flag only cleared a notification if the user directly tapped it in the system shade. Navigating inside the app to the `/notifications` screen or opening the specific conversation (`/messages/[id]`) where a message notification came from left the stale notification icon sitting in the Android status bar.
+
+### Fix
+- **Presented Tray Inspection & Selective Dismissal (`src/services/pushNotifications.ts`):**
+  - Added `extractPresentedNotificationMeta`, `dismissConversationNotifications`, `dismissActivityNotifications`, and `dismissAllPresentedNotifications` using `Notifications.getPresentedNotificationsAsync()` and `Notifications.dismissNotificationAsync()`.
+  - Handles both standard unmarshalled Expo Push notifications and Android's `expo-notifications://foreign_notifications?tag=...` fallback (parsing JSON `body` extras and `chat_<conversationId>` tags), and clears the launcher badge (`setBadgeCountAsync(0)`) when the last presented notification is dismissed.
+  - Opening a conversation dismisses only status-bar notifications belonging to that conversation while preserving other unread chat or activity notifications; opening `/notifications` dismisses general activity notifications while preserving unread chat message notifications; signing out (`unregisterCurrentDevicePushToken`) clears all presented notifications.
+- **Navigation, Focus & `AppState` Foreground Hooks (`src/context/chatconnectioncontext.tsx`, `src/app/(tabs)/notifications.tsx`, `src/app/(tabs)/messages/[id].tsx`):**
+  - Triggered dismissal on `setActiveConversationId`, route changes (`/messages/[id]` and `/notifications`), screen focus (`useFocusEffect`), per-item/bulk read/delete actions, and `AppState` transitions back to `"active"` (including a `500 ms` follow-up check for in-flight avatar-download notifications).
+- **Verification (`__tests__/services/pushNotificationsHandler.test.ts`):** Added unit tests covering per-conversation dismissal, foreign-notification tag fallback, activity-only dismissal on `/notifications`, badge reset, and sign-out cleanup.

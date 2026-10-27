@@ -40,7 +40,7 @@ place and what is still open. Keep it current when parity work lands.
   fallback large icon (`largeIcon`), non-enlarging sender avatar thumbnail, multi-line message history expansion
   on hold/drag-down via `patches/expo-notifications+57.0.24.patch`,
   and Expo push token registration (`POST /api/devices`) + sign-out unregistration
-  (`DELETE /api/devices`) with tap navigation.
+  (`DELETE /api/devices`) with tap navigation and automatic Android status-bar dismissal when opening the `/notifications` page, viewing the matching conversation (`/messages/[id]`), resuming from background onto those screens, or signing out.
 - **Theming & App Experience** — light and dark; primary actions use the shared `GradientButton`,
   which keeps the app's 12px (`rounded-xl`) button radius even when a screen passes a layout-only
   `className` such as `flex-1`, so confirm dialogs and prompt modals match the rest of the app.
