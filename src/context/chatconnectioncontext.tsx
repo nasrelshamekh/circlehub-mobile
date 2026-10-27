@@ -31,6 +31,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import {
     createChatConnection,
     NOTIFICATION_CREATED_EVENT,
+    NOTIFICATION_DELETED_EVENT,
     POST_CREATED_EVENT,
     PRESENCE_CHANGED_EVENT,
     RECEIVE_MESSAGE_EVENT,
@@ -84,7 +85,7 @@ const ChatConnectionContext = createContext<ChatConnectionContextValue>({
     status: "idle",
     typingUsers: {},
     notifyTyping: () => false,
-    setActiveConversationId: () => {},
+    setActiveConversationId: () => { },
 });
 
 function withPresence(
@@ -146,7 +147,7 @@ function withPresence(
  * below is a neutral black over the page, matching the recovery card's phrase dialogs.
  */
 function dismissRecoveryPrompt() {
-    markRecoveryPromptDismissed().catch(() => {});
+    markRecoveryPromptDismissed().catch(() => { });
 }
 
 function RecoveryUnlockPrompt({
@@ -222,22 +223,22 @@ function dropTypingClaim(
 
 type ActiveInAppNotification =
     | {
-          kind: "message";
-          conversationId: string;
-          senderId?: string;
-          senderName: string;
-          senderAvatarUrl?: string | null;
-          messages: string[];
-      }
+        kind: "message";
+        conversationId: string;
+        senderId?: string;
+        senderName: string;
+        senderAvatarUrl?: string | null;
+        messages: string[];
+    }
     | {
-          kind: "notification";
-          id: string;
-          actorId?: string;
-          senderName: string;
-          senderAvatarUrl?: string | null;
-          messages: string[];
-          notification: NotificationItem;
-      };
+        kind: "notification";
+        id: string;
+        actorId?: string;
+        senderName: string;
+        senderAvatarUrl?: string | null;
+        messages: string[];
+        notification: NotificationItem;
+    };
 
 export function ChatConnectionProvider({
     children,
@@ -328,8 +329,8 @@ export function ChatConnectionProvider({
                 setRecoveryPromptVisible(true);
             })
             // Network or policy failures during the background check must not disrupt the session.
-            .catch(() => {});
-        registerCurrentDevicePushToken().catch(() => {});
+            .catch(() => { });
+        registerCurrentDevicePushToken().catch(() => { });
         return () => {
             disposed = true;
         };
@@ -367,14 +368,14 @@ export function ChatConnectionProvider({
                     typeof data.senderName === "string"
                         ? data.senderName
                         : typeof data.SenderName === "string"
-                          ? data.SenderName
-                          : undefined;
+                            ? data.SenderName
+                            : undefined;
                 const sAvatar =
                     typeof data.senderAvatarUrl === "string"
                         ? data.senderAvatarUrl
                         : typeof data.SenderAvatarUrl === "string"
-                          ? data.SenderAvatarUrl
-                          : undefined;
+                            ? data.SenderAvatarUrl
+                            : undefined;
 
                 router.push({
                     pathname: "/messages/[id]",
@@ -452,9 +453,9 @@ export function ChatConnectionProvider({
                 const currentUserId = userRef.current?.id;
                 const isOwnMessage = Boolean(
                     senderId &&
-                        currentUserId &&
-                        String(senderId).toLowerCase() ===
-                            String(currentUserId).toLowerCase()
+                    currentUserId &&
+                    String(senderId).toLowerCase() ===
+                    String(currentUserId).toLowerCase()
                 );
 
                 const currentPath = (pathnameRef.current ?? "").toLowerCase();
@@ -465,16 +466,16 @@ export function ChatConnectionProvider({
 
                 const isViewingActiveConv = Boolean(
                     targetConvId &&
-                        activeConvId &&
-                        String(activeConvId).trim().toLowerCase() === targetConvId
+                    activeConvId &&
+                    String(activeConvId).trim().toLowerCase() === targetConvId
                 );
 
                 const isPathInActiveThread = Boolean(
                     targetConvId &&
-                        currentPath &&
-                        (currentPath.includes(`/messages/${targetConvId}`) ||
-                            currentPath.endsWith(`/${targetConvId}`) ||
-                            currentPath.includes(`/${targetConvId}`))
+                    currentPath &&
+                    (currentPath.includes(`/messages/${targetConvId}`) ||
+                        currentPath.endsWith(`/${targetConvId}`) ||
+                        currentPath.includes(`/${targetConvId}`))
                 );
 
                 const isInActiveThread =
@@ -512,7 +513,7 @@ export function ChatConnectionProvider({
                             prev &&
                             prev.kind === "message" &&
                             String(prev.conversationId).toLowerCase() ===
-                                String(conversationId).toLowerCase()
+                            String(conversationId).toLowerCase()
                         ) {
                             return {
                                 ...prev,
@@ -558,9 +559,9 @@ export function ChatConnectionProvider({
             setTypingUsers((current) =>
                 typing?.isTyping
                     ? {
-                          ...current,
-                          [key]: Date.now() + TYPING_CLAIM_MS,
-                      }
+                        ...current,
+                        [key]: Date.now() + TYPING_CLAIM_MS,
+                    }
                     : dropTypingClaim(current, key)
             );
         });
@@ -591,18 +592,18 @@ export function ChatConnectionProvider({
                             pages: current.pages.map((page, index) =>
                                 index === 0
                                     ? {
-                                          ...page,
-                                          data: {
-                                              ...page.data,
-                                              unreadCount:
-                                                  (page.data?.unreadCount ??
-                                                      0) + 1,
-                                              items: [
-                                                  notification,
-                                                  ...existingItems,
-                                              ],
-                                          },
-                                      }
+                                        ...page,
+                                        data: {
+                                            ...page.data,
+                                            unreadCount:
+                                                (page.data?.unreadCount ??
+                                                    0) + 1,
+                                            items: [
+                                                notification,
+                                                ...existingItems,
+                                            ],
+                                        },
+                                    }
                                     : page
                             ),
                         };
@@ -655,6 +656,66 @@ export function ChatConnectionProvider({
                         }, 6000);
                     }
                 }
+
+                void queryClient.invalidateQueries({
+                    queryKey: queryKeys.notifications(),
+                });
+            }
+        );
+
+        connection.on(
+            NOTIFICATION_DELETED_EVENT,
+            (payload?: {
+                notificationIds?: string[];
+                NotificationIds?: string[];
+            }) => {
+                const ids = new Set(
+                    (payload?.notificationIds ?? payload?.NotificationIds ?? [])
+                        .map((id) => id.toLowerCase())
+                );
+
+                if (ids.size === 0) return;
+
+                queryClient.setQueryData<InfiniteData<NotificationsResponse>>(
+                    queryKeys.notifications(),
+                    (current) => {
+                        if (!current) return current;
+
+                        let changed = false;
+
+                        const pages = current.pages.map((page) => {
+                            const data = page.data;
+                            if (!data) return page;
+
+                            const key = data.items
+                                ? "items"
+                                : data.notifications
+                                    ? "notifications"
+                                    : null;
+
+                            if (!key) return page;
+
+                            const existing = data[key] ?? [];
+                            const filtered = existing.filter((item) => {
+                                const keep = !ids.has(item.id.toLowerCase());
+                                if (!keep) changed = true;
+                                return keep;
+                            });
+
+                            if (filtered.length === existing.length) return page;
+
+                            return {
+                                ...page,
+                                data: {
+                                    ...data,
+                                    [key]: filtered,
+                                },
+                            };
+                        });
+
+                        return changed ? { ...current, pages } : current;
+                    }
+                );
 
                 void queryClient.invalidateQueries({
                     queryKey: queryKeys.notifications(),
@@ -716,8 +777,9 @@ export function ChatConnectionProvider({
             connection.off(PRESENCE_CHANGED_EVENT);
             connection.off(TYPING_CHANGED_EVENT);
             connection.off(NOTIFICATION_CREATED_EVENT);
+            connection.off(NOTIFICATION_DELETED_EVENT);
             connection.off(POST_CREATED_EVENT);
-            connection.stop().catch(() => {});
+            connection.stop().catch(() => { });
             setTypingUsers({});
         };
     }, [isAuthenticated, queryClient]);
@@ -817,7 +879,7 @@ export function ChatConnectionProvider({
                                     });
                                 } else {
                                     markNotificationRead(currentNotif.id).catch(
-                                        () => {}
+                                        () => { }
                                     );
                                     if (
                                         hasNotificationTarget(
