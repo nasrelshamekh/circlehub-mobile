@@ -24,7 +24,7 @@ export default function GradientButton({
     icon,
     trailingIcon,
     disabled = false,
-    className = "rounded-xl",
+    className = "",
     contentStyle,
     textClassName = "text-body-sm font-semibold",
     accessibilityLabel,
@@ -32,13 +32,18 @@ export default function GradientButton({
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
 
+    // `className` is a layout override (flex-1, w-full, mt-4…). Keep the app's
+    // 12px button radius unless the caller explicitly asks for a different one,
+    // so a layout-only class can never flatten the button into a rectangle.
+    const radiusClass = /(^|\s)rounded-/.test(className) ? "" : "rounded-xl";
+
     return (
         <Pressable
             onPress={onPress}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel ?? label}
-            className={`overflow-hidden ${className}`}
+            className={`overflow-hidden ${radiusClass} ${className}`.replace(/\s+/g, " ").trim()}
             style={disabled ? { opacity: 0.6 } : undefined}
         >
             <LinearGradient

@@ -110,7 +110,7 @@ export default function PostDetailsScreen() {
                     <GradientButton
                         onPress={() => router.replace("/(tabs)")}
                         label="Return to Home"
-                        className="rounded-full"
+                        className="rounded-xl"
                         contentStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
                         textClassName="text-body-sm font-semibold"
                     />

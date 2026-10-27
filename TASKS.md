@@ -41,8 +41,10 @@ place and what is still open. Keep it current when parity work lands.
   on hold/drag-down via `patches/expo-notifications+57.0.24.patch`,
   and Expo push token registration (`POST /api/devices`) + sign-out unregistration
   (`DELETE /api/devices`) with tap navigation.
-- **Theming & App Experience** — light and dark; primary actions use the shared `GradientButton`. Presence
-  indicators (online dot and "Online" label) render from the shared `--success` token in both
+- **Theming & App Experience** — light and dark; primary actions use the shared `GradientButton`,
+  which keeps the app's 12px (`rounded-xl`) button radius even when a screen passes a layout-only
+  `className` such as `flex-1`, so confirm dialogs and prompt modals match the rest of the app.
+  Presence indicators (online dot and "Online" label) render from the shared `--success` token in both
   themes rather than hardcoded greens. App boot renders `AppLoadingScreen` featuring the official CircleHub logo
   with a smooth pulsing animation and theme-colored activity indicator (matching webapp parity).
 

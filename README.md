@@ -108,7 +108,7 @@ const BASE_URL = "https://circlehub.runasp.net";
 | `npm run ios` | Launch app on iOS simulator |
 | `npx tsc --noEmit` | Run TypeScript type checks across the codebase |
 | `npm run lint` | Run Expo ESLint checks |
-| `npm test` | Run the complete Jest test suite (21 test suites, 123 tests) |
+| `npm test` | Run the complete Jest test suite (27 test suites, 147 tests) |
 | `npm run test:watch` | Run Jest in interactive watch mode |
 
 ---

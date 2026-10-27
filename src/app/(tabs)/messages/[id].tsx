@@ -178,7 +178,7 @@ export default function MessageThreadScreen() {
                         onPress={refetch}
                         accessibilityLabel="Try loading this conversation again"
                         label="Try again"
-                        className="mt-4 rounded-full"
+                        className="mt-4 rounded-xl"
                         contentStyle={{ paddingHorizontal: 20, paddingVertical: 10 }}
                         textClassName="text-label-md font-semibold"
                     />

@@ -1234,4 +1234,33 @@ An earlier commit (`7f6f67dd`) added `{isMine && <Avatar ... />}` to the sent me
 - **TypeScript:** `npx tsc --noEmit` passed with 0 errors.
 - **Lint:** `npm run lint` passed with 0 errors.
 
+---
+
+## 19. Primary Button Lost Its Rounded Corners Inside Modals (GradientButton Radius)
+
+### Symptom
+1. In the themed confirmation modal (e.g. "Delete post?"), the confirm/cancel buttons rendered as sharp rectangles while every other button in the app has curved corners.
+2. The message-recovery prompt ("Message Recovery Available" → `Unlock`) showed the same rectangular button.
+3. The "Return to Home" / "Try again" primary CTAs were pill-shaped (`rounded-full`) while the rest of the app's primary buttons are `rounded-xl`, so the same component looked different depending on which screen it was on.
+
+### Root Cause
+1. `GradientButton` declared `className = "rounded-xl"` as a *default parameter value*. That default only applies when the prop is omitted; as soon as a caller passes any class string, it **replaces** the whole value instead of merging with it. `ConfirmModal` passes `className={showCancel ? "flex-1" : "w-full"}` and the recovery prompt passes `className="flex-1"`, so the layout class silently stripped the radius and the gradient inherited the default square corners of an unstyled `LinearGradient`.
+2. Radius usage had drifted: four text-label `GradientButton` CTAs used `rounded-full` while the canonical primary button in the web app (`.button-primary` in `CircleHub/src/index.css`) uses `border-radius: var(--radius-xl)` — 12px, the same as the mobile `rounded-xl`.
+
+### Fix
+- **Systemic radius guard (`src/components/ui/gradientbutton.tsx`):**
+  - Changed the prop default to `className = ""` and compute `radiusClass`: when the supplied classes already contain a `rounded-*` token the caller's choice wins, otherwise `rounded-xl` is prepended.
+  - The component now owns the button radius; call sites only pass layout (`flex-1`, `w-full`, `mt-4`, …) and can never flatten a button by accident.
+- **Radius normalisation (primary text CTAs, `rounded-full` → `rounded-xl`):**
+  - `src/app/(tabs)/messages/[id].tsx` ("Try again"), `src/app/(tabs)/post/[id].tsx` ("Return to Home"), `src/components/community-detail/communitydetailscreen.tsx` ("Return to Home"), `src/components/community-list/communitylistscreen.tsx` ("Create").
+  - Icon-only circular actions (e.g. the send button in `src/components/comment/commentform.tsx`) intentionally stay `rounded-full`.
+- **Scan for the same class of bug:** every button-like `Pressable` in `src/` was checked for a radius token (none missing: 21 × `rounded-xl`, 5 × `rounded-full` for icon/circular actions, 1 × `rounded-lg` inline admin chip), and every `GradientButton` / `LinearGradient` call site was checked for a layout-only `className` (the only remaining `rounded-full` is the icon-only send button).
+- **Regression test (`__tests__/components/gradientButton.test.tsx`):** asserts that a layout-only class keeps `rounded-xl`, that omitting `className` keeps `rounded-xl`, and that an explicit `rounded-full` is honoured without also adding `rounded-xl`.
+
+### Verification
+- **Unit Tests:** `npm test` passed 27/27 test suites (147/147 tests passed), including the 3 new `GradientButton` radius tests.
+- **TypeScript:** `npx tsc --noEmit` passed with 0 errors.
+- **Lint:** changed files report no new findings; `src/app/(tabs)/post/[id].tsx` still has its pre-existing `react-hooks/preserve-manual-memoization` error, unrelated to this change.
+- **Manual:** confirm dialogs and the recovery prompt now render the same 12px primary radius as the rest of the app, and the four normalised CTAs are consistent with the web app.
+
 
