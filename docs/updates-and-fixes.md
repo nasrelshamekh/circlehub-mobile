@@ -1351,3 +1351,24 @@ When push notifications arrived on the Android status bar while CircleHub was ba
 2. **Deterministic Safe-Area Insets & Edge-to-Edge Keyboard Offset (`patches/react-native-safe-area-context+5.7.0.patch`, `src/app/(tabs)/_layout.tsx`, `src/app/(tabs)/messages/[id].tsx`, `src/components/messages/messagethread.tsx`, `src/app/(tabs)/messages.tsx`, `src/components/header.tsx`):**
    - Patched `SafeAreaView.kt` to invoke `updateInsets()` in `setStateWrapper()` and reset `mInsets = null` in `onDetachedFromWindow()`.
    - Hid the 5-icon feed tab bar on `/messages/[id]` (`tabBarStyle: { display: "none" }`) and replaced `<SafeAreaView>` + `<KeyboardAvoidingView>` in `messages/[id].tsx` with `useSafeAreaInsets()` (`topInset = Math.max(insets.top, StatusBar.currentHeight ?? 0)`) and screen-coordinate `Keyboard` listeners so the header never overlaps the top status bar and the composer sits cleanly above both the Android navigation bar (when closed) and the soft keyboard (when open).
+
+---
+
+## 24. Standard Expo Push Notification Payload Restoration & Above-Composer Typing Indicator Placement
+
+### Issues
+1. **Push Notifications Not Received in Expo Go & Standard Android Listeners:** After switching Android payloads to data-only (`Title = null, Body = null`), notifications stopped appearing in Expo Go and stock system notification trays because Expo Go only presents notifications with top-level `Title` and `Body`.
+2. **Typing Indicator Displayed in Header Instead of Above Composer:** Both Web and Mobile rendered `"Typing..."` inside the thread header (overriding the user's online / last seen presence status) and on mobile rendered the indicator inside the scrollable message `FlatList` rather than pinned right above the composer input.
+
+### Root Causes
+1. **Expo Go Data-Only Limitation:** In Expo Go (`StoreClient`), notifications are only displayed by the system tray if the push payload contains top-level `Title` and `Body`. Omitting them instructed Expo to send data-only FCM messages, which Expo Go drops. The original issue (giant full-width avatar on Android) was caused by `MessageDeliveryService.cs` passing `imageUrl: resolvedAvatarUrl`, which triggered Android's `BigPictureStyle`. Passing `imageUrl: null` at the root while sending standard `Title`, `Body`, `Sound`, `ChannelId`, and `Data` completely resolves the giant avatar issue without breaking notification delivery.
+2. **Header vs Composer Presence Separation:** `PresenceLabel` in the thread header conditionally replaced the user's online / last seen status with `"Typing…"`. In mobile, `TypingBubble` was passed to `FlatList.ListHeaderComponent` (in an inverted list), causing it to appear floating at the bottom of the message history rather than attached to the composer container.
+
+### Fixes
+1. **Restore Standard Expo Push Payload with `imageUrl: null` (`CircleHub.Api/Services/ExpoPushService.cs`, `MessageDeliveryService.cs`):**
+   - Reverted `ExpoPushService.cs` so all platforms (Android and iOS) receive standard `Title = title`, `Body = body`, `Sound = "default"`, `ChannelId = channelId`, `Priority = "high"`, `Tag = tag`, and `Data = data`.
+   - Maintained `imageUrl: null` in `MessageDeliveryService.cs` so Expo Push never sets `RichContent.Image` (preventing Google Play Services from blowing up the avatar into a `BigPictureStyle` banner).
+   - Reverted `patches/expo-notifications+57.0.24.patch` back to the verified `09b05bf` version where only `ExpoNotificationBuilder.kt` formats `NotificationCompat.MessagingStyle` with a circular avatar on the left and stacked messages.
+2. **Typing Indicator Solely Above Composer (Web & Mobile):**
+   - **Web (`src/components/messages/MessageThread.jsx`):** Removed typing indicator condition from the conversation header so `PresenceLabel` always renders online / last seen status cleanly. Rendered `isOtherTyping && otherUser` with bounce dots and `"{name} is typing…"` directly above `<MessageComposer>`.
+   - **Mobile (`src/app/(tabs)/messages/[id].tsx`, `src/components/messages/messagethread.tsx`):** Removed `isTyping={isOtherTyping}` from the header's `<PresenceLabel>`, removed `ListHeaderComponent` from `FlatList`, and placed the compact horizontal pill `TypingBubble` inside the composer container directly above the input box.

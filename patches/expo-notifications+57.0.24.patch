@@ -1,143 +1,5 @@
-diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/NotificationData.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/NotificationData.kt
-index 3af254c..6be5d92 100644
---- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/NotificationData.kt
-+++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/NotificationData.kt
-@@ -9,14 +9,11 @@ import org.json.JSONObject
- *
- * https://docs.expo.dev/versions/latest/sdk/notifications/#android-push-notification-payload-specification
- * */
-+private fun JSONObject.optNonBlank(key: String): String? =
-+  if (isNull(key)) null else optString(key).takeIf { it.isNotEmpty() }
-+
- @JvmInline
- value class NotificationData(private val data: Map<String, String>) {
--  val title: String?
--    get() = data["title"]
--
--  val message: String?
--    get() = data["message"]
--
-   val body: JSONObject?
-     get() = try {
-       data["body"]?.let { JSONObject(it) }
-@@ -24,17 +21,37 @@ value class NotificationData(private val data: Map<String, String>) {
-       null
-     }
- 
-+  val title: String?
-+    get() = data["title"]?.takeIf { it.isNotEmpty() } ?: body?.optNonBlank("title")
-+
-+  val message: String?
-+    get() = data["message"]?.takeIf { it.isNotEmpty() }
-+      ?: body?.optNonBlank("message")
-+      ?: body?.optNonBlank("body")
-+
-+  private val rawSound: String?
-+    get() = data["sound"]?.takeIf { it.isNotEmpty() } ?: body?.optNonBlank("sound")
-+
-   val sound: String?
--    get() = data["sound"]
-+    get() = rawSound?.takeIf {
-+      !it.equals("default", ignoreCase = true) &&
-+        !it.equals("true", ignoreCase = true) &&
-+        !it.equals("false", ignoreCase = true)
-+    }
- 
-   val shouldPlayDefaultSound: Boolean
--    get() = sound == null
-+    get() = rawSound == null ||
-+      rawSound.equals("default", ignoreCase = true) ||
-+      rawSound.equals("true", ignoreCase = true)
- 
-   val shouldUseDefaultVibrationPattern: Boolean
--    get() = data["vibrate"]?.toBoolean() == true
-+    get() = data["vibrate"]?.toBoolean() == true ||
-+      (body?.let { !it.isNull("vibrate") && it.optBoolean("vibrate", false) } == true)
- 
-   val isSticky: Boolean
--    get() = data["sticky"]?.toBoolean() ?: false
-+    get() = data["sticky"]?.toBoolean()
-+      ?: body?.let { if (!it.isNull("sticky")) it.optBoolean("sticky", false) else null }
-+      ?: false
- 
-   val vibrationPattern: LongArray?
-     get() = try {
-@@ -50,17 +67,21 @@ value class NotificationData(private val data: Map<String, String>) {
-       null
-     }
- 
--  val color: String? get() = data["color"]
-+  val color: String?
-+    get() = data["color"]?.takeIf { it.isNotEmpty() } ?: body?.optNonBlank("color")
- 
-   val autoDismiss: Boolean
--    get() = data["autoDismiss"]?.toBoolean() ?: true
-+    get() = data["autoDismiss"]?.toBoolean()
-+      ?: body?.let { if (!it.isNull("autoDismiss")) it.optBoolean("autoDismiss", true) else null }
-+      ?: true
- 
-   val categoryId: String?
--    get() = data["categoryId"]
-+    get() = data["categoryId"]?.takeIf { it.isNotEmpty() } ?: body?.optNonBlank("categoryId")
- 
-   val subText: String?
--    get() = data["subtitle"]
-+    get() = data["subtitle"]?.takeIf { it.isNotEmpty() } ?: body?.optNonBlank("subtitle")
- 
-   val badge: Int?
-     get() = data["badge"]?.toIntOrNull()
-+      ?: body?.let { if (!it.isNull("badge")) it.optInt("badge", -1).takeIf { v -> v >= 0 } else null }
- }
-diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/triggers/FirebaseNotificationTrigger.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/triggers/FirebaseNotificationTrigger.kt
-index d972ff9..e5e79f9 100644
---- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/triggers/FirebaseNotificationTrigger.kt
-+++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/triggers/FirebaseNotificationTrigger.kt
-@@ -22,7 +22,17 @@ class FirebaseNotificationTrigger(val remoteMessage: RemoteMessage) : Notificati
- 
-   @RequiresApi(api = Build.VERSION_CODES.O)
-   override fun getNotificationChannel(): String? {
--    val channelId = remoteMessage.notification?.channelId ?: remoteMessage.data["channelId"]
-+    val bodyChannelId = try {
-+      remoteMessage.data["body"]?.let { raw ->
-+        val json = org.json.JSONObject(raw)
-+        if (json.isNull("channelId")) null else json.optString("channelId").takeIf { it.isNotEmpty() }
-+      }
-+    } catch (e: Exception) {
-+      null
-+    }
-+    val channelId = remoteMessage.notification?.channelId
-+      ?: remoteMessage.data["channelId"]?.takeIf { it.isNotEmpty() }
-+      ?: bodyChannelId
-     return channelId ?: super.getNotificationChannel()
-   }
- 
-diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/BaseNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/BaseNotificationBuilder.kt
-index 4648af1..c33686b 100644
---- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/BaseNotificationBuilder.kt
-+++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/BaseNotificationBuilder.kt
-@@ -64,6 +64,20 @@ abstract class BaseNotificationBuilder protected constructor(protected val conte
-       val channelForRequestedId =
-         notificationsChannelManager.getNotificationChannel(requestedChannelId)
-       if (channelForRequestedId == null) {
-+        if (requestedChannelId == "messages" || requestedChannelId == "default") {
-+          val channelName = if (requestedChannelId == "messages") "Messages" else "Default"
-+          val autoChannel = NotificationChannel(
-+            requestedChannelId,
-+            channelName,
-+            NotificationManager.IMPORTANCE_HIGH
-+          ).apply {
-+            setShowBadge(true)
-+            enableVibration(true)
-+            enableLights(true)
-+          }
-+          notificationManager.createNotificationChannel(autoChannel)
-+          return autoChannel.id
-+        }
-         Log.e(
-           "notifications",
-           String.format(
 diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
-index 610d303..446d9cd 100644
+index 610d303..0fa27a6 100644
 --- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 +++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 @@ -5,6 +5,7 @@ import android.content.Context
@@ -148,15 +10,16 @@ index 610d303..446d9cd 100644
  import android.os.Build
  import android.os.Bundle
  import android.os.Parcel
-@@ -96,6 +97,7 @@ open class ExpoNotificationBuilder(
+@@ -96,6 +97,8 @@ open class ExpoNotificationBuilder(
      builder.setPriority(priority)
  
      val content = notificationContent
 +    val extrasData = content.body
++    val bigText = extrasData?.optString("bigText")?.takeIf { it.isNotEmpty() } ?: content.text
  
      builder.setAutoCancel(content.isAutoDismiss)
      builder.setOngoing(content.isSticky)
-@@ -104,9 +106,6 @@ open class ExpoNotificationBuilder(
+@@ -104,9 +107,6 @@ open class ExpoNotificationBuilder(
      builder.setContentTitle(content.title)
      builder.setContentText(content.text)
      builder.setSubText(content.subText)
@@ -166,64 +29,48 @@ index 610d303..446d9cd 100644
  
      color?.let { builder.color = it.toInt() }
      notificationContent.badgeCount?.toInt()?.let { builder.setNumber(it) }
-@@ -147,12 +146,172 @@ open class ExpoNotificationBuilder(
+@@ -147,12 +147,118 @@ open class ExpoNotificationBuilder(
        )
      )
  
 -    if (notificationContent.containsImage()) {
-+    fun org.json.JSONObject.optCleanString(key: String): String? =
-+      if (isNull(key)) null else optString(key).takeIf { it.isNotEmpty() }
-+
-+    val customAvatarUrl = extrasData?.optCleanString("senderAvatarUrl")
++    val customAvatarUrl = extrasData?.optString("senderAvatarUrl")?.takeIf { it.isNotEmpty() }
 +    val avatarBitmap = customAvatarUrl?.let {
 +      try {
-+        downloadImage(Uri.parse(it), connectTimeout = 2500L, readTimeout = 2500L)?.let { bmp ->
-+          val srcSize = min(bmp.width, bmp.height)
-+          val outSize = min(srcSize, 192)
-+          if (outSize <= 0) {
-+            null
-+          } else {
-+            val output = Bitmap.createBitmap(outSize, outSize, Bitmap.Config.ARGB_8888)
-+            val canvas = android.graphics.Canvas(output)
-+            val paint = android.graphics.Paint().apply {
-+              isAntiAlias = true
-+              isFilterBitmap = true
-+              color = -0x1
-+            }
-+            val radius = outSize / 2f
-+            canvas.drawCircle(radius, radius, radius, paint)
-+            paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
-+            val srcRect = android.graphics.Rect(
-+              (bmp.width - srcSize) / 2,
-+              (bmp.height - srcSize) / 2,
-+              (bmp.width + srcSize) / 2,
-+              (bmp.height + srcSize) / 2
-+            )
-+            val dstRect = android.graphics.Rect(0, 0, outSize, outSize)
-+            canvas.drawBitmap(bmp, srcRect, dstRect, paint)
-+            output
++        downloadImage(Uri.parse(it))?.let { bmp ->
++          val size = Math.min(bmp.width, bmp.height)
++          val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
++          val canvas = android.graphics.Canvas(output)
++          val paint = android.graphics.Paint().apply {
++            isAntiAlias = true
++            color = -0x1
 +          }
++          val radius = size / 2f
++          canvas.drawCircle(radius, radius, radius, paint)
++          paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
++          val srcRect = android.graphics.Rect((bmp.width - size) / 2, (bmp.height - size) / 2, (bmp.width + size) / 2, (bmp.height + size) / 2)
++          val dstRect = android.graphics.Rect(0, 0, size, size)
++          canvas.drawBitmap(bmp, srcRect, dstRect, paint)
++          output
 +        }
 +      } catch (e: Exception) {
 +        null
 +      }
 +    }
 +
-+    val notifType = extrasData?.optCleanString("type")?.lowercase()
-+    val extrasChannelId = extrasData?.optCleanString("channelId")?.lowercase()
-+    val isMessage = notifType == "message" ||
-+      (notifType != "notification" && (
-+        extrasChannelId == "messages" ||
-+          extrasData?.has("conversationId") == true
-+      ))
++    val channelId = extrasData?.optString("channelId")?.takeIf { it.isNotEmpty() }
++    val isMessage = channelId == "messages" ||
++        extrasData?.optString("type") == "message" ||
++        extrasData?.has("conversationId") == true ||
++        extrasData?.has("senderName") == true
 +
-+    val senderName = extrasData?.optCleanString("senderName")
++    val senderName = extrasData?.optString("senderName")?.takeIf { it.isNotEmpty() }
 +      ?: content.title
 +      ?: "User"
 +
 +    val finalAvatarBitmap = avatarBitmap ?: run {
 +      try {
-+        val size = 144
++        val size = 128
 +        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
 +        val canvas = android.graphics.Canvas(output)
 +        val paint = android.graphics.Paint().apply {
@@ -235,7 +82,7 @@ index 610d303..446d9cd 100644
 +        val textPaint = android.graphics.Paint().apply {
 +          isAntiAlias = true
 +          color = android.graphics.Color.WHITE
-+          textSize = 64f
++          textSize = 58f
 +          textAlign = android.graphics.Paint.Align.CENTER
 +          typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
 +        }
@@ -258,20 +105,8 @@ index 610d303..446d9cd 100644
      }
 +
 +    if (isMessage) {
-+      val unreadCount = if (extrasData != null && !extrasData.isNull("unreadCount")) {
-+        extrasData.optInt("unreadCount", 1)
-+      } else {
-+        1
-+      }
-+      if (unreadCount > 1) {
-+        builder.setNumber(unreadCount)
-+        if (content.subText.isNullOrEmpty()) {
-+          builder.setSubText("$unreadCount new messages")
-+        }
-+      }
-+
-+      val senderKey = extrasData?.optCleanString("senderId")
-+        ?: extrasData?.optCleanString("conversationId")
++      val senderKey = extrasData?.optString("senderId")?.takeIf { it.isNotEmpty() }
++        ?: extrasData?.optString("conversationId")?.takeIf { it.isNotEmpty() }
 +        ?: senderName
 +
 +      val senderPersonBuilder = androidx.core.app.Person.Builder()
@@ -283,35 +118,14 @@ index 610d303..446d9cd 100644
 +      }
 +
 +      val senderPerson = senderPersonBuilder.build()
-+      val userPerson = androidx.core.app.Person.Builder()
-+        .setName("You")
-+        .setKey("self")
-+        .build()
++      val userPerson = androidx.core.app.Person.Builder().setName("You").build()
 +
 +      val messagingStyle = NotificationCompat.MessagingStyle(userPerson)
 +        .setConversationTitle(null)
 +        .setGroupConversation(false)
 +
-+      val structuredMessages = mutableListOf<String>()
-+      val jsonMessages = extrasData?.optJSONArray("messages")
-+      if (jsonMessages != null) {
-+        for (i in 0 until jsonMessages.length()) {
-+          if (!jsonMessages.isNull(i)) {
-+            val item = jsonMessages.optString(i).trim()
-+            if (item.isNotEmpty()) {
-+              structuredMessages.add(item)
-+            }
-+          }
-+        }
-+      }
-+
-+      val rawBigText = extrasData?.optCleanString("bigText")
-+      val messageLines = if (structuredMessages.isNotEmpty()) {
-+        structuredMessages
-+      } else {
-+        rawBigText?.split("\n")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
-+      }
-+
++      val rawBigText = extrasData?.optString("bigText")?.takeIf { it.isNotEmpty() }
++      val messageLines = rawBigText?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
 +      val now = System.currentTimeMillis()
 +
 +      if (messageLines.isNotEmpty()) {
@@ -321,235 +135,17 @@ index 610d303..446d9cd 100644
 +            NotificationCompat.MessagingStyle.Message(line, timestamp, senderPerson)
 +          )
 +        }
-+        builder.setContentTitle(senderName)
-+        builder.setContentText(messageLines.last())
 +      } else {
 +        val singleText = content.text ?: ""
 +        messagingStyle.addMessage(
 +          NotificationCompat.MessagingStyle.Message(singleText, now, senderPerson)
 +        )
-+        builder.setContentTitle(senderName)
 +      }
 +
-+      builder.setCategory(NotificationCompat.CATEGORY_MESSAGE)
 +      builder.setStyle(messagingStyle)
 +    } else {
-+      val cleanBigText = extrasData?.optCleanString("bigText") ?: content.text
-+      builder.setStyle(NotificationCompat.BigTextStyle().bigText(cleanBigText))
++      builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
 +    }
      return builder.build()
    }
  
-diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt
-index f1e7e36..5f1586f 100644
---- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt
-+++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt
-@@ -40,12 +40,14 @@ class ExpoHandlingDelegate(protected val context: Context) : HandlingDelegate {
-      * @param listener A listener instance to be informed of new push device tokens.
-      */
-     fun addListener(listener: NotificationManager) {
--      if (sListenersReferences.containsKey(listener)) {
--        // Listener is already registered
--        return
--      }
-+      synchronized(sListenersReferences) {
-+        if (sListenersReferences.containsKey(listener)) {
-+          // Listener is already registered
-+          return
-+        }
- 
--      sListenersReferences[listener] = WeakReference(listener)
-+        sListenersReferences[listener] = WeakReference(listener)
-+      }
-       val responseIterator = sPendingNotificationResponses.iterator()
-       while (responseIterator.hasNext()) {
-         listener.onNotificationResponseReceived(responseIterator.next())
-@@ -109,11 +111,45 @@ class ExpoHandlingDelegate(protected val context: Context) : HandlingDelegate {
-           Log.w("expo-notifications", "getLaunchIntentForPackage threw while resolving the main activity launcher; treating as no launch intent.", it)
-         }
-         .getOrNull()
-+
-+    fun isAppProcessInForeground(context: Context): Boolean {
-+      return try {
-+        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-+        if (keyguardManager?.isKeyguardLocked == true) {
-+          return false
-+        }
-+
-+        val hasActiveListeners = synchronized(sListenersReferences) {
-+          sListenersReferences.values.any { it.get() != null }
-+        }
-+        if (!hasActiveListeners) {
-+          return false
-+        }
-+
-+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-+          return ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
-+        }
-+
-+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-+          ?: return false
-+        val myPid = android.os.Process.myPid()
-+        val pkgName = context.packageName
-+        val processes = activityManager.runningAppProcesses ?: return false
-+        processes.any { proc ->
-+          (proc.pid == myPid || proc.processName == pkgName) &&
-+            proc.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
-+        }
-+      } catch (_: Throwable) {
-+        false
-+      }
-+    }
-   }
- 
--  fun isAppInForeground() = ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
-+  fun isAppInForeground(): Boolean = isAppProcessInForeground(context)
- 
--  fun getListeners() = sListenersReferences.values.mapNotNull { it.get() }
-+  fun getListeners() = synchronized(sListenersReferences) {
-+    sListenersReferences.values.mapNotNull { it.get() }
-+  }
- 
-   override fun handleNotification(notification: Notification) {
-     /**
-@@ -158,10 +194,13 @@ class ExpoHandlingDelegate(protected val context: Context) : HandlingDelegate {
-     // The foreground TaskManager gets misclassified as headless (via isStartedByHeadlessLoader),
-     // then wiped by invalidateAppRecord — breaking all subsequent background task execution.
-     if (!isAppInForeground() && notificationResponse.actionIdentifier != NotificationResponse.DEFAULT_ACTION_IDENTIFIER) {
--      FirebaseMessagingDelegate.runTaskManagerTasks(
--        context.applicationContext,
--        NotificationSerializer.toBundle(notificationResponse)
--      )
-+      try {
-+        FirebaseMessagingDelegate.runTaskManagerTasks(
-+          context.applicationContext,
-+          NotificationSerializer.toBundle(notificationResponse)
-+        )
-+      } catch (_: Throwable) {
-+      }
-     }
- 
-     // NOTE the listeners are not set up when the app is killed
-diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
-index 38f6fba..a480096 100644
---- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
-+++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
-@@ -102,14 +102,26 @@ open class ExpoPresentationDelegate(
-       }
-       return
-     }
--    CoroutineScope(Dispatchers.IO).launch {
--      val androidNotification = createNotification(notification, behavior)
--
--      NotificationManagerCompat.from(context).notify(
--        notification.notificationRequest.identifier,
--        getNotifyId(notification.notificationRequest),
--        androidNotification
--      )
-+    if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-+      kotlinx.coroutines.runBlocking {
-+        val androidNotification = createNotification(notification, behavior)
-+
-+        NotificationManagerCompat.from(context).notify(
-+          notification.notificationRequest.identifier,
-+          getNotifyId(notification.notificationRequest),
-+          androidNotification
-+        )
-+      }
-+    } else {
-+      CoroutineScope(Dispatchers.IO).launch {
-+        val androidNotification = createNotification(notification, behavior)
-+
-+        NotificationManagerCompat.from(context).notify(
-+          notification.notificationRequest.identifier,
-+          getNotifyId(notification.notificationRequest),
-+          androidNotification
-+        )
-+      }
-     }
-   }
- 
-diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt
-index eecdae8..92c5db0 100644
---- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt
-+++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt
-@@ -82,12 +82,15 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
-     fun getBackgroundTasks(): List<BackgroundRemoteNotificationTaskConsumer> = sBackgroundTaskConsumers.toList()
- 
-     fun runTaskManagerTasks(applicationContext: Context, bundle: Bundle) {
--      // getTaskServiceImpl() has a side effect:
--      // the TaskService constructor calls restoreTasks which then constructs a BackgroundRemoteNotificationTaskConsumer,
--      // and the getBackgroundTasks() call below doesn't return an empty collection.
--      TaskServiceProviderHelper.getTaskServiceImpl(applicationContext)
--      getBackgroundTasks().forEach {
--        it.executeTask(bundle)
-+      try {
-+        // getTaskServiceImpl() has a side effect:
-+        // the TaskService constructor calls restoreTasks which then constructs a BackgroundRemoteNotificationTaskConsumer,
-+        // and the getBackgroundTasks() call below doesn't return an empty collection.
-+        TaskServiceProviderHelper.getTaskServiceImpl(applicationContext)
-+        getBackgroundTasks().forEach {
-+          it.executeTask(bundle)
-+        }
-+      } catch (_: Throwable) {
-       }
-     }
-   }
-@@ -109,7 +112,35 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
-     DebugLogging.logRemoteMessage("FirebaseMessagingDelegate.onMessageReceived: message", remoteMessage)
-     val notification = createNotification(remoteMessage)
-     DebugLogging.logNotification("FirebaseMessagingDelegate.onMessageReceived: notification", notification)
--    NotificationsService.receive(context, notification)
-+    if (ExpoHandlingDelegate.isAppProcessInForeground(context)) {
-+      NotificationsService.receive(context, notification)
-+    } else {
-+      val content = notification.notificationRequest.content
-+      val shouldPresent = !(content.title.isNullOrEmpty() && content.text.isNullOrEmpty())
-+      if (shouldPresent) {
-+        try {
-+          kotlinx.coroutines.runBlocking {
-+            val androidNotification = expo.modules.notifications.notifications.presentation.builders.ExpoNotificationBuilder(
-+              context,
-+              notification,
-+              SharedPreferencesNotificationCategoriesStore(context)
-+            ).build()
-+            androidx.core.app.NotificationManagerCompat.from(context).notify(
-+              notification.notificationRequest.identifier,
-+              0,
-+              androidNotification
-+            )
-+          }
-+        } catch (e: Throwable) {
-+          android.util.Log.e(
-+            "expo-notifications",
-+            "Direct background notification presentation failed; falling back to NotificationsService.",
-+            e
-+          )
-+          NotificationsService.present(context, notification)
-+        }
-+      }
-+    }
-     runTaskManagerTasks(context.applicationContext, RemoteMessageSerializer.toBundle(remoteMessage))
-   }
- 
-@@ -126,7 +157,19 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
-    * the existing notification is replaced, but the ID can remain constant.
-    */
-   protected fun getNotificationIdentifier(remoteMessage: RemoteMessage): String {
--    return remoteMessage.data["tag"] ?: remoteMessage.messageId ?: UUID.randomUUID().toString()
-+    val directTag = remoteMessage.data["tag"]?.takeIf { it.isNotEmpty() }
-+    if (directTag != null) {
-+      return directTag
-+    }
-+    val bodyTag = try {
-+      remoteMessage.data["body"]?.let { raw ->
-+        val json = org.json.JSONObject(raw)
-+        if (json.isNull("tag")) null else json.optString("tag").takeIf { it.isNotEmpty() }
-+      }
-+    } catch (e: Exception) {
-+      null
-+    }
-+    return bodyTag ?: remoteMessage.messageId ?: UUID.randomUUID().toString()
-   }
- 
-   protected open fun createNotificationRequest(

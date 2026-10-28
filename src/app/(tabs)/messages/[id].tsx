@@ -23,7 +23,6 @@ import GradientButton from "@/components/ui/gradientbutton";
 import { useChatConnection } from "@/context/chatconnectioncontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
-import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { prefetchRecipientDeviceKeys } from "@/services/messageCrypto";
 import { dismissConversationNotifications } from "@/services/pushNotifications";
 import { themeColors } from "@/theme/colors";
@@ -138,8 +137,6 @@ export default function MessageThreadScreen() {
               }
             : undefined);
 
-    const isOtherTyping = useTypingIndicator(resolvedOtherUser?.id);
-
     useEffect(() => {
         if (!isFocused || !id) return;
         void dismissConversationNotifications(id, resolvedOtherUser?.id);
@@ -233,7 +230,6 @@ export default function MessageThreadScreen() {
                             <PresenceLabel
                                 isOnline={resolvedOtherUser.isOnline}
                                 lastSeenAt={resolvedOtherUser.lastSeenAt}
-                                isTyping={isOtherTyping}
                             />
                         </View>
                     </Pressable>
