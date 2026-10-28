@@ -272,7 +272,7 @@ export default function NewMessageModal({
                             <View className="flex-row items-center justify-end gap-2">
                                 <Pressable
                                     onPress={resetAndClose}
-                                    className="rounded-xl px-4 py-2.5"
+                                    className="rounded-full px-4 py-2.5"
                                 >
                                     <Text className="text-label-md text-text-secondary">
                                         Cancel
@@ -285,6 +285,7 @@ export default function NewMessageModal({
                                         !messageText.trim() ||
                                         sendMessage.isPending
                                     }
+                                    className="rounded-full"
                                     label={
                                         sendMessage.isPending
                                             ? "Sending…"

@@ -16,7 +16,7 @@ export default function FollowUserCardSkeleton() {
                     </View>
                 </View>
 
-                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-10 w-10 rounded-full" />
             </View>
 
             <Skeleton className="h-4 w-full rounded-md" />

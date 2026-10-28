@@ -159,7 +159,7 @@ export default function ProfileHeader({ user }: { user: UserProfile }) {
                             }
                             accessibilityRole="button"
                             accessibilityLabel="Profile settings"
-                            className="h-10 w-10 items-center justify-center rounded-xl bg-surface-low"
+                            className="h-10 w-10 items-center justify-center rounded-full bg-surface-low"
                         >
                             <Settings size={18} color={colors.textPrimary} />
                         </Pressable>

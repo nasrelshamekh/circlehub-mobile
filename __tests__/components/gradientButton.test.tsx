@@ -18,7 +18,11 @@ describe("GradientButton radius", () => {
             <GradientButton label="Unlock" className="flex-1" />
         );
 
-        expect(getByRole("button").props.className).toContain("rounded-xl");
+        const btn = getByRole("button");
+        expect(btn.props.className).toContain("rounded-xl");
+        expect(btn.props.style).toEqual(
+            expect.arrayContaining([{ borderRadius: 24 }])
+        );
     });
 
     it("keeps the default radius when no className is passed", async () => {
@@ -26,7 +30,11 @@ describe("GradientButton radius", () => {
             <GradientButton label="Save" />
         );
 
-        expect(getByRole("button").props.className).toContain("rounded-xl");
+        const btn = getByRole("button");
+        expect(btn.props.className).toContain("rounded-xl");
+        expect(btn.props.style).toEqual(
+            expect.arrayContaining([{ borderRadius: 24 }])
+        );
     });
 
     it("honours an explicit radius override", async () => {
@@ -34,8 +42,24 @@ describe("GradientButton radius", () => {
             <GradientButton label="Send" className="rounded-full" />
         );
 
-        const className = getByRole("button").props.className;
+        const btn = getByRole("button");
+        const className = btn.props.className;
         expect(className).toContain("rounded-full");
         expect(className).not.toContain("rounded-xl");
+        expect(btn.props.style).toEqual(
+            expect.arrayContaining([{ borderRadius: 9999 }])
+        );
+    });
+
+    it("supports custom rounded utility classes", async () => {
+        const { getByRole } = await renderWithTheme(
+            <GradientButton label="Custom" className="rounded-lg" />
+        );
+
+        const btn = getByRole("button");
+        expect(btn.props.className).toContain("rounded-lg");
+        expect(btn.props.style).toEqual(
+            expect.arrayContaining([{ borderRadius: 16 }])
+        );
     });
 });

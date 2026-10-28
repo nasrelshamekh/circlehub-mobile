@@ -72,7 +72,7 @@ export default function CommunityListScreen() {
                     }
                     label="Create"
                     accessibilityLabel="Create a community"
-                    className="rounded-xl"
+                    className="rounded-full"
                     contentStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}
                     textClassName="text-label-md font-semibold"
                 />

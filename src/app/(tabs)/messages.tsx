@@ -103,7 +103,7 @@ export default function Messages() {
                     accessibilityLabel="New message"
                     icon={<SquarePen size={16} color={colors.buttonGradientText} />}
                     label="New"
-                    className="mr-2 rounded-xl"
+                    className="mr-2 rounded-full"
                     contentStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
                     textClassName="text-label-sm font-semibold"
                 />

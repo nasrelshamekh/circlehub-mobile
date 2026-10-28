@@ -1405,3 +1405,29 @@ When push notifications arrived on the Android status bar while CircleHub was ba
    - Removed `opacity-70` so outgoing bubbles render fully solid and vibrant immediately.
    - Added content-based deduplication in `combinedMessages` (matching outgoing text within 60s) so the optimistic bubble seamlessly transitions into the confirmed message without flashing or duplicating.
    - Guarded `isActuallyDecrypting` with `!isMine` and ensured `plaintext` and `deliveryStatus: "sent"` are preserved during cache updates in `useSendMessage.ts` and `appendMessageToThreadCache`.
+
+
+---
+
+## 26. Button Border-Radius Parity Across Web and Mobile Apps
+
+### Issues
+Across the mobile app, buttons had an inconsistent and overly sharp 12px border-radius compared to the web app, which styles buttons with `--radius-xl: 1.5rem` (24px) for `.button-primary` and `rounded-full` (9999px) for pill buttons and circular icon buttons.
+
+### Root Causes
+1. **Hardcoded Inline Radius in `GradientButton`:** In `src/components/ui/gradientbutton.tsx`, `numericRadius` was hardcoded to `isPill ? 9999 : 12;`. Because React Native inline styles override NativeWind classes, any `className="rounded-xl"` (which maps to 24px in `tailwind.config.js`) was overridden by `{ borderRadius: 12 }`. This forced primary gradient buttons across all screens (auth screens, compose, edit post, error screens, modal actions) into a 12px corner radius.
+2. **Hardcoded Inline Radii in Modals:** In `src/components/ui/confirmmodal.tsx` and `src/context/chatconnectioncontext.tsx`, buttons used inline styles `{ borderRadius: 12 }` or `contentStyle={{ borderRadius: 12 }}`.
+3. **Mismatched Follow and Header Button Shapes:** In `src/components/followers/followbutton.tsx`, `Following` and icon-variant buttons used `rounded-xl` instead of web's `rounded-full`. Likewise, the "New Message" button in `messages.tsx`, "Create" button in `communitylistscreen.tsx`, and dialog action buttons in `newmessagemodal.tsx` used `rounded-xl` instead of web's `rounded-full`.
+
+### Fixes
+1. **Dynamic Radius Resolution in `GradientButton` (`src/components/ui/gradientbutton.tsx`):**
+   - Defaulted `numericRadius` to `24` (`rounded-xl` = 24px) to match web's `--radius-xl: 1.5rem` = 24px.
+   - Added class inspection so `rounded-full` maps to `9999`, `rounded-lg` maps to `16`, `rounded-md` maps to `12`, `rounded-base` maps to `8`, and `rounded-sm` maps to `4`.
+2. **Modal Button Radius Parity (`src/components/ui/confirmmodal.tsx`, `src/context/chatconnectioncontext.tsx`):**
+   - Updated cancel, confirm, and recovery prompt buttons to use `24` (`rounded-xl`).
+3. **Follow & Action Button Parity (`src/components/followers/followbutton.tsx`, `src/components/profile/profileheader.tsx`, skeletons, and headers):**
+   - Updated `Following` and icon-variant buttons to `rounded-full` matching web's `rounded-(--radius-full)` and `.icon-button-soft`.
+   - Updated `ProfileHeader` Settings icon button and follow skeletons (`followusercardskeleton.tsx`, `userresultcardskeleton.tsx`) to `rounded-full`.
+   - Updated "New Message", "Create Community", and new message dialog buttons to `rounded-full` to match the web app.
+4. **Automated Unit Tests (`__tests__/components/gradientButton.test.tsx`):**
+   - Added tests verifying default 24px radius, `rounded-full` 9999px pill radius, and custom utility class support (`rounded-lg` 16px).

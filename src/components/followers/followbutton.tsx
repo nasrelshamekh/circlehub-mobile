@@ -50,7 +50,7 @@ export default function FollowButton({
                     disabled={disabled}
                     accessibilityRole="button"
                     accessibilityLabel={`Unfollow ${user.name}`}
-                    className="flex-1 items-center justify-center rounded-xl bg-active px-4 py-2"
+                    className="flex-1 items-center justify-center rounded-full bg-active px-4 py-2"
                     style={[
                         { minHeight: 40 },
                         disabled ? { opacity: 0.6 } : undefined,
@@ -83,7 +83,7 @@ export default function FollowButton({
                 disabled={disabled}
                 accessibilityRole="button"
                 accessibilityLabel={`Unfollow ${user.name}`}
-                className="h-10 w-10 items-center justify-center rounded-xl bg-active"
+                className="h-10 w-10 items-center justify-center rounded-full bg-active"
                 style={disabled ? { opacity: 0.6 } : undefined}
             >
                 <Check size={18} color={colors.primary} />
@@ -97,7 +97,7 @@ export default function FollowButton({
             disabled={disabled}
             icon={<UserPlus size={18} color={colors.buttonGradientText} />}
             accessibilityLabel={`Follow ${user.name}`}
-            className="h-10 w-10 rounded-xl"
+            className="h-10 w-10 rounded-full"
             contentStyle={{ flex: 1 }}
         />
     );

@@ -32,12 +32,23 @@ export default function GradientButton({
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
 
-    // `className` is a layout override (flex-1, w-full, mt-4…). Keep the app's
-    // 12px button radius unless the caller explicitly asks for a different one,
-    // so a layout-only class can never flatten the button into a rectangle.
+    // `className` is a layout override (flex-1, w-full, mt-4…). Match the web app's
+    // default button radius (--radius-xl: 1.5rem = 24px) unless the caller
+    // explicitly asks for a different one (e.g. rounded-full, rounded-lg, etc.).
     const isPill = /(^|\s)rounded-full(\s|$)/.test(className);
     const radiusClass = /(^|\s)rounded-/.test(className) ? "" : "rounded-xl";
-    const numericRadius = isPill ? 9999 : 12;
+    let numericRadius = isPill ? 9999 : 24;
+    if (!isPill) {
+        if (/(^|\s)rounded-lg(\s|$)/.test(className)) {
+            numericRadius = 16;
+        } else if (/(^|\s)rounded-md(\s|$)/.test(className)) {
+            numericRadius = 12;
+        } else if (/(^|\s)rounded-base(\s|$)/.test(className)) {
+            numericRadius = 8;
+        } else if (/(^|\s)rounded-sm(\s|$)/.test(className)) {
+            numericRadius = 4;
+        }
+    }
 
     return (
         <Pressable

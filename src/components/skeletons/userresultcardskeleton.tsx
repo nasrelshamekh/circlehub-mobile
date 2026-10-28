@@ -16,7 +16,7 @@ export default function UserResultCardSkeleton() {
                     </View>
                 </View>
 
-                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-10 w-10 rounded-full" />
             </View>
 
             <View className="gap-2">

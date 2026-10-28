@@ -196,6 +196,7 @@ function RecoveryUnlockPrompt({
                             accessibilityRole="button"
                             accessibilityLabel="Later"
                             className="flex-1 items-center rounded-xl border border-border bg-surface-low py-3"
+                            style={{ borderRadius: 24 }}
                         >
                             <Text className="text-label-md font-semibold text-text-primary">
                                 Later
@@ -207,7 +208,7 @@ function RecoveryUnlockPrompt({
                             accessibilityLabel="Unlock"
                             label="Unlock"
                             className="flex-1 rounded-xl"
-                            contentStyle={{ paddingVertical: 12, borderRadius: 12 }}
+                            contentStyle={{ paddingVertical: 12, borderRadius: 24 }}
                             textClassName="text-label-md font-semibold"
                         />
                     </View>
