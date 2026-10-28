@@ -39,6 +39,7 @@ export type Message = {
     failed?: boolean;
     plaintext?: string;
     deliveryStatus?: MessageDeliveryStatus;
+    realId?: string;
 };
 
 export type ConversationThread = {

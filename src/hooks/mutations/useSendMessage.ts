@@ -36,6 +36,8 @@ export default function useSendMessage() {
             if (conversationId && sentMessage) {
                 const enrichedMessage = {
                     ...sentMessage,
+                    isMine: true,
+                    deliveryStatus: "sent" as const,
                     ...(trimmedPlaintext ? { plaintext: trimmedPlaintext } : {}),
                 };
 

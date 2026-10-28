@@ -1372,3 +1372,36 @@ When push notifications arrived on the Android status bar while CircleHub was ba
 2. **Typing Indicator Solely Above Composer (Web & Mobile):**
    - **Web (`src/components/messages/MessageThread.jsx`):** Removed typing indicator condition from the conversation header so `PresenceLabel` always renders online / last seen status cleanly. Rendered `isOtherTyping && otherUser` with bounce dots and `"{name} is typing…"` directly above `<MessageComposer>`.
    - **Mobile (`src/app/(tabs)/messages/[id].tsx`, `src/components/messages/messagethread.tsx`):** Removed `isTyping={isOtherTyping}` from the header's `<PresenceLabel>`, removed `ListHeaderComponent` from `FlatList`, and placed the compact horizontal pill `TypingBubble` inside the composer container directly above the input box.
+
+---
+
+## 25. Persistent Composer, Reverted Typing Indicator Design, and Web-Parity Smooth Outgoing Message Transitions
+
+### Issues
+1. **Typing Indicator Background & Full Name:** The typing indicator above the composer had a rounded pill background and rendered full user names instead of only the first name without any background container.
+2. **Composer Disappearing While Opening Thread:** Opening a conversation caused the entire bottom composer to disappear while the thread query was fetching (`isLoading`), popping into view only after messages finished loading.
+3. **Outgoing Message Flashing, Greyed Out, and Disappearing:** When sending a message on mobile:
+   - The bubble rendered with `opacity-70` ("greyed out").
+   - When the server response or SignalR push arrived, both the optimistic entry (`tempId`) and the confirmed message (`serverId`) briefly coexisted in `combinedMessages`, causing a duplicate jump.
+   - For a brief interval before decryption settled on own message, grey decrypting loading placeholder bars rendered inside the bubble.
+   - Then `updatePending` unmounted `tempId`, making the bubble flash, disappear, and re-appear as sent.
+
+### Root Causes
+1. `TypingBubble` wrapped the dots and text inside `<View className="flex-row items-center gap-1.5 rounded-full bg-surface-low px-2.5 py-1">` and formatted `name` without extracting the first name token.
+2. `src/app/(tabs)/messages/[id].tsx` conditionally rendered `<MessageThreadSkeleton />` in place of `<MessageThread>` whenever `isLoading` was true, preventing the composer from mounting until the network response completed.
+3. In `messagethread.tsx`:
+   - Outgoing pending messages were styled with `opacity-70`.
+   - `combinedMessages` filtered pending entries solely by ID (`!storedIds.has(m.id)`). Because `tempId` does not match `serverId`, both were rendered simultaneously when the confirmed message landed in `messages`.
+   - Outgoing messages (`isMine`) evaluated `isActuallyDecrypting` and rendered placeholder skeleton bars whenever `message.plaintext` was not immediately available on the server DTO.
+
+### Fixes
+1. **Revert Typing Indicator to Clean First-Name Design (`src/components/messages/messagethread.tsx`):**
+   - Removed container background styles (`bg-surface-low rounded-full px-2.5 py-1`).
+   - Extracted first name (`name.trim().split(/\s+/)[0]`) and rendered `"{firstName} is typing..."` alongside three primary-colored animated `TypingDot` dots and compact avatar.
+2. **Persistent Composer on Thread Load (`src/app/(tabs)/messages/[id].tsx`, `src/components/messages/messagethread.tsx`):**
+   - Removed the top-level loading branch in `[id].tsx` so `<MessageThread>` is always mounted.
+   - Inside `MessageThread`, rendered `<MessageThreadSkeleton />` strictly in the message area when `isLoading && orderedMessages.length === 0`, keeping the composer pinned and interactive at the bottom from the first render.
+3. **Smooth, Persistent Web-Parity Send Lifecycle (`messagethread.tsx`, `useSendMessage.ts`, `messageCacheHelpers.ts`):**
+   - Removed `opacity-70` so outgoing bubbles render fully solid and vibrant immediately.
+   - Added content-based deduplication in `combinedMessages` (matching outgoing text within 60s) so the optimistic bubble seamlessly transitions into the confirmed message without flashing or duplicating.
+   - Guarded `isActuallyDecrypting` with `!isMine` and ensured `plaintext` and `deliveryStatus: "sent"` are preserved during cache updates in `useSendMessage.ts` and `appendMessageToThreadCache`.

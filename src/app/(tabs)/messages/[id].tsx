@@ -18,7 +18,6 @@ import Avatar from "@/components/avatar";
 import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import MessageThread from "@/components/messages/messagethread";
 import PresenceLabel from "@/components/messages/presencelabel";
-import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
 import GradientButton from "@/components/ui/gradientbutton";
 import { useChatConnection } from "@/context/chatconnectioncontext";
 import { useTheme } from "@/context/themecontext";
@@ -246,23 +245,12 @@ export default function MessageThreadScreen() {
                 <ChatConnectionStatus />
             </View>
 
-            {isLoading ? (
-                <View
-                    className="flex-1 bg-surface-low"
-                    style={
-                        bottomInset > 0
-                            ? { paddingBottom: bottomInset }
-                            : undefined
-                    }
-                >
-                    <MessageThreadSkeleton />
-                </View>
-            ) : error ? (
+            {error && messages.length === 0 ? (
                 <View
                     className="flex-1 items-center justify-center bg-surface-low px-6"
                     style={
-                        bottomInset > 0
-                            ? { paddingBottom: bottomInset }
+                        bottomSafeOffset > 0
+                            ? { paddingBottom: bottomSafeOffset }
                             : undefined
                     }
                 >
@@ -289,7 +277,7 @@ export default function MessageThreadScreen() {
                         recipientUsername={resolvedOtherUser?.username ?? ""}
                         recipientName={resolvedOtherUser?.name}
                         recipientAvatarUrl={resolvedOtherUser?.avatarUrl}
-                        isLoading={isLoading}
+                        isLoading={isLoading && messages.length === 0}
                         isLoadingOlder={isLoadingOlder}
                         onLoadOlder={loadOlder}
                         bottomInset={bottomSafeOffset}

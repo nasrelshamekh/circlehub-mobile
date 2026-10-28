@@ -66,15 +66,13 @@ export function appendMessageToThreadCache(
                 let nextMessages: Message[];
                 if (existingIndex !== -1) {
                     const existing = existingMessages[existingIndex];
-                    if (!existing.plaintext && newMessage.plaintext) {
-                        nextMessages = [...existingMessages];
-                        nextMessages[existingIndex] = {
-                            ...existing,
-                            plaintext: newMessage.plaintext,
-                        };
-                    } else {
-                        nextMessages = existingMessages;
-                    }
+                    nextMessages = [...existingMessages];
+                    nextMessages[existingIndex] = {
+                        ...existing,
+                        ...newMessage,
+                        plaintext: existing.plaintext || newMessage.plaintext,
+                        deliveryStatus: newMessage.deliveryStatus || existing.deliveryStatus,
+                    };
                 } else {
                     nextMessages = [...existingMessages, newMessage];
                 }

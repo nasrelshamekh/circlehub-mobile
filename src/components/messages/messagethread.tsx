@@ -15,6 +15,7 @@ import {
 import Avatar from "@/components/avatar";
 import EmojiPicker from "@/components/messages/emojipicker";
 import SharedPostCard from "@/components/messages/sharedpostcard";
+import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
 import {
     FadeSlideIn,
     MOTION,
@@ -28,7 +29,7 @@ import { useTypingBroadcast } from "@/hooks/useTypingBroadcast";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { formatMessageDate, formatMessageTime } from "@/lib/formatPostDate";
 import { haptics } from "@/lib/haptics";
-import { MAX_PLAINTEXT_LENGTH } from "@/services/messageCrypto";
+import { MAX_PLAINTEXT_LENGTH, peekDecrypted } from "@/services/messageCrypto";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { Message } from "@/types/message";
@@ -92,11 +93,12 @@ const MessageBubble = memo(function MessageBubble({
             deliveryState = "delivered";
         }
     }
+    const cachedPlaintext = message.plaintext ?? peekDecrypted(message.content);
     const { text: decryptedText, isPending: isDecrypting } =
-        useDecryptedContent(message.plaintext ? null : message.content);
+        useDecryptedContent(cachedPlaintext ? null : message.content);
 
-    const displayText = message.plaintext ?? decryptedText;
-    const isActuallyDecrypting = !message.plaintext && isDecrypting;
+    const displayText = cachedPlaintext ?? decryptedText;
+    const isActuallyDecrypting = !cachedPlaintext && isDecrypting && !isMine;
 
     const [isExpanded, setIsExpanded] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -119,7 +121,7 @@ const MessageBubble = memo(function MessageBubble({
     return (
         <FadeSlideIn
             duration={isPending ? MOTION.quick : 0}
-            from={isPending ? 6 : 0}
+            from={isPending ? 4 : 0}
         >
             <Pressable
                 onPress={() => setIsExpanded((expanded) => !expanded)}
@@ -128,7 +130,7 @@ const MessageBubble = memo(function MessageBubble({
                 accessibilityHint="Shows when the message was sent"
                 className={
                     isMine
-                        ? `mb-3 flex-col items-end ${isPending ? "opacity-70" : ""}`
+                        ? "mb-3 flex-col items-end"
                         : "mb-3 flex-col items-start"
                 }
             >
@@ -326,6 +328,8 @@ function TypingBubble({
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
+    const firstName = name ? name.trim().split(/\s+/)[0] : "";
+    const label = firstName ? `${firstName} is typing...` : "typing...";
 
     return (
         <FadeSlideIn
@@ -334,25 +338,29 @@ function TypingBubble({
         >
             <View
                 accessibilityLiveRegion="polite"
-                accessibilityLabel={`${name || "User"} is typing`}
+                accessibilityLabel={label}
                 className="flex-row items-center gap-2"
             >
                 <Avatar
                     src={avatarUrl}
                     name={name ?? ""}
-                    className="h-6 w-6"
-                    textClassName="text-[10px]"
+                    className="h-5 w-5"
+                    textClassName="text-[9px]"
                 />
-                <View className="flex-row items-center gap-1.5 rounded-full bg-surface-low px-2.5 py-1">
+                <View className="flex-row items-center gap-1">
                     {[0, 1, 2].map((index) => (
                         <TypingDot
                             key={index}
                             color={colors.primary}
                             index={index}
+                            size={5}
                         />
                     ))}
-                    <Text className="ml-1 text-label-xs font-medium italic text-primary">
-                        {name ? `${name} is typing...` : "typing..."}
+                    <Text
+                        className="ml-1 text-label-xs font-medium italic text-primary"
+                        style={{ color: colors.primary }}
+                    >
+                        {label}
                     </Text>
                 </View>
             </View>
@@ -458,9 +466,32 @@ export default function MessageThread({
         // pushes, optimistic entries), so compare them case-insensitively or the same message can
         // render twice.
         const storedIds = new Set(messages.map((m) => m.id.toLowerCase()));
-        const activePending = pendingMessages.filter(
-            (m) => !storedIds.has(m.id.toLowerCase())
-        );
+        const activePending = pendingMessages.filter((pending) => {
+            const pId = pending.id.toLowerCase();
+            if (storedIds.has(pId)) return false;
+            if (pending.realId && storedIds.has(pending.realId.toLowerCase())) return false;
+
+            // Content-based deduplication for outgoing messages: if the confirmed message
+            // is already present in messages, drop the pending optimistic entry immediately
+            // so there is NEVER a frame where both appear or where the bubble flashes.
+            const pendingText = (pending.plaintext ?? pending.content)?.trim();
+            if (pending.isMine && pendingText && !pending.failed) {
+                const alreadyInMessages = messages.some((m) => {
+                    if (!m.isMine) return false;
+                    const mText = (m.plaintext ?? peekDecrypted(m.content) ?? m.content)?.trim();
+                    if (mText && mText === pendingText) {
+                        const timeDiff = Math.abs(
+                            new Date(m.createdAt).getTime() - new Date(pending.createdAt).getTime()
+                        );
+                        if (timeDiff < 60000) return true;
+                    }
+                    return false;
+                });
+                if (alreadyInMessages) return false;
+            }
+
+            return true;
+        });
         return [...messages, ...activePending];
     }, [messages, pendingMessages]);
 
@@ -551,6 +582,7 @@ export default function MessageThread({
                                 ? {
                                       ...m,
                                       id: serverId,
+                                      realId: serverId,
                                       createdAt:
                                           response.data.message?.createdAt ??
                                           m.createdAt,
@@ -641,28 +673,32 @@ export default function MessageThread({
 
     return (
         <View className="flex-1">
-            <FlatList
-                inverted
-                data={orderedMessages}
-                keyExtractor={keyExtractor}
-                renderItem={renderItem}
-                initialNumToRender={14}
-                maxToRenderPerBatch={10}
-                windowSize={9}
-                removeClippedSubviews={false}
-                contentContainerClassName="grow px-4 py-4"
-                keyboardShouldPersistTaps="handled"
-                onEndReached={onLoadOlder}
-                onEndReachedThreshold={0.2}
-                ListFooterComponent={
-                    isLoadingOlder ? (
-                        <View className="items-center py-3">
-                            <ActivityIndicator color={colors.primary} />
-                        </View>
-                    ) : null
-                }
-                ListEmptyComponent={
-                    isLoading ? null : (
+            {isLoading && orderedMessages.length === 0 ? (
+                <View className="flex-1 justify-end bg-surface-low">
+                    <MessageThreadSkeleton />
+                </View>
+            ) : (
+                <FlatList
+                    inverted
+                    data={orderedMessages}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderItem}
+                    initialNumToRender={14}
+                    maxToRenderPerBatch={10}
+                    windowSize={9}
+                    removeClippedSubviews={false}
+                    contentContainerClassName="grow px-4 py-4"
+                    keyboardShouldPersistTaps="handled"
+                    onEndReached={onLoadOlder}
+                    onEndReachedThreshold={0.2}
+                    ListFooterComponent={
+                        isLoadingOlder ? (
+                            <View className="items-center py-3">
+                                <ActivityIndicator color={colors.primary} />
+                            </View>
+                        ) : null
+                    }
+                    ListEmptyComponent={
                         <View className="items-center justify-center py-10">
                             <Text className="text-center text-body-sm text-text-secondary">
                                 No messages yet. Say hello to{" "}
@@ -672,9 +708,9 @@ export default function MessageThread({
                                 !
                             </Text>
                         </View>
-                    )
-                }
-            />
+                    }
+                />
+            )}
 
             <View
                 className="bg-surface-lowest"
