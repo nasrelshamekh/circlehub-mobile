@@ -20,6 +20,7 @@ import { useChatConnection } from "@/context/chatconnectioncontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
+import { prefetchRecipientDeviceKeys } from "@/services/messageCrypto";
 import { dismissConversationNotifications } from "@/services/pushNotifications";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
@@ -91,6 +92,11 @@ export default function MessageThreadScreen() {
         if (!isFocused || !id) return;
         void dismissConversationNotifications(id, resolvedOtherUser?.id);
     }, [isFocused, id, resolvedOtherUser?.id]);
+
+    useEffect(() => {
+        if (!isFocused || !resolvedOtherUser?.username) return;
+        prefetchRecipientDeviceKeys(resolvedOtherUser.username);
+    }, [isFocused, resolvedOtherUser?.username]);
 
     function goBack() {
         router.replace("/messages");

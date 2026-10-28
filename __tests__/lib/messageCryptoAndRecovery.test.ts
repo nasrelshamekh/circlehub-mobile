@@ -11,8 +11,11 @@ import {
     normalisePhrase,
     restoreRecovery,
 } from "@/services/keyRecovery";
+import { getUserDeviceKeys } from "@/api/keys";
 import {
     clearDecryptCache,
+    clearDeviceKeyCache,
+    prefetchRecipientDeviceKeys,
     decryptMessageContent,
     ENC_PREFIX,
     encryptMessageContent,
@@ -118,6 +121,7 @@ jest.mock("@/lib/session", () => ({
 describe("mobile E2EE messageCrypto and BIP39 keyRecovery", () => {
     beforeEach(() => {
         clearDecryptCache();
+        jest.clearAllMocks();
         for (const k of Object.keys(mockPublishedKeys)) {
             delete mockPublishedKeys[k];
         }
@@ -203,6 +207,97 @@ describe("mobile E2EE messageCrypto and BIP39 keyRecovery", () => {
 
         const restored = await restoreRecovery(phrase);
         expect(restored.accountKey).toEqual(accountKey);
+    });
+
+    it("caches recipient and own device keys for 5 minutes so consecutive sends make zero /api/keys HTTP calls", async () => {
+        const { record } = await ensureDeviceKey("alice");
+        mockPublishedKeys.bob = [
+            {
+                deviceId: record.deviceId,
+                publicKey: record.publicKeyB64,
+                createdAt: new Date().toISOString(),
+            },
+        ];
+
+        clearDeviceKeyCache();
+        (getUserDeviceKeys as jest.Mock).mockClear();
+
+        // First send populates both own ("alice") and recipient ("bob") caches concurrently
+        const firstCipher = await encryptMessageContent({
+            recipientUsername: "bob",
+            plaintext: "Message 1",
+        });
+        expect(firstCipher.startsWith(ENC_PREFIX)).toBe(true);
+        const initialCalls = (getUserDeviceKeys as jest.Mock).mock.calls.length;
+        expect(initialCalls).toBe(2);
+
+        // Consecutive sends within the 5-minute TTL make ZERO /api/keys network requests
+        const secondCipher = await encryptMessageContent({
+            recipientUsername: "bob",
+            plaintext: "Message 2",
+        });
+        const thirdCipher = await encryptMessageContent({
+            recipientUsername: "bob",
+            plaintext: "Message 3",
+        });
+        expect(secondCipher.startsWith(ENC_PREFIX)).toBe(true);
+        expect(thirdCipher.startsWith(ENC_PREFIX)).toBe(true);
+        expect((getUserDeviceKeys as jest.Mock).mock.calls.length).toBe(initialCalls);
+
+        await expect(decryptMessageContent(thirdCipher)).resolves.toBe("Message 3");
+    });
+
+    it("pre-warms recipient and own keys via prefetchRecipientDeviceKeys so the first send has zero /api/keys RTTs", async () => {
+        const { record } = await ensureDeviceKey("alice");
+        mockPublishedKeys.carol = [
+            {
+                deviceId: record.deviceId,
+                publicKey: record.publicKeyB64,
+                createdAt: new Date().toISOString(),
+            },
+        ];
+
+        clearDeviceKeyCache();
+        prefetchRecipientDeviceKeys("carol");
+        await new Promise((r) => setTimeout(r, 20));
+
+        (getUserDeviceKeys as jest.Mock).mockClear();
+
+        const cipher = await encryptMessageContent({
+            recipientUsername: "carol",
+            plaintext: "Zero-RTT first message!",
+        });
+        expect(cipher.startsWith(ENC_PREFIX)).toBe(true);
+        expect(getUserDeviceKeys).not.toHaveBeenCalled();
+    });
+
+    it("does not cache empty device key lists so newly onboarded E2EE recipients upgrade immediately", async () => {
+        const { record } = await ensureDeviceKey("alice");
+        mockPublishedKeys.dave = [];
+
+        const firstSend = await encryptMessageContent({
+            recipientUsername: "dave",
+            plaintext: "Before Dave has keys",
+        });
+        expect(firstSend).toBe("Before Dave has keys");
+
+        // Dave publishes his first E2EE device key moments later
+        mockPublishedKeys.dave = [
+            {
+                deviceId: record.deviceId,
+                publicKey: record.publicKeyB64,
+                createdAt: new Date().toISOString(),
+            },
+        ];
+
+        const secondSend = await encryptMessageContent({
+            recipientUsername: "dave",
+            plaintext: "After Dave published keys",
+        });
+        expect(secondSend.startsWith(ENC_PREFIX)).toBe(true);
+        await expect(decryptMessageContent(secondSend)).resolves.toBe(
+            "After Dave published keys"
+        );
     });
 });
 

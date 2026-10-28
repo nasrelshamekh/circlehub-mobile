@@ -304,17 +304,120 @@ export async function importDeviceKey(
 // legitimate reason to fall back to plaintext. A *failed* fetch means we don't know whether they
 // have keys, so it must throw: silently returning [] here would downgrade an E2EE message to
 // plaintext because of a transient network error.
-async function fetchDeviceKeys(username: string): Promise<DeviceKeyDto[]> {
-    if (!username) return [];
-    const response = await getUserDeviceKeys(username);
-    return response.data ?? [];
+export const DEVICE_KEY_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type CachedDeviceKeysEntry = {
+    keys: DeviceKeyDto[];
+    expiresAt: number;
+};
+
+type EnsuredDeviceKeyResult = {
+    record: StoredDeviceKey;
+    published: {
+        deviceId: string;
+        publicKey: string;
+        createdAt?: string;
+        lastSeenAt?: string;
+    }[];
+};
+
+const deviceKeyDirectoryCache = new Map<string, CachedDeviceKeysEntry>();
+const deviceKeyInFlight = new Map<string, Promise<DeviceKeyDto[]>>();
+let ensuredOwnKeyCache: {
+    usernameKey: string;
+    deviceId: string;
+    result: EnsuredDeviceKeyResult;
+    expiresAt: number;
+} | null = null;
+
+function normalizeUsernameKey(username?: string | null): string {
+    return (username ?? "").trim().toLowerCase();
+}
+
+export function clearDeviceKeyCache(username?: string | null): void {
+    if (username) {
+        const key = normalizeUsernameKey(username);
+        if (key) {
+            deviceKeyDirectoryCache.delete(key);
+            deviceKeyInFlight.delete(key);
+            if (ensuredOwnKeyCache?.usernameKey === key) {
+                ensuredOwnKeyCache = null;
+            }
+        }
+        return;
+    }
+    deviceKeyDirectoryCache.clear();
+    deviceKeyInFlight.clear();
+    ensuredOwnKeyCache = null;
+}
+
+async function fetchDeviceKeys(
+    username: string,
+    options?: { forceRefresh?: boolean }
+): Promise<DeviceKeyDto[]> {
+    const trimmed = username?.trim();
+    if (!trimmed) return [];
+
+    const cacheKey = normalizeUsernameKey(trimmed);
+    const now = Date.now();
+
+    if (!options?.forceRefresh) {
+        const cached = deviceKeyDirectoryCache.get(cacheKey);
+        if (cached && cached.expiresAt > now) {
+            return cached.keys;
+        }
+    }
+
+    const inFlight = deviceKeyInFlight.get(cacheKey);
+    if (inFlight && !options?.forceRefresh) {
+        return inFlight;
+    }
+
+    const promise = (async () => {
+        const response = await getUserDeviceKeys(trimmed);
+        const keys = response.data ?? [];
+        // Only cache non-empty device key lists so a recipient who publishes their very first E2EE
+        // key moments later is upgraded to encrypted delivery immediately on the next send.
+        if (keys.length > 0) {
+            deviceKeyDirectoryCache.set(cacheKey, {
+                keys,
+                expiresAt: Date.now() + DEVICE_KEY_CACHE_TTL_MS,
+            });
+        } else {
+            deviceKeyDirectoryCache.delete(cacheKey);
+        }
+        return keys;
+    })().finally(() => {
+        if (deviceKeyInFlight.get(cacheKey) === promise) {
+            deviceKeyInFlight.delete(cacheKey);
+        }
+    });
+
+    deviceKeyInFlight.set(cacheKey, promise);
+    return promise;
 }
 
 export async function publishKey(
     deviceId: string,
     publicKey: string
 ): Promise<void> {
+    clearDeviceKeyCache();
     await registerDeviceKey(deviceId, publicKey);
+    clearDeviceKeyCache();
+}
+
+/**
+ * Pre-warms the recipient's published device keys (and this device's own key state) when opening a
+ * conversation thread so the first and subsequent message sends execute with zero `/api/keys` RTTs.
+ */
+export function prefetchRecipientDeviceKeys(
+    recipientUsername?: string | null
+): void {
+    const trimmed = recipientUsername?.trim();
+    if (trimmed) {
+        fetchDeviceKeys(trimmed).catch(() => undefined);
+    }
+    ensureDeviceKey().catch(() => undefined);
 }
 
 /**
@@ -331,12 +434,27 @@ export function isLivenessStale(
     return !Number.isFinite(seenAt) || now - seenAt > LIVENESS_REFRESH_MS;
 }
 
-let ensurePromise: Promise<{
-    record: StoredDeviceKey;
-    published: { deviceId: string; publicKey: string }[];
-}> | null = null;
+let ensurePromise: Promise<EnsuredDeviceKeyResult> | null = null;
 
 export function ensureDeviceKey(explicitUsername?: string | null) {
+    if (
+        ensuredOwnKeyCache &&
+        ensuredOwnKeyCache.expiresAt > Date.now() &&
+        (!explicitUsername ||
+            normalizeUsernameKey(explicitUsername) ===
+                ensuredOwnKeyCache.usernameKey) &&
+        (!memoryDeviceId || memoryDeviceId === ensuredOwnKeyCache.deviceId) &&
+        Boolean(
+            memoryKeys?.some(
+                (entry) =>
+                    entry.publicKeyB64 ===
+                    ensuredOwnKeyCache?.result.record.publicKeyB64
+            )
+        )
+    ) {
+        return Promise.resolve(ensuredOwnKeyCache.result);
+    }
+
     if (!ensurePromise) {
         ensurePromise = runEnsureDeviceKey(explicitUsername).finally(() => {
             ensurePromise = null;
@@ -345,12 +463,57 @@ export function ensureDeviceKey(explicitUsername?: string | null) {
     return ensurePromise;
 }
 
-async function runEnsureDeviceKey(explicitUsername?: string | null) {
+function cacheEnsuredOwnKey(
+    username: string,
+    deviceId: string,
+    result: EnsuredDeviceKeyResult
+): EnsuredDeviceKeyResult {
+    const usernameKey = normalizeUsernameKey(username);
+    const expiresAt = Date.now() + DEVICE_KEY_CACHE_TTL_MS;
+    ensuredOwnKeyCache = {
+        usernameKey,
+        deviceId,
+        result,
+        expiresAt,
+    };
+    if (result.published.length > 0) {
+        deviceKeyDirectoryCache.set(usernameKey, {
+            keys: result.published.map((k) => ({
+                deviceId: k.deviceId,
+                publicKey: k.publicKey,
+                createdAt: k.createdAt ?? new Date().toISOString(),
+                lastSeenAt: k.lastSeenAt,
+            })),
+            expiresAt,
+        });
+    }
+    return result;
+}
+
+async function runEnsureDeviceKey(
+    explicitUsername?: string | null
+): Promise<EnsuredDeviceKeyResult> {
     const username = explicitUsername ?? (await currentUsernameFromToken());
     if (!username) throw new Error("Not signed in");
 
+    const usernameKey = normalizeUsernameKey(username);
     const deviceId = await getDeviceId();
     const stored = await loadStoredKeys();
+
+    if (
+        ensuredOwnKeyCache &&
+        ensuredOwnKeyCache.expiresAt > Date.now() &&
+        ensuredOwnKeyCache.usernameKey === usernameKey &&
+        ensuredOwnKeyCache.deviceId === deviceId &&
+        stored.some(
+            (entry) =>
+                entry.publicKeyB64 ===
+                ensuredOwnKeyCache?.result.record.publicKeyB64
+        )
+    ) {
+        return ensuredOwnKeyCache.result;
+    }
+
     const published = await fetchDeviceKeys(username);
     const mine = published.find((key) => key.deviceId === deviceId);
 
@@ -364,20 +527,25 @@ async function runEnsureDeviceKey(explicitUsername?: string | null) {
             // used every day would still be pruned a month after it first signed in. Re-publish
             // once the stamp is a day old: one cheap upsert a day keeps an active device alive.
             if (isLivenessStale(mine)) {
-                publishKey(deviceId, record.publicKeyB64).catch(() => undefined);
+                registerDeviceKey(deviceId, record.publicKeyB64).catch(
+                    () => undefined
+                );
             }
-            return { record, published };
+            return cacheEnsuredOwnKey(username, deviceId, {
+                record,
+                published,
+            });
         }
 
         const fresh = await createAndStoreKey(deviceId);
         await publishKey(deviceId, fresh.publicKeyB64);
-        return {
+        return cacheEnsuredOwnKey(username, deviceId, {
             record: fresh,
             published: [
                 ...published.filter((key) => key.deviceId !== deviceId),
                 { deviceId, publicKey: fresh.publicKeyB64 },
             ],
-        };
+        });
     }
 
     const ours = stored
@@ -386,24 +554,24 @@ async function runEnsureDeviceKey(explicitUsername?: string | null) {
 
     if (ours.length > 0) {
         await publishKey(deviceId, ours[0].publicKeyB64);
-        return {
+        return cacheEnsuredOwnKey(username, deviceId, {
             record: ours[0],
             published: [
                 ...published,
                 { deviceId, publicKey: ours[0].publicKeyB64 },
             ],
-        };
+        });
     }
 
     const fresh = await createAndStoreKey(deviceId);
     await publishKey(deviceId, fresh.publicKeyB64);
-    return {
+    return cacheEnsuredOwnKey(username, deviceId, {
         record: fresh,
         published: [
             ...published,
             { deviceId, publicKey: fresh.publicKeyB64 },
         ],
-    };
+    });
 }
 
 function deriveWrapKey(
@@ -479,10 +647,18 @@ export async function encryptMessageContent({
         );
     }
 
+    const ownKeyPromise = ensureDeviceKey().then(
+        (res) => ({ ok: true as const, value: res }),
+        (error: unknown) => ({ ok: false as const, error })
+    );
     const recipientKeys = await fetchDeviceKeys(recipientUsername);
     if (recipientKeys.length === 0) return plaintext;
 
-    const { published: ownKeys } = await ensureDeviceKey();
+    const ownOutcome = await ownKeyPromise;
+    if (!ownOutcome.ok) {
+        throw ownOutcome.error;
+    }
+    const { published: ownKeys } = ownOutcome.value;
 
     // Dedupe: a user messaging themselves (or the same key listed twice) must not get two wraps.
     const currentDeviceId = await getDeviceId();
@@ -759,5 +935,6 @@ export function peekDecrypted(content?: string | null): string | null {
 export function clearDecryptCache(): void {
     decryptCache.clear();
     settledCache.clear();
+    clearDeviceKeyCache();
     notifyDecryptCacheChanged();
 }
