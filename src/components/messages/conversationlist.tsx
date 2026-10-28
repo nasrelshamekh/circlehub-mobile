@@ -61,6 +61,7 @@ const ConversationRow = memo(function ConversationRow({
                     pathname: "/messages/[id]",
                     params: {
                         id: conversation.id,
+                        recipientId: conversation.otherUser.id,
                         name: conversation.otherUser.name,
                         username: conversation.otherUser.username,
                         avatarUrl: conversation.otherUser.avatarUrl || undefined,

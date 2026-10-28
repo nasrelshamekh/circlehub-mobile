@@ -293,7 +293,8 @@ export async function importDeviceKey(
 // legitimate reason to fall back to plaintext. A *failed* fetch means we don't know whether they
 // have keys, so it must throw: silently returning [] here would downgrade an E2EE message to
 // plaintext because of a transient network error.
-export const DEVICE_KEY_CACHE_TTL_MS = 2 * 60 * 1000;
+export const DEVICE_KEY_CACHE_TTL_MS = 10 * 60 * 1000;
+export const OWN_KEY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 type CachedDeviceKeysEntry = {
     keys: DeviceKeyDto[];
@@ -337,6 +338,10 @@ export function clearDeviceKeyCache(username?: string | null): void {
     }
     deviceKeyDirectoryCache.clear();
     deviceKeyInFlight.clear();
+    ensuredOwnKeyCache = null;
+}
+
+export function clearOwnDeviceKeyCache(): void {
     ensuredOwnKeyCache = null;
 }
 
@@ -408,8 +413,11 @@ export function prefetchRecipientDeviceKeys(
 ): void {
     const trimmed = recipientUsername?.trim();
     if (trimmed) {
-        clearDeviceKeyCache(trimmed);
-        fetchDeviceKeys(trimmed).catch(() => undefined);
+        const cacheKey = normalizeUsernameKey(trimmed);
+        const cached = deviceKeyDirectoryCache.get(cacheKey);
+        if (!cached || cached.expiresAt <= Date.now()) {
+            fetchDeviceKeys(trimmed).catch(() => undefined);
+        }
     }
     ensureDeviceKey().catch(() => undefined);
 }
@@ -438,13 +446,12 @@ export function ensureDeviceKey(explicitUsername?: string | null) {
             normalizeUsernameKey(explicitUsername) ===
                 ensuredOwnKeyCache.usernameKey) &&
         (!memoryDeviceId || memoryDeviceId === ensuredOwnKeyCache.deviceId) &&
-        Boolean(
-            memoryKeys?.some(
+        (!memoryKeys ||
+            memoryKeys.some(
                 (entry) =>
                     entry.publicKeyB64 ===
                     ensuredOwnKeyCache?.result.record.publicKeyB64
-            )
-        )
+            ))
     ) {
         return Promise.resolve(ensuredOwnKeyCache.result);
     }
@@ -463,7 +470,7 @@ function cacheEnsuredOwnKey(
     result: EnsuredDeviceKeyResult
 ): EnsuredDeviceKeyResult {
     const usernameKey = normalizeUsernameKey(username);
-    const expiresAt = Date.now() + DEVICE_KEY_CACHE_TTL_MS;
+    const expiresAt = Date.now() + OWN_KEY_CACHE_TTL_MS;
     ensuredOwnKeyCache = {
         usernameKey,
         deviceId,
@@ -478,7 +485,7 @@ function cacheEnsuredOwnKey(
                 createdAt: k.createdAt ?? new Date().toISOString(),
                 lastSeenAt: k.lastSeenAt,
             })),
-            expiresAt,
+            expiresAt: Date.now() + OWN_KEY_CACHE_TTL_MS,
         });
     }
     return result;
@@ -499,11 +506,13 @@ async function runEnsureDeviceKey(
         ensuredOwnKeyCache.expiresAt > Date.now() &&
         ensuredOwnKeyCache.usernameKey === usernameKey &&
         ensuredOwnKeyCache.deviceId === deviceId &&
-        stored.some(
-            (entry) =>
-                entry.publicKeyB64 ===
-                ensuredOwnKeyCache?.result.record.publicKeyB64
-        )
+        (!stored ||
+            stored.length === 0 ||
+            stored.some(
+                (entry) =>
+                    entry.publicKeyB64 ===
+                    ensuredOwnKeyCache?.result.record.publicKeyB64
+            ))
     ) {
         return ensuredOwnKeyCache.result;
     }

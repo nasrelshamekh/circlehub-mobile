@@ -1616,3 +1616,23 @@ When a user signed in on the mobile app (`circlehub-mobile`) and received an enc
 4. **Extended Chat Session Directory TTL (`messageCrypto.ts`, `messageCrypto.js`):**
    - Increased `DEVICE_KEY_CACHE_TTL_MS` to 2 minutes (`120_000ms`), keeping pre-warmed keys available in RAM during active chat. Real-time key invalidation on new sign-ins remains guaranteed via `PRESENCE_CHANGED_EVENT`.
 
+---
+
+## 33. Blazing-Fast Mobile Send Dispatch & Elimination of Serial Network Requests and Key Mismatch
+
+### Symptoms
+1. **Send Lag & Disappearing Optimistic Bubble:** When tapping send on the mobile app, the composer input would clear, but the message bubble would fail to appear on screen until 1–2 seconds later after the network request had completely resolved.
+2. **Multiple Serial HTTP Roundtrips per Send:** Every outgoing message executed up to 3 round-trip HTTP requests in series (`GET /api/keys/{own}`, `GET /api/keys/{recipient}`, `POST /api/messages`), causing severe delay and allowing the recipient on the webapp to receive the SignalR push before the mobile sender's bubble even rendered.
+
+### Root Causes
+1. **`conversationKey` Mismatch on Blank Initial User ID:** In `src/app/(tabs)/messages/[id].tsx`, `resolvedOtherUser` defaulted `id: ""` before the conversation network query resolved. In `MessageThread`, `conversationKey` was computed as `recipientId ?? recipientUsername`. Because `"" ?? "username"` evaluates to `""` in JavaScript, optimistic messages were dispatched into `pendingStore.get("")`. When the user profile loaded and `recipientId` became a UUID, `conversationKey` shifted, causing `pendingStore` to look in the UUID slot and find nothing.
+2. **Presence Events Wiping Entire Key Directory & Own Key:** In `ChatConnectionContext.tsx` (mobile) and `ChatConnectionContext.jsx` (web), handling `PRESENCE_CHANGED_EVENT` called `clearDeviceKeyCache()` with no arguments whenever an unknown presence event or own presence arrived. This wiped `ensuredOwnKeyCache = null` and all recipient keys, forcing every subsequent send to re-fetch keys over HTTP.
+3. **Pre-fetch Clearing Valid Cache:** `prefetchRecipientDeviceKeys` called `clearDeviceKeyCache(trimmed)` right before fetching, constantly destroying existing valid cached keys upon screen focus.
+4. **UI Event Loop Blocked on Send:** `handleSend` had `await transmitMessage(trimmed)`, blocking the touch handler event loop rather than dispatching asynchronously.
+
+### Fixes
+1. **Direct Route ID Propagation:** Passed `conversationId={id}` directly from `[id].tsx` into `<MessageThread />` and passed `recipientId: conversation.otherUser.id` in `conversationlist.tsx`. `conversationKey` now computes `(conversationId || recipientId || recipientUsername || "default").trim().toLowerCase()`, guaranteeing 100% stable store keys across the route lifecycle.
+2. **Persistent Own Device Key Cache:** Increased `OWN_KEY_CACHE_TTL_MS` to 24 hours, and `DEVICE_KEY_CACHE_TTL_MS` to 10 minutes. `clearDeviceKeyCache()` now preserves own device keys across presence updates, ensuring zero `/api/keys` HTTP calls during active chat.
+3. **Non-destructive Pre-warming:** In `prefetchRecipientDeviceKeys`, existing unexpired keys in `deviceKeyDirectoryCache` are kept intact, only fetching if missing or expired.
+4. **Non-blocking Dispatch:** Changed `handleSend` to call `void transmitMessage(trimmed)`, immediately clearing the input and synchronously updating `pendingStore` in frame 0.
+

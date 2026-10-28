@@ -748,11 +748,7 @@ export function ChatConnectionProvider({
                     );
                     if (matchedConv?.otherUser?.username) {
                         clearDeviceKeyCache(matchedConv.otherUser.username);
-                    } else {
-                        clearDeviceKeyCache();
                     }
-                } else {
-                    clearDeviceKeyCache();
                 }
 
                 queryClient.setQueriesData<

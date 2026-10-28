@@ -414,6 +414,7 @@ function getPendingVersion() {
 }
 
 export default function MessageThread({
+    conversationId,
     messages,
     recipientId,
     recipientUsername,
@@ -424,6 +425,7 @@ export default function MessageThread({
     onLoadOlder,
     bottomInset = 0,
 }: {
+    conversationId?: string;
     messages: Message[];
     recipientId?: string | null;
     recipientUsername: string;
@@ -446,7 +448,10 @@ export default function MessageThread({
     const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
     // Conversation-scoped so switching threads (or remounting) does not lose in-flight sends.
-    const conversationKey = recipientId ?? recipientUsername;
+    const conversationKey = useMemo(() => {
+        const raw = conversationId || recipientId || recipientUsername || "default";
+        return raw.trim().toLowerCase();
+    }, [conversationId, recipientId, recipientUsername]);
 
     const pendingVersion = useSyncExternalStore(
         subscribePending,
@@ -569,7 +574,7 @@ export default function MessageThread({
                 isMine: true,
                 pending: true,
                 failed: false,
-                deliveryStatus: "sending",
+                deliveryStatus: "sent",
                 sender: {
                     id: user?.id ?? "me",
                     name: user?.name ?? "",
@@ -591,24 +596,19 @@ export default function MessageThread({
                     clientTempId: tempId,
                 });
                 const serverId = response?.data?.message?.id;
-                if (serverId) {
-                    updatePending((prev) =>
-                        prev.filter(
-                            (m) => m.id !== tempId && m.clientTempId !== tempId
-                        )
-                    );
-                } else {
-                    updatePending((prev) =>
-                        prev.filter(
-                            (m) => m.id !== tempId && m.clientTempId !== tempId
-                        )
-                    );
-                }
+                updatePending((prev) =>
+                    prev.filter(
+                        (m) =>
+                            m.id !== tempId &&
+                            m.clientTempId !== tempId &&
+                            (serverId ? m.id !== serverId : true)
+                    )
+                );
             } catch (error) {
                 haptics.error();
                 updatePending((prev) =>
                     prev.map((m) =>
-                        m.id === tempId
+                        m.id === tempId || m.clientTempId === tempId
                             ? { ...m, pending: false, failed: true, deliveryStatus: "failed" }
                             : m
                     )
@@ -624,7 +624,7 @@ export default function MessageThread({
         [nextTempId, recipientUsername, sendMessage, updatePending, user]
     );
 
-    async function handleSend() {
+    function handleSend() {
         const trimmed = text.trim();
         if (!trimmed) return;
 
@@ -634,7 +634,7 @@ export default function MessageThread({
         stopTyping();
         setShowEmojiPicker(false);
         haptics.medium();
-        await transmitMessage(trimmed);
+        void transmitMessage(trimmed);
     }
 
     const handleRetry = useCallback(

@@ -29,6 +29,7 @@ import { ApiError } from "@/types/api";
 export default function MessageThreadScreen() {
     const params = useLocalSearchParams<{
         id: string;
+        recipientId?: string;
         name?: string;
         username?: string;
         avatarUrl?: string;
@@ -123,7 +124,7 @@ export default function MessageThreadScreen() {
         otherUser ??
         (params.name
             ? {
-                  id: "",
+                  id: params.recipientId || "",
                   name: params.name,
                   username: params.username ?? "",
                   avatarUrl: params.avatarUrl || null,
@@ -269,6 +270,7 @@ export default function MessageThreadScreen() {
             ) : (
                 <View className="flex-1 bg-surface-low">
                     <MessageThread
+                        conversationId={id}
                         messages={messages}
                         recipientId={resolvedOtherUser?.id}
                         recipientUsername={resolvedOtherUser?.username ?? ""}
