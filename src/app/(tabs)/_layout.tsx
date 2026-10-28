@@ -108,7 +108,13 @@ export default function TabsLayout() {
             <Tabs.Screen name="profile/[username]" options={{ href: null }} />
             <Tabs.Screen name="followers/[username]" options={{ href: null }} />
             <Tabs.Screen name="messages" options={{ href: null }} />
-            <Tabs.Screen name="messages/[id]" options={{ href: null }} />
+            <Tabs.Screen
+                name="messages/[id]"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: "none" },
+                }}
+            />
             <Tabs.Screen name="notifications" options={{ href: null }} />
             <Tabs.Screen name="community/[slug]" options={{ href: null }} />
             <Tabs.Screen name="community-manage" options={{ href: null }} />

@@ -3,12 +3,16 @@ import { ChevronLeft } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
     BackHandler,
-    KeyboardAvoidingView,
+    Dimensions,
+    Keyboard,
+    type KeyboardEvent,
+    Platform,
     Pressable,
+    StatusBar,
     Text,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
 import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
@@ -35,9 +39,57 @@ export default function MessageThreadScreen() {
         lastSeenAt?: string;
     }>();
     const id = params.id;
+    const insets = useSafeAreaInsets();
+    const topInset =
+        Platform.OS === "android"
+            ? Math.max(insets.top, StatusBar.currentHeight ?? 0)
+            : insets.top;
+    const bottomInset = insets.bottom;
     const { isDark } = useTheme();
     const { setActiveConversationId } = useChatConnection();
     const [isFocused, setIsFocused] = useState(true);
+    const [rootHeight, setRootHeight] = useState(
+        () => Dimensions.get("window").height
+    );
+    const [keyboardMetrics, setKeyboardMetrics] = useState<{
+        height: number;
+        screenY: number;
+    } | null>(null);
+
+    useEffect(() => {
+        if (Platform.OS === "web") return;
+
+        const handleKeyboardShow = (event: KeyboardEvent) => {
+            setKeyboardMetrics({
+                height: event.endCoordinates.height,
+                screenY: event.endCoordinates.screenY,
+            });
+        };
+        const handleKeyboardHide = () => {
+            setKeyboardMetrics(null);
+        };
+
+        const subscriptions =
+            Platform.OS === "ios"
+                ? [
+                      Keyboard.addListener("keyboardWillShow", handleKeyboardShow),
+                      Keyboard.addListener(
+                          "keyboardWillChangeFrame",
+                          handleKeyboardShow
+                      ),
+                      Keyboard.addListener("keyboardWillHide", handleKeyboardHide),
+                  ]
+                : [
+                      Keyboard.addListener("keyboardDidShow", handleKeyboardShow),
+                      Keyboard.addListener("keyboardDidHide", handleKeyboardHide),
+                  ];
+
+        return () => {
+            for (const sub of subscriptions) {
+                sub.remove();
+            }
+        };
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -111,8 +163,30 @@ export default function MessageThreadScreen() {
         return () => sub.remove();
     }, [isFocused]);
 
+    const isKeyboardOpen = Boolean(
+        keyboardMetrics && keyboardMetrics.height > 0
+    );
+    let keyboardOffset = 0;
+    if (isKeyboardOpen && keyboardMetrics) {
+        if (keyboardMetrics.screenY > 0 && rootHeight > 0) {
+            keyboardOffset = Math.max(rootHeight - keyboardMetrics.screenY, 0);
+        } else {
+            keyboardOffset = keyboardMetrics.height;
+        }
+    }
+    const bottomSafeOffset = isKeyboardOpen ? keyboardOffset : bottomInset;
+
     return (
-        <SafeAreaView className="flex-1 bg-surface-lowest" edges={["top"]}>
+        <View
+            className="flex-1 bg-surface-lowest"
+            style={{ paddingTop: topInset }}
+            onLayout={(event) => {
+                const nextHeight = event.nativeEvent.layout.height;
+                if (nextHeight > 0 && nextHeight !== rootHeight) {
+                    setRootHeight(nextHeight);
+                }
+            }}
+        >
             <View className="flex-row items-center gap-1 px-2 py-2">
                 <Pressable
                     onPress={goBack}
@@ -177,9 +251,25 @@ export default function MessageThreadScreen() {
             </View>
 
             {isLoading ? (
-                <MessageThreadSkeleton />
+                <View
+                    className="flex-1 bg-surface-low"
+                    style={
+                        bottomInset > 0
+                            ? { paddingBottom: bottomInset }
+                            : undefined
+                    }
+                >
+                    <MessageThreadSkeleton />
+                </View>
             ) : error ? (
-                <View className="flex-1 items-center justify-center bg-surface-low px-6">
+                <View
+                    className="flex-1 items-center justify-center bg-surface-low px-6"
+                    style={
+                        bottomInset > 0
+                            ? { paddingBottom: bottomInset }
+                            : undefined
+                    }
+                >
                     <Text className="text-center text-body-sm text-error">
                         {error instanceof ApiError
                             ? error.message
@@ -196,10 +286,7 @@ export default function MessageThreadScreen() {
                     />
                 </View>
             ) : (
-                <KeyboardAvoidingView
-                    className="flex-1 bg-surface-low"
-                    behavior="padding"
-                >
+                <View className="flex-1 bg-surface-low">
                     <MessageThread
                         messages={messages}
                         recipientId={resolvedOtherUser?.id}
@@ -209,9 +296,10 @@ export default function MessageThreadScreen() {
                         isLoading={isLoading}
                         isLoadingOlder={isLoadingOlder}
                         onLoadOlder={loadOlder}
+                        bottomInset={bottomSafeOffset}
                     />
-                </KeyboardAvoidingView>
+                </View>
             )}
-        </SafeAreaView>
+        </View>
     );
 }

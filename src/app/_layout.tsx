@@ -73,7 +73,6 @@ function RootNavigator() {
             StatusBar.setBarStyle(isDark ? "light-content" : "dark-content");
             try {
                 (NavigationBar as any).setStyle?.(isDark ? "light" : "dark");
-                (NavigationBar as any).setBackgroundColorAsync?.(stackBackground).catch(() => {});
             } catch {}
         }
     }, [isDark, stackBackground]);

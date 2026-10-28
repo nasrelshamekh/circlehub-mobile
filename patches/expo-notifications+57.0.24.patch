@@ -137,7 +137,7 @@ index 4648af1..c33686b 100644
            "notifications",
            String.format(
 diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
-index 610d303..7229c75 100644
+index 610d303..446d9cd 100644
 --- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 +++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
 @@ -5,6 +5,7 @@ import android.content.Context
@@ -177,7 +177,7 @@ index 610d303..7229c75 100644
 +    val customAvatarUrl = extrasData?.optCleanString("senderAvatarUrl")
 +    val avatarBitmap = customAvatarUrl?.let {
 +      try {
-+        downloadImage(Uri.parse(it))?.let { bmp ->
++        downloadImage(Uri.parse(it), connectTimeout = 2500L, readTimeout = 2500L)?.let { bmp ->
 +          val srcSize = min(bmp.width, bmp.height)
 +          val outSize = min(srcSize, 192)
 +          if (outSize <= 0) {
@@ -340,11 +340,199 @@ index 610d303..7229c75 100644
      return builder.build()
    }
  
+diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt
+index f1e7e36..5f1586f 100644
+--- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt
++++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoHandlingDelegate.kt
+@@ -40,12 +40,14 @@ class ExpoHandlingDelegate(protected val context: Context) : HandlingDelegate {
+      * @param listener A listener instance to be informed of new push device tokens.
+      */
+     fun addListener(listener: NotificationManager) {
+-      if (sListenersReferences.containsKey(listener)) {
+-        // Listener is already registered
+-        return
+-      }
++      synchronized(sListenersReferences) {
++        if (sListenersReferences.containsKey(listener)) {
++          // Listener is already registered
++          return
++        }
+ 
+-      sListenersReferences[listener] = WeakReference(listener)
++        sListenersReferences[listener] = WeakReference(listener)
++      }
+       val responseIterator = sPendingNotificationResponses.iterator()
+       while (responseIterator.hasNext()) {
+         listener.onNotificationResponseReceived(responseIterator.next())
+@@ -109,11 +111,45 @@ class ExpoHandlingDelegate(protected val context: Context) : HandlingDelegate {
+           Log.w("expo-notifications", "getLaunchIntentForPackage threw while resolving the main activity launcher; treating as no launch intent.", it)
+         }
+         .getOrNull()
++
++    fun isAppProcessInForeground(context: Context): Boolean {
++      return try {
++        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
++        if (keyguardManager?.isKeyguardLocked == true) {
++          return false
++        }
++
++        val hasActiveListeners = synchronized(sListenersReferences) {
++          sListenersReferences.values.any { it.get() != null }
++        }
++        if (!hasActiveListeners) {
++          return false
++        }
++
++        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
++          return ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
++        }
++
++        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
++          ?: return false
++        val myPid = android.os.Process.myPid()
++        val pkgName = context.packageName
++        val processes = activityManager.runningAppProcesses ?: return false
++        processes.any { proc ->
++          (proc.pid == myPid || proc.processName == pkgName) &&
++            proc.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
++        }
++      } catch (_: Throwable) {
++        false
++      }
++    }
+   }
+ 
+-  fun isAppInForeground() = ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
++  fun isAppInForeground(): Boolean = isAppProcessInForeground(context)
+ 
+-  fun getListeners() = sListenersReferences.values.mapNotNull { it.get() }
++  fun getListeners() = synchronized(sListenersReferences) {
++    sListenersReferences.values.mapNotNull { it.get() }
++  }
+ 
+   override fun handleNotification(notification: Notification) {
+     /**
+@@ -158,10 +194,13 @@ class ExpoHandlingDelegate(protected val context: Context) : HandlingDelegate {
+     // The foreground TaskManager gets misclassified as headless (via isStartedByHeadlessLoader),
+     // then wiped by invalidateAppRecord — breaking all subsequent background task execution.
+     if (!isAppInForeground() && notificationResponse.actionIdentifier != NotificationResponse.DEFAULT_ACTION_IDENTIFIER) {
+-      FirebaseMessagingDelegate.runTaskManagerTasks(
+-        context.applicationContext,
+-        NotificationSerializer.toBundle(notificationResponse)
+-      )
++      try {
++        FirebaseMessagingDelegate.runTaskManagerTasks(
++          context.applicationContext,
++          NotificationSerializer.toBundle(notificationResponse)
++        )
++      } catch (_: Throwable) {
++      }
+     }
+ 
+     // NOTE the listeners are not set up when the app is killed
+diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
+index 38f6fba..a480096 100644
+--- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
++++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
+@@ -102,14 +102,26 @@ open class ExpoPresentationDelegate(
+       }
+       return
+     }
+-    CoroutineScope(Dispatchers.IO).launch {
+-      val androidNotification = createNotification(notification, behavior)
+-
+-      NotificationManagerCompat.from(context).notify(
+-        notification.notificationRequest.identifier,
+-        getNotifyId(notification.notificationRequest),
+-        androidNotification
+-      )
++    if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
++      kotlinx.coroutines.runBlocking {
++        val androidNotification = createNotification(notification, behavior)
++
++        NotificationManagerCompat.from(context).notify(
++          notification.notificationRequest.identifier,
++          getNotifyId(notification.notificationRequest),
++          androidNotification
++        )
++      }
++    } else {
++      CoroutineScope(Dispatchers.IO).launch {
++        val androidNotification = createNotification(notification, behavior)
++
++        NotificationManagerCompat.from(context).notify(
++          notification.notificationRequest.identifier,
++          getNotifyId(notification.notificationRequest),
++          androidNotification
++        )
++      }
+     }
+   }
+ 
 diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt
-index eecdae8..19b4fd9 100644
+index eecdae8..92c5db0 100644
 --- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt
 +++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/FirebaseMessagingDelegate.kt
-@@ -126,7 +126,19 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
+@@ -82,12 +82,15 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
+     fun getBackgroundTasks(): List<BackgroundRemoteNotificationTaskConsumer> = sBackgroundTaskConsumers.toList()
+ 
+     fun runTaskManagerTasks(applicationContext: Context, bundle: Bundle) {
+-      // getTaskServiceImpl() has a side effect:
+-      // the TaskService constructor calls restoreTasks which then constructs a BackgroundRemoteNotificationTaskConsumer,
+-      // and the getBackgroundTasks() call below doesn't return an empty collection.
+-      TaskServiceProviderHelper.getTaskServiceImpl(applicationContext)
+-      getBackgroundTasks().forEach {
+-        it.executeTask(bundle)
++      try {
++        // getTaskServiceImpl() has a side effect:
++        // the TaskService constructor calls restoreTasks which then constructs a BackgroundRemoteNotificationTaskConsumer,
++        // and the getBackgroundTasks() call below doesn't return an empty collection.
++        TaskServiceProviderHelper.getTaskServiceImpl(applicationContext)
++        getBackgroundTasks().forEach {
++          it.executeTask(bundle)
++        }
++      } catch (_: Throwable) {
+       }
+     }
+   }
+@@ -109,7 +112,35 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
+     DebugLogging.logRemoteMessage("FirebaseMessagingDelegate.onMessageReceived: message", remoteMessage)
+     val notification = createNotification(remoteMessage)
+     DebugLogging.logNotification("FirebaseMessagingDelegate.onMessageReceived: notification", notification)
+-    NotificationsService.receive(context, notification)
++    if (ExpoHandlingDelegate.isAppProcessInForeground(context)) {
++      NotificationsService.receive(context, notification)
++    } else {
++      val content = notification.notificationRequest.content
++      val shouldPresent = !(content.title.isNullOrEmpty() && content.text.isNullOrEmpty())
++      if (shouldPresent) {
++        try {
++          kotlinx.coroutines.runBlocking {
++            val androidNotification = expo.modules.notifications.notifications.presentation.builders.ExpoNotificationBuilder(
++              context,
++              notification,
++              SharedPreferencesNotificationCategoriesStore(context)
++            ).build()
++            androidx.core.app.NotificationManagerCompat.from(context).notify(
++              notification.notificationRequest.identifier,
++              0,
++              androidNotification
++            )
++          }
++        } catch (e: Throwable) {
++          android.util.Log.e(
++            "expo-notifications",
++            "Direct background notification presentation failed; falling back to NotificationsService.",
++            e
++          )
++          NotificationsService.present(context, notification)
++        }
++      }
++    }
+     runTaskManagerTasks(context.applicationContext, RemoteMessageSerializer.toBundle(remoteMessage))
+   }
+ 
+@@ -126,7 +157,19 @@ open class FirebaseMessagingDelegate(protected val context: Context) : FirebaseM
     * the existing notification is replaced, but the ID can remain constant.
     */
    protected fun getNotificationIdentifier(remoteMessage: RemoteMessage): String {

@@ -1,0 +1,20 @@
+diff --git a/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt b/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt
+index b29e787..db25fb7 100644
+--- a/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt
++++ b/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt
+@@ -27,6 +27,7 @@ class SafeAreaView(context: Context?) :
+ 
+   fun setStateWrapper(stateWrapper: StateWrapper?) {
+     mStateWrapper = stateWrapper
++    updateInsets()
+   }
+ 
+   private fun updateInsets() {
+@@ -143,6 +144,7 @@ class SafeAreaView(context: Context?) :
+     super.onDetachedFromWindow()
+     mProviderView?.viewTreeObserver?.removeOnPreDrawListener(this)
+     mProviderView = null
++    mInsets = null
+   }
+ 
+   override fun onPreDraw(): Boolean {

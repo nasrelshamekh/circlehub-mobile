@@ -1,8 +1,8 @@
 import { router } from "expo-router";
 import { Bell, MessageCircle, Moon, Network } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Modal, Pressable, Text, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image, Modal, Platform, Pressable, StatusBar, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
 import { useAuth } from "@/context/authcontext";
@@ -14,6 +14,10 @@ import { themeColors } from "@/theme/colors";
 
 export default function Header() {
     const insets = useSafeAreaInsets();
+    const topInset =
+        Platform.OS === "android"
+            ? Math.max(insets.top, StatusBar.currentHeight ?? 0)
+            : insets.top;
     const { openSidebar } = useSidebarDrawer();
     const [menuOpen, setMenuOpen] = useState(false);
     const { isDark, toggleTheme } = useTheme();
@@ -35,7 +39,7 @@ export default function Header() {
     }
 
     return (
-        <SafeAreaView edges={["top"]} className="bg-background">
+        <View className="bg-background" style={{ paddingTop: topInset }}>
             <View className="relative z-50">
                 <View className="h-16 flex-row items-center justify-between px-4">
                     <Pressable
@@ -136,7 +140,7 @@ export default function Header() {
                     />
 
                     <View
-                        style={{ top: insets.top + 56 }}
+                        style={{ top: topInset + 56 }}
                         className="absolute right-4 w-[200px] rounded-lg bg-surface-lowest py-1 shadow-lg"
                     >
                         <Text className="px-4 pb-1 pt-3 text-body-md font-bold text-text-secondary">
@@ -192,6 +196,6 @@ export default function Header() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }

@@ -3,13 +3,15 @@ import { ChevronLeft, SquarePen } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
     BackHandler,
+    Platform,
     Pressable,
     RefreshControl,
     ScrollView,
+    StatusBar,
     Text,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import ConversationList from "@/components/messages/conversationlist";
@@ -23,6 +25,11 @@ import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 
 export default function Messages() {
+    const insets = useSafeAreaInsets();
+    const topInset =
+        Platform.OS === "android"
+            ? Math.max(insets.top, StatusBar.currentHeight ?? 0)
+            : insets.top;
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
 
@@ -65,7 +72,10 @@ export default function Messages() {
     );
 
     return (
-        <SafeAreaView className="flex-1 bg-surface-low" edges={["top"]}>
+        <View
+            className="flex-1 bg-surface-low"
+            style={{ paddingTop: topInset }}
+        >
             <View className="flex-row items-center justify-between gap-2 px-2 py-2">
                 <View className="flex-1 flex-row items-center gap-2">
                     <Pressable
@@ -131,6 +141,6 @@ export default function Messages() {
                 onClose={() => setNewMessageOpen(false)}
                 conversations={conversations}
             />
-        </SafeAreaView>
+        </View>
     );
 }

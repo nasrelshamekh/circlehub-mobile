@@ -5,6 +5,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Keyboard,
     Pressable,
     Text,
     TextInput,
@@ -413,6 +414,7 @@ export default function MessageThread({
     isLoading,
     isLoadingOlder,
     onLoadOlder,
+    bottomInset = 0,
 }: {
     messages: Message[];
     recipientId?: string | null;
@@ -422,6 +424,7 @@ export default function MessageThread({
     isLoading: boolean;
     isLoadingOlder?: boolean;
     onLoadOlder?: () => void;
+    bottomInset?: number;
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -681,13 +684,26 @@ export default function MessageThread({
                 }
             />
 
-            <View className="bg-surface-lowest">
+            <View
+                className="bg-surface-lowest"
+                style={
+                    bottomInset > 0
+                        ? { paddingBottom: bottomInset }
+                        : undefined
+                }
+            >
                 <View className="px-4 py-3">
                     <View className="flex-row items-center gap-2">
                         <Pressable
-                            onPress={() =>
-                                setShowEmojiPicker((open) => !open)
-                            }
+                            onPress={() => {
+                                setShowEmojiPicker((open) => {
+                                    const nextOpen = !open;
+                                    if (nextOpen) {
+                                        Keyboard.dismiss();
+                                    }
+                                    return nextOpen;
+                                });
+                            }}
                             accessibilityRole="button"
                             accessibilityLabel="Toggle emoji picker"
                             accessibilityState={{ expanded: showEmojiPicker }}
@@ -711,6 +727,7 @@ export default function MessageThread({
                         <TextInput
                             value={text}
                             onChangeText={handleChangeText}
+                            onFocus={() => setShowEmojiPicker(false)}
                             maxLength={MAX_PLAINTEXT_LENGTH}
                             placeholder="Write a message..."
                             placeholderTextColor={colors.textSecondary}
