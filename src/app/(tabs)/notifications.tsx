@@ -229,11 +229,7 @@ export default function NotificationsScreen() {
     );
 
     const goBack = useCallback(() => {
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.replace("/(tabs)");
-        }
+        router.replace("/(tabs)");
     }, []);
 
     useFocusEffect(

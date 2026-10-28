@@ -13,11 +13,7 @@ export default function CommunitiesRoute() {
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     const goBack = useCallback(() => {
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.replace("/(tabs)");
-        }
+        router.replace("/(tabs)");
     }, []);
 
     useFocusEffect(

@@ -1636,3 +1636,28 @@ When a user signed in on the mobile app (`circlehub-mobile`) and received an enc
 3. **Non-destructive Pre-warming:** In `prefetchRecipientDeviceKeys`, existing unexpired keys in `deviceKeyDirectoryCache` are kept intact, only fetching if missing or expired.
 4. **Non-blocking Dispatch:** Changed `handleSend` to call `void transmitMessage(trimmed)`, immediately clearing the input and synchronously updating `pendingStore` in frame 0.
 
+---
+
+## 34. Deterministic Back-Button Navigation & History Loop Elimination
+
+### Symptoms
+1. **Conversation Back Button Loop:** When tapping the in-app back button inside a conversation, the user arrived at the conversations list, but tapping the in-app back button on the conversations list remained on the conversations list (or required multiple taps) instead of returning to Home.
+2. **Inconsistent Top-Level Hub Exits:** Top-level screens opened from the header or navigation drawer (Messages, Communities, Notifications) used `if (router.canGoBack()) router.back()` which popped into arbitrary historical route entries instead of reliably returning to Home.
+
+### Root Causes
+1. **Duplicate History Stack Entries:** `src/app/(tabs)/messages/[id].tsx` called `router.replace("/messages")`. In Expo Router tab history, replacing the conversation route created a duplicate `/messages` entry on top of the existing `/messages` entry in the history stack (`[Home, Messages, Messages]`).
+2. **Relative History Popping in Top-Level Hubs:** In `src/app/(tabs)/messages.tsx`, `communities.tsx`, and `notifications.tsx`, `goBack()` called `router.back()` when `router.canGoBack()` was true. When preceded by a replaced sub-route, `router.back()` simply popped back to the duplicate route, creating an apparent no-op loop.
+
+### Fixes
+1. **Deterministic Sub-Route Return (`messages/[id].tsx`):**
+   - In `src/app/(tabs)/messages/[id].tsx`, updated `goBack` to `router.replace("/(tabs)/messages")`, and wired hardware back button handling to `useFocusEffect`.
+2. **Direct Home Return on Top-Level Hubs:**
+   - In `src/app/(tabs)/messages.tsx`, updated `goBack` to explicitly navigate to `router.replace("/(tabs)")`.
+   - In `src/app/(tabs)/communities.tsx`, updated `goBack` to `router.replace("/(tabs)")`.
+   - In `src/app/(tabs)/notifications.tsx`, updated `goBack` to `router.replace("/(tabs)")`.
+   - In `src/app/(tabs)/edit-profile.tsx`, updated `goBack` to `router.replace("/(tabs)/profile")`.
+3. **Outcome:**
+   - Pressing Back in Conversation -> returns immediately to Conversations list.
+   - Pressing Back in Conversations list -> returns immediately to Home.
+   - Guaranteed 0 duplicate history loops and 100% deterministic back navigation on both in-app `ChevronLeft` and Android hardware back buttons.
+

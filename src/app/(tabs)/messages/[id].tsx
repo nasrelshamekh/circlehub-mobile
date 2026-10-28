@@ -146,18 +146,23 @@ export default function MessageThreadScreen() {
         prefetchRecipientDeviceKeys(resolvedOtherUser.username);
     }, [isFocused, resolvedOtherUser?.username]);
 
-    function goBack() {
-        router.replace("/messages");
-    }
+    const goBack = useCallback(() => {
+        router.replace("/(tabs)/messages");
+    }, []);
 
-    useEffect(() => {
-        if (!isFocused) return;
-        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-            goBack();
-            return true;
-        });
-        return () => sub.remove();
-    }, [isFocused]);
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                goBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener(
+                "hardwareBackPress",
+                onBackPress
+            );
+            return () => sub.remove();
+        }, [goBack])
+    );
 
     const isKeyboardOpen = Boolean(
         keyboardMetrics && keyboardMetrics.height > 0
