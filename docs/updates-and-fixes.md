@@ -1542,3 +1542,42 @@ Across the mobile app, buttons had an inconsistent and overly sharp 12px border-
    - Added `border-0 border-none` explicitly to both the bubble and outer container.
    - Added `after:hidden after:border-none` to `Avatar` to strip the pseudo-element ring border.
 
+---
+
+## 31. Elimination of "[Can't decrypt this message]" on Mobile Sign-In
+
+### Symptom
+When a user signed in on the mobile app (`circlehub-mobile`) and received an encrypted message (either from the web app or another participant), the mobile app displayed `[Can't decrypt this message]` instead of the readable plaintext.
+
+### Root Causes
+1. **Asynchronous Key Publication after Navigation:**
+   - In `circlehub-mobile/src/context/authcontext.tsx`, `signIn` set the auth token and immediately changed auth status to `authenticated` without waiting for the mobile device key to be registered.
+   - `ensureDeviceKey` was only kicked off by `ChatConnectionContext` after mounting.
+   - Incoming messages arriving immediately upon connection found device keys still being created or published in the background.
+2. **Stale Recipient Key Directory Cache on Senders:**
+   - In both `CircleHub/src/services/messageCrypto.js` and `circlehub-mobile/src/services/messageCrypto.ts`, `DEVICE_KEY_CACHE_TTL_MS` was set to 5 minutes (`5 * 60 * 1000`).
+   - If the sender had previously opened a conversation with the recipient, the recipient's old device keys were cached for up to 5 minutes.
+   - When the recipient signed in on mobile and registered their new device key, the sender was unaware and continued wrapping messages only to the cached old devices. The mobile client was omitted from `envelope.w`, rendering decryption impossible.
+   - Neither web nor mobile cleared the recipient's device key directory cache when the recipient came online.
+3. **Settled Cache Poisoning on Decryption Failure:**
+   - In `circlehub-mobile/src/services/messageCrypto.ts`, `decryptMessageContent` unconditionally stored failed decryptions (`text === UNREADABLE_PLACEHOLDER`) into `settledCache`.
+   - Once stored in `settledCache`, `peekDecrypted` permanently returned `[Can't decrypt this message]`, preventing `useDecryptedContent` from ever retrying when keys finished loading.
+4. **`decryptEnvelope` Race Condition & `peekStoredDeviceId` Bug:**
+   - `peekStoredDeviceId` set `deviceIdChecked = true` on the first call; if storage hadn't finished loading yet, it permanently returned `null`.
+   - `decryptEnvelope` only called `ensureDeviceKey` when `keys.length === 0`, ignoring whether an existing `ensurePromise` was still in-flight.
+
+### Fixes
+1. **Await `ensureDeviceKey` During Sign-In (`circlehub-mobile/src/context/authcontext.tsx`):**
+   - In `signIn()`, added `await ensureDeviceKey(response.data.user.username)`.
+   - The device key is now guaranteed to be generated, saved in SecureStore, and published to `/api/keys` before auth status transitions to `authenticated`.
+   - In `restore()`, added `void ensureDeviceKey(response.data.username)`.
+2. **Presence-Triggered Directory Invalidation & Reduced Cache TTL (`ChatConnectionContext.jsx`, `chatconnectioncontext.tsx`, `messageCrypto.js`, `messageCrypto.ts`):**
+   - In both web and mobile `PRESENCE_CHANGED_EVENT` handlers, added a call to `clearDeviceKeyCache(partner.otherUser.username)`. Whenever a user comes online, active senders instantly purge stale directory caches and fetch the user's latest device keys.
+   - Reduced `DEVICE_KEY_CACHE_TTL_MS` from 5 minutes to 30 seconds (`30_000ms`).
+3. **Prevent Settled Cache Poisoning (`circlehub-mobile/src/services/messageCrypto.ts`):**
+   - Updated `decryptMessageContent` so that when `text === UNREADABLE_PLACEHOLDER`, it deletes `content` from `decryptCache` and returns without inserting into `settledCache`.
+   - When keys become available or caches refresh, `useDecryptedContent` is able to re-decrypt seamlessly.
+4. **Direct Device ID Resolution & In-Flight Key Awaiting (`circlehub-mobile/src/services/messageCrypto.ts`):**
+   - Replaced `peekStoredDeviceId()` with `getDeviceId()`, ensuring the device ID is consistently loaded or generated.
+   - In `decryptEnvelope`, added `if (keys.length === 0 || ensurePromise) await ensureDeviceKey()`.
+

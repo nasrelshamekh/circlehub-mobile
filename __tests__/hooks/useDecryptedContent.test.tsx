@@ -6,6 +6,7 @@ import {
     decryptMessageContent,
     ENC_PREFIX,
     peekDecrypted,
+    seedSettledPlaintext,
     UNREADABLE_PLACEHOLDER,
 } from "@/services/messageCrypto";
 
@@ -74,18 +75,16 @@ describe("useDecryptedContent", () => {
     });
 
     it("serves from settled cache synchronously on mount if already settled", async () => {
-        const actual = jest.requireActual("@/services/messageCrypto");
         const fakeCipher = `${ENC_PREFIX}custom_test_cipher_2`;
 
-        mockDecrypt.mockImplementation(actual.decryptMessageContent);
-        await decryptMessageContent(fakeCipher);
-        expect(peekDecrypted(fakeCipher)).toBe(UNREADABLE_PLACEHOLDER);
+        seedSettledPlaintext(fakeCipher, "Already settled plaintext");
+        expect(peekDecrypted(fakeCipher)).toBe("Already settled plaintext");
 
         const { result } = await renderHook(() =>
             useDecryptedContent(fakeCipher)
         );
         expect(result.current.isPending).toBe(false);
-        expect(result.current.text).toBe(UNREADABLE_PLACEHOLDER);
+        expect(result.current.text).toBe("Already settled plaintext");
     });
 
     it("transitions out of isPending: true when decryption rejects", async () => {

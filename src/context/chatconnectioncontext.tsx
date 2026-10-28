@@ -43,7 +43,11 @@ import {
     TYPING_CHANGED_EVENT,
 } from "@/services/chatHub";
 import { getBackupInfo } from "@/services/keyRecovery";
-import { decryptMessageContent, ensureDeviceKey } from "@/services/messageCrypto";
+import {
+    clearDeviceKeyCache,
+    decryptMessageContent,
+    ensureDeviceKey,
+} from "@/services/messageCrypto";
 import {
     dismissActivityNotifications,
     dismissConversationNotifications,
@@ -726,6 +730,25 @@ export function ChatConnectionProvider({
         connection.on(
             PRESENCE_CHANGED_EVENT,
             (presence: PresencePayload) => {
+                const userId = presence?.userId;
+                if (userId) {
+                    const convs = queryClient.getQueryData<Conversation[]>(
+                        queryKeys.conversations()
+                    );
+                    const matchedConv = convs?.find(
+                        (c) =>
+                            String(c.otherUser?.id).toLowerCase() ===
+                            String(userId).toLowerCase()
+                    );
+                    if (matchedConv?.otherUser?.username) {
+                        clearDeviceKeyCache(matchedConv.otherUser.username);
+                    } else {
+                        clearDeviceKeyCache();
+                    }
+                } else {
+                    clearDeviceKeyCache();
+                }
+
                 queryClient.setQueriesData<
                     Conversation[] | InfiniteData<ConversationThread>
                 >({ queryKey: queryKeys.conversations() }, (current) =>

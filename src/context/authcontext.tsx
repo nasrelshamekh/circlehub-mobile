@@ -8,7 +8,7 @@ import {
     register as registerRequest,
 } from "@/api/auth";
 import { clearToken, getToken, onSessionExpired, setToken } from "@/lib/session";
-import { clearDecryptCache } from "@/services/messageCrypto";
+import { clearDecryptCache, ensureDeviceKey } from "@/services/messageCrypto";
 import { unregisterCurrentDevicePushToken } from "@/services/pushNotifications";
 import {
     attachThreadCachePersistence,
@@ -72,6 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (!active) return;
 
+                void ensureDeviceKey(response.data.username).catch(() => undefined);
+
                 setUser(response.data);
                 setStatus("authenticated");
             } catch {
@@ -101,6 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await clearThreadCache().catch(() => undefined);
         clearDecryptCache();
         queryClient.clear();
+
+        await ensureDeviceKey(response.data.user.username).catch((err) => {
+            console.warn("[Auth] Failed to ensure device key during sign-in:", err);
+        });
 
         setUser(response.data.user);
         setStatus("authenticated");

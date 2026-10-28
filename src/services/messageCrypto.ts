@@ -168,17 +168,6 @@ function getDecodedSecret(record: StoredDeviceKey): Uint8Array | null {
     return bytes;
 }
 
-async function peekStoredDeviceId(): Promise<string | null> {
-    if (memoryDeviceId) return memoryDeviceId;
-    if (deviceIdChecked) return null;
-    deviceIdChecked = true;
-    const stored = await readStorageItem(DEVICE_ID_KEY);
-    if (stored) {
-        memoryDeviceId = stored;
-    }
-    return memoryDeviceId;
-}
-
 export async function getDeviceId(): Promise<string> {
     if (memoryDeviceId) return memoryDeviceId;
 
@@ -304,7 +293,7 @@ export async function importDeviceKey(
 // legitimate reason to fall back to plaintext. A *failed* fetch means we don't know whether they
 // have keys, so it must throw: silently returning [] here would downgrade an E2EE message to
 // plaintext because of a transient network error.
-export const DEVICE_KEY_CACHE_TTL_MS = 5 * 60 * 1000;
+export const DEVICE_KEY_CACHE_TTL_MS = 30 * 1000;
 
 type CachedDeviceKeysEntry = {
     keys: DeviceKeyDto[];
@@ -762,14 +751,14 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
 
     let [keys, activeDeviceId] = await Promise.all([
         loadStoredKeys(),
-        peekStoredDeviceId(),
+        getDeviceId(),
     ]);
 
-    if (keys.length === 0) {
+    if (keys.length === 0 || ensurePromise) {
         try {
             await ensureDeviceKey();
             keys = await loadStoredKeys();
-            activeDeviceId = await peekStoredDeviceId();
+            activeDeviceId = await getDeviceId();
         } catch {
             // ignore
         }
@@ -910,6 +899,10 @@ export function decryptMessageContent(
     const promise = decryptFresh(content)
         .catch(() => UNREADABLE_PLACEHOLDER)
         .then((text) => {
+            if (text === UNREADABLE_PLACEHOLDER) {
+                decryptCache.delete(content);
+                return text;
+            }
             settledCache.set(content, text);
             if (decryptCache.size > DECRYPT_CACHE_LIMIT) {
                 const oldest = decryptCache.keys().next().value;
