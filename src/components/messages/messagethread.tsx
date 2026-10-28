@@ -333,21 +333,21 @@ function TypingBubble({
 
     return (
         <FadeSlideIn
-            className="flex-row items-center gap-2"
+            className="mb-3 flex-row items-end gap-2"
             duration={MOTION.quick}
         >
             <View
                 accessibilityLiveRegion="polite"
                 accessibilityLabel={label}
-                className="flex-row items-center gap-2"
+                className="flex-row items-end gap-2"
             >
                 <Avatar
                     src={avatarUrl}
                     name={name ?? ""}
-                    className="h-5 w-5"
-                    textClassName="text-[9px]"
+                    className="h-7 w-7"
+                    textClassName="text-[10px]"
                 />
-                <View className="flex-row items-center gap-1">
+                <View className="flex-row items-center gap-1.5 rounded-2xl rounded-bl-sm bg-surface-lowest px-3.5 py-2">
                     {[0, 1, 2].map((index) => (
                         <TypingDot
                             key={index}
@@ -530,6 +530,7 @@ export default function MessageThread({
     // Unique per send so two messages sent in the same millisecond can never share a temp id
     // (which would make one overwrite the other in the pending list).
     const tempIdCounter = useRef(0);
+    const inputRef = useRef<TextInput>(null);
 
     function nextTempId() {
         tempIdCounter.current += 1;
@@ -626,10 +627,12 @@ export default function MessageThread({
         const trimmed = text.trim();
         if (!trimmed) return;
 
-        haptics.medium();
+        inputRef.current?.clear();
+        inputRef.current?.setNativeProps({ text: "" });
+        setText("");
         stopTyping();
         setShowEmojiPicker(false);
-        setText("");
+        haptics.medium();
         await transmitMessage(trimmed);
     }
 
@@ -691,6 +694,14 @@ export default function MessageThread({
                     keyboardShouldPersistTaps="handled"
                     onEndReached={onLoadOlder}
                     onEndReachedThreshold={0.2}
+                    ListHeaderComponent={
+                        isPartnerTyping ? (
+                            <TypingBubble
+                                name={recipientName || recipientUsername}
+                                avatarUrl={recipientAvatarUrl}
+                            />
+                        ) : null
+                    }
                     ListFooterComponent={
                         isLoadingOlder ? (
                             <View className="items-center py-3">
@@ -720,14 +731,6 @@ export default function MessageThread({
                         : undefined
                 }
             >
-                {isPartnerTyping ? (
-                    <View className="px-4 pt-2">
-                        <TypingBubble
-                            name={recipientName || recipientUsername}
-                            avatarUrl={recipientAvatarUrl}
-                        />
-                    </View>
-                ) : null}
                 <View className="px-4 py-3">
                     <View className="flex-row items-center gap-2">
                         <Pressable
@@ -761,6 +764,7 @@ export default function MessageThread({
                         </Pressable>
 
                         <TextInput
+                            ref={inputRef}
                             value={text}
                             onChangeText={handleChangeText}
                             onFocus={() => setShowEmojiPicker(false)}

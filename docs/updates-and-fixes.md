@@ -1465,3 +1465,26 @@ Across the mobile app, buttons had an inconsistent and overly sharp 12px border-
 3. **Decryption Retry Guard on Mobile (`src/services/messageCrypto.ts`):**
    - Added an initialization check in `decryptEnvelope`: if local stored keys are empty, it awaits `ensureDeviceKey()` before giving up.
    - Guarded `seedSettledPlaintext` against seeding `UNREADABLE_PLACEHOLDER`.
+
+---
+
+## 28. Instant Composer Clearing, Natural Typing Flow & Themed Chat Scrollbars
+
+### Symptoms
+1. **Composer Clearing Delay on Mobile:** After pressing Send, the message text lingered in the input box for a moment before clearing.
+2. **Full-Width Background Bar on Typing Indicator:** On mobile, the typing indicator expanded the bottom composer container with a full-width background bar matching the composer's surface. On web, the typing indicator was outside the scroll flow and overlapped the last message.
+3. **Unstyled OS Scrollbar in Web Conversations:** The message list on the web app displayed default, wide browser scrollbars instead of matching the theme.
+
+### Root Causes
+1. **Native TextInput Buffer Lag:** React state update `setText("")` queued behind JS crypto operations (`encryptMessageContent`), delaying native Android `EditText` clearing.
+2. **Typing Indicator Placement:** Moving the typing indicator inside the bottom container on mobile created a full-width `bg-surface-lowest` background. On web, rendering outside `scrollRef` shrank the viewport without scrolling, causing the bottom message to be partially overlapped.
+3. **Missing Scrollbar CSS:** No custom scrollbar rules existed for chat views in `index.css`.
+
+### Fixes
+1. **Instant Input Clearing (`src/components/messages/messagethread.tsx`):**
+   - Connected `inputRef` to `TextInput` and invoked `inputRef.current?.clear()` and `setNativeProps({ text: "" })` synchronously at the start of `handleSend()`.
+2. **Natural Typing Bubble Flow (`src/components/messages/messagethread.tsx`, `CircleHub/src/components/messages/MessageThread.jsx`):**
+   - On mobile, restored `TypingBubble` into `ListHeaderComponent` of the inverted `FlatList`. It renders as a natural speech bubble (`Avatar` + `rounded-2xl rounded-bl-sm bg-surface-lowest px-3.5 py-2` + 3 dots + `{firstName} is typing...`) directly above the composer with no full-width bar.
+   - On web, moved `isOtherTyping` inside `contentRef` right below messages and above `bottomRef`. It renders as an inline bubble without full-width container and never overlaps the last message, naturally flowing with `ResizeObserver`.
+3. **Themed Custom Scrollbar (`CircleHub/src/index.css`, `MessageThread.jsx`, `Messages.jsx`):**
+   - Added `.chat-scrollbar` and `.custom-scrollbar` with 6px width, transparent track, and `var(--border)` rounded thumb with `var(--outline)` hover matching light and dark modes.
