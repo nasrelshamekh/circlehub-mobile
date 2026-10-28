@@ -47,12 +47,38 @@ export type StoredDeviceKey = {
 
 type EncryptedEnvelope = {
     v: number;
+    p?: number;
     alg: string;
     e: string;
     iv: string;
     ct: string;
     w: { d: string; k: string }[];
 };
+
+export const PADDING_BLOCK_SIZE = 128;
+
+export function padPlaintext(plaintext: string): Uint8Array {
+    const raw = new TextEncoder().encode(plaintext);
+    const padLen = PADDING_BLOCK_SIZE - (raw.length % PADDING_BLOCK_SIZE);
+    const padded = new Uint8Array(raw.length + padLen);
+    padded.set(raw, 0);
+    padded.fill(padLen, raw.length);
+    return padded;
+}
+
+export function unpadPlaintext(padded: Uint8Array): string {
+    if (!padded || padded.length === 0) return "";
+    const padLen = padded[padded.length - 1];
+    if (padLen < 1 || padLen > PADDING_BLOCK_SIZE || padLen > padded.length) {
+        return new TextDecoder().decode(padded);
+    }
+    for (let i = padded.length - padLen; i < padded.length; i += 1) {
+        if (padded[i] !== padLen) {
+            return new TextDecoder().decode(padded);
+        }
+    }
+    return new TextDecoder().decode(padded.subarray(0, padded.length - padLen));
+}
 
 const decryptCache = new Map<string, Promise<string>>();
 const settledCache = new Map<string, string>();
@@ -313,6 +339,10 @@ type EnsuredDeviceKeyResult = {
 
 const deviceKeyDirectoryCache = new Map<string, CachedDeviceKeysEntry>();
 const deviceKeyInFlight = new Map<string, Promise<DeviceKeyDto[]>>();
+const recipientStatusCache = new Map<
+    string,
+    { hasKeys: boolean; expiresAt: number }
+>();
 let ensuredOwnKeyCache: {
     usernameKey: string;
     deviceId: string;
@@ -330,6 +360,7 @@ export function clearDeviceKeyCache(username?: string | null): void {
         if (key) {
             deviceKeyDirectoryCache.delete(key);
             deviceKeyInFlight.delete(key);
+            recipientStatusCache.delete(key);
             if (ensuredOwnKeyCache?.usernameKey === key) {
                 ensuredOwnKeyCache = null;
             }
@@ -338,6 +369,7 @@ export function clearDeviceKeyCache(username?: string | null): void {
     }
     deviceKeyDirectoryCache.clear();
     deviceKeyInFlight.clear();
+    recipientStatusCache.clear();
     ensuredOwnKeyCache = null;
 }
 
@@ -371,15 +403,23 @@ async function fetchDeviceKeys(
         try {
             const response = await getUserDeviceKeys(trimmed);
             const keys = response.data ?? [];
-            // Only cache non-empty device key lists so a recipient who publishes their very first E2EE
-            // key moments later is upgraded to encrypted delivery immediately on the next send.
             if (keys.length > 0) {
                 deviceKeyDirectoryCache.set(cacheKey, {
                     keys,
                     expiresAt: Date.now() + DEVICE_KEY_CACHE_TTL_MS,
                 });
+                recipientStatusCache.set(cacheKey, {
+                    hasKeys: true,
+                    expiresAt: Date.now() + DEVICE_KEY_CACHE_TTL_MS,
+                });
             } else {
+                // Do not cache empty key list in deviceKeyDirectoryCache so new keys upgrade immediately.
                 deviceKeyDirectoryCache.delete(cacheKey);
+                // Keep recipient status for 30s for UI fallback indicators.
+                recipientStatusCache.set(cacheKey, {
+                    hasKeys: false,
+                    expiresAt: Date.now() + 30 * 1000,
+                });
             }
             return keys;
         } catch {
@@ -395,6 +435,27 @@ async function fetchDeviceKeys(
     return promise;
 }
 
+export function hasCachedRecipientDeviceKeys(
+    username?: string | null
+): boolean | null {
+    const trimmed = username?.trim();
+    if (!trimmed) return null;
+    const cacheKey = normalizeUsernameKey(trimmed);
+    const cachedDir = deviceKeyDirectoryCache.get(cacheKey);
+    if (
+        cachedDir &&
+        cachedDir.expiresAt > Date.now() &&
+        cachedDir.keys.length > 0
+    ) {
+        return true;
+    }
+    const cachedStatus = recipientStatusCache.get(cacheKey);
+    if (cachedStatus && cachedStatus.expiresAt > Date.now()) {
+        return cachedStatus.hasKeys;
+    }
+    return null;
+}
+
 export async function publishKey(
     deviceId: string,
     publicKey: string
@@ -407,19 +468,27 @@ export async function publishKey(
 /**
  * Pre-warms the recipient's published device keys (and this device's own key state) when opening a
  * conversation thread so the first and subsequent message sends execute with zero `/api/keys` RTTs.
+ * Returns true if recipient has keys, false if recipient has 0 keys (fallback), or null if indeterminate.
  */
-export function prefetchRecipientDeviceKeys(
+export async function prefetchRecipientDeviceKeys(
     recipientUsername?: string | null
-): void {
+): Promise<boolean | null> {
     const trimmed = recipientUsername?.trim();
-    if (trimmed) {
-        const cacheKey = normalizeUsernameKey(trimmed);
-        const cached = deviceKeyDirectoryCache.get(cacheKey);
-        if (!cached || cached.expiresAt <= Date.now()) {
-            fetchDeviceKeys(trimmed).catch(() => undefined);
-        }
+    if (!trimmed) {
+        ensureDeviceKey().catch(() => undefined);
+        return null;
+    }
+    const cacheKey = normalizeUsernameKey(trimmed);
+    const cached = deviceKeyDirectoryCache.get(cacheKey);
+    let hasKeys: boolean | null = null;
+    if (cached && cached.expiresAt > Date.now() && cached.keys.length > 0) {
+        hasKeys = true;
+    } else {
+        const keys = await fetchDeviceKeys(trimmed).catch(() => []);
+        hasKeys = keys.length > 0;
     }
     ensureDeviceKey().catch(() => undefined);
+    return hasKeys;
 }
 
 /**
@@ -678,20 +747,25 @@ export async function encryptMessageContent({
 
     const contentKey = randomBytes(32);
     const iv = randomBytes(12);
-    const ciphertext = gcm(contentKey, iv).encrypt(
-        new TextEncoder().encode(plaintext)
-    );
 
     const ephemeralSecret = randomBytes(32);
     const ephemeralPublic = p256.getPublicKey(ephemeralSecret, false);
     const ephemeralB64 = toBase64(ephemeralPublic);
+
+    const payloadAad = new TextEncoder().encode(`circlehub:v1:${ephemeralB64}`);
+    const ciphertext = gcm(contentKey, iv, payloadAad).encrypt(
+        padPlaintext(plaintext)
+    );
 
     const wraps: { d: string; k: string }[] = [];
     for (const target of targets.values()) {
         const peerPublic = fromBase64(target.publicKey);
         const wrapKey = deriveWrapKey(ephemeralSecret, peerPublic);
         const wrapIv = randomBytes(12);
-        const wrapped = gcm(wrapKey, wrapIv).encrypt(contentKey);
+        const wrapAad = new TextEncoder().encode(
+            `${target.deviceId}:${ephemeralB64}`
+        );
+        const wrapped = gcm(wrapKey, wrapIv, wrapAad).encrypt(contentKey);
         wraps.push({
             d: target.deviceId,
             k: toBase64(concatBytes(wrapIv, wrapped)),
@@ -700,6 +774,7 @@ export async function encryptMessageContent({
 
     const envelope: EncryptedEnvelope = {
         v: 1,
+        p: 1,
         alg: "ECDH-P256+HKDF-SHA256+AES-256-GCM",
         e: ephemeralB64,
         iv: toBase64(iv),
@@ -723,15 +798,34 @@ function openWrap(
     wrapKey: Uint8Array,
     wrap: { d: string; k: string },
     contentIv: Uint8Array,
-    ciphertext: Uint8Array
+    ciphertext: Uint8Array,
+    ephemeralB64?: string,
+    isPhase1?: boolean
 ): string | null {
     try {
         const packed = fromBase64(wrap.k);
         const wrapIv = packed.slice(0, 12);
         const wrappedKey = packed.slice(12);
-        const contentKey = gcm(wrapKey, wrapIv).decrypt(wrappedKey);
-        const plaintextBytes = gcm(contentKey, contentIv).decrypt(ciphertext);
-        return new TextDecoder().decode(plaintextBytes);
+        let contentKey: Uint8Array;
+        let plaintextBytes: Uint8Array;
+
+        if (isPhase1 && ephemeralB64) {
+            const wrapAad = new TextEncoder().encode(
+                `${wrap.d}:${ephemeralB64}`
+            );
+            const payloadAad = new TextEncoder().encode(
+                `circlehub:v1:${ephemeralB64}`
+            );
+            contentKey = gcm(wrapKey, wrapIv, wrapAad).decrypt(wrappedKey);
+            plaintextBytes = gcm(contentKey, contentIv, payloadAad).decrypt(
+                ciphertext
+            );
+            return unpadPlaintext(plaintextBytes);
+        } else {
+            contentKey = gcm(wrapKey, wrapIv).decrypt(wrappedKey);
+            plaintextBytes = gcm(contentKey, contentIv).decrypt(ciphertext);
+            return new TextDecoder().decode(plaintextBytes);
+        }
     } catch {
         return null;
     }
@@ -746,6 +840,9 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
     ) {
         return UNREADABLE_PLACEHOLDER;
     }
+
+    const isPhase1 = envelope.p === 1;
+    const ephemeralB64 = envelope.e;
 
     let ephemeralPublicKey: Uint8Array;
     let contentIv: Uint8Array;
@@ -846,7 +943,9 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
                 wrapKey,
                 wrap,
                 contentIv,
-                ciphertext
+                ciphertext,
+                ephemeralB64,
+                isPhase1
             );
             if (plaintext !== null) return plaintext;
         }
@@ -860,7 +959,14 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
         const wrapKey = wrapKeyFor(index);
         if (!wrapKey) continue;
         for (const wrap of envelope.w) {
-            const plaintext = openWrap(wrapKey, wrap, contentIv, ciphertext);
+            const plaintext = openWrap(
+                wrapKey,
+                wrap,
+                contentIv,
+                ciphertext,
+                ephemeralB64,
+                isPhase1
+            );
             if (plaintext !== null) return plaintext;
         }
     }

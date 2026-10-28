@@ -13,7 +13,12 @@ import { hkdf } from "@noble/hashes/hkdf.js";
 import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 
-import { ENC_PREFIX } from "@/services/messageCrypto";
+import {
+    ENC_PREFIX,
+    PADDING_BLOCK_SIZE,
+    padPlaintext,
+    unpadPlaintext,
+} from "@/services/messageCrypto";
 
 const subtle = globalThis.crypto.subtle;
 
@@ -376,5 +381,292 @@ describe("web (WebCrypto) <-> mobile (@noble) E2EE interop", () => {
         expect(bytesEqual(p256.getPublicKey(rebuilt.slice(36, 68), false), devicePubRaw)).toBe(
             true
         );
+    });
+
+    describe("Phase 1: Cryptographic Envelope Hardening (AAD + Padding)", () => {
+        it("pads and unpads arbitrarily-sized plaintexts with 128-byte block padding", () => {
+            const cases = [
+                "",
+                "a",
+                "hello world",
+                "x".repeat(127),
+                "x".repeat(128),
+                "x".repeat(129),
+                "Emoji: 🔒✨🎉🚀 and non-ascii üöä",
+            ];
+
+            for (const text of cases) {
+                const padded = padPlaintext(text);
+                expect(padded.length % PADDING_BLOCK_SIZE).toBe(0);
+                expect(padded.length).toBeGreaterThan(0);
+                const unpadded = unpadPlaintext(padded);
+                expect(unpadded).toBe(text);
+            }
+
+            // Safe unpad on malformed/unpadded input
+            const rawBytes = enc.encode("no-padding-here");
+            expect(unpadPlaintext(rawBytes)).toBe("no-padding-here");
+        });
+
+        it("mobile-sealed Phase 1 envelope (AAD + padding) decrypts in web (WebCrypto) path", async () => {
+            const devicePair = await subtle.generateKey(
+                { name: "ECDH", namedCurve: "P-256" },
+                true,
+                ["deriveKey", "deriveBits"]
+            );
+            const devicePubRaw = new Uint8Array(
+                await subtle.exportKey("raw", devicePair.publicKey)
+            );
+
+            const plaintext = "Phase 1 Hardened: mobile sealed -> web opened 🔒";
+            const cek = globalThis.crypto.getRandomValues(new Uint8Array(32));
+            const contentIv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+
+            const ephScalar = globalThis.crypto.getRandomValues(new Uint8Array(32));
+            const ephPubNoble = p256.getPublicKey(ephScalar, false);
+            const ephB64 = b64(ephPubNoble);
+
+            const payloadAad = enc.encode("circlehub:v1:" + ephB64);
+            const paddedPlaintext = padPlaintext(plaintext);
+            const ct = gcm(cek, contentIv, payloadAad).encrypt(paddedPlaintext);
+
+            const sharedMobile = p256
+                .getSharedSecret(ephScalar, devicePubRaw, false)
+                .slice(1, 33);
+            const wrapKeyMobile = hkdf(sha256, sharedMobile, EMPTY_SALT, HKDF_INFO, 32);
+            const wrapIv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+            const targetDeviceId = "web-phase1-device";
+            const wrapAad = enc.encode(targetDeviceId + ":" + ephB64);
+            const wrappedMobile = gcm(wrapKeyMobile, wrapIv, wrapAad).encrypt(cek);
+
+            const envelope = JSON.stringify({
+                v: 1,
+                p: 1,
+                alg: "ECDH-P256+HKDF-SHA256+AES-256-GCM",
+                e: ephB64,
+                iv: b64(contentIv),
+                ct: b64(ct),
+                w: [
+                    {
+                        d: targetDeviceId,
+                        k: b64(new Uint8Array([...wrapIv, ...wrappedMobile])),
+                    },
+                ],
+            });
+            const env = JSON.parse(envelope);
+            expect(env.p).toBe(1);
+
+            // Web decrypts wrap with wrapAad
+            const ephPubKey = await subtle.importKey(
+                "raw",
+                unb64(env.e),
+                { name: "ECDH", namedCurve: "P-256" },
+                false,
+                []
+            );
+            const sharedWeb = new Uint8Array(
+                await subtle.deriveBits(
+                    { name: "ECDH", public: ephPubKey },
+                    devicePair.privateKey,
+                    256
+                )
+            );
+            const hkdfKey = await subtle.importKey("raw", sharedWeb, "HKDF", false, [
+                "deriveBits",
+            ]);
+            const wrapBitsWeb = new Uint8Array(
+                await subtle.deriveBits(
+                    { name: "HKDF", hash: "SHA-256", salt: EMPTY_SALT, info: HKDF_INFO },
+                    hkdfKey,
+                    256
+                )
+            );
+
+            const packed = unb64(env.w[0].k);
+            const expectedWrapAad = enc.encode(env.w[0].d + ":" + env.e);
+            const cekWeb = await subtle.decrypt(
+                { name: "AES-GCM", iv: packed.slice(0, 12), additionalData: expectedWrapAad },
+                await subtle.importKey("raw", wrapBitsWeb, { name: "AES-GCM" }, false, [
+                    "decrypt",
+                ]),
+                packed.slice(12)
+            );
+            expect(bytesEqual(new Uint8Array(cekWeb), cek)).toBe(true);
+
+            // Web decrypts content with payloadAad and unpads
+            const expectedPayloadAad = enc.encode("circlehub:v1:" + env.e);
+            const decryptedPaddedBytes = await subtle.decrypt(
+                { name: "AES-GCM", iv: unb64(env.iv), additionalData: expectedPayloadAad },
+                await subtle.importKey("raw", new Uint8Array(cekWeb), { name: "AES-GCM" }, false, [
+                    "decrypt",
+                ]),
+                unb64(env.ct)
+            );
+            const unpaddedPlaintext = unpadPlaintext(new Uint8Array(decryptedPaddedBytes));
+            expect(unpaddedPlaintext).toBe(plaintext);
+        });
+
+        it("web-sealed Phase 1 envelope (AAD + padding) decrypts in mobile (@noble) path", async () => {
+            const devicePair = await subtle.generateKey(
+                { name: "ECDH", namedCurve: "P-256" },
+                true,
+                ["deriveKey", "deriveBits"]
+            );
+            const devicePkcs8 = new Uint8Array(
+                await subtle.exportKey("pkcs8", devicePair.privateKey)
+            );
+            const deviceScalar = devicePkcs8.slice(36, 68);
+
+            const plaintext = "Phase 1 Hardened: web sealed -> mobile opened 🛡️";
+            const ephPair = await subtle.generateKey(
+                { name: "ECDH", namedCurve: "P-256" },
+                true,
+                ["deriveKey", "deriveBits"]
+            );
+            const ephPubWeb = new Uint8Array(
+                await subtle.exportKey("raw", ephPair.publicKey)
+            );
+            const ephB64 = b64(ephPubWeb);
+
+            const cek = globalThis.crypto.getRandomValues(new Uint8Array(32));
+            const contentIv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+            const targetDeviceId = "mobile-phase1-device";
+
+            // Web seals payload with AAD + padding
+            const payloadAad = enc.encode("circlehub:v1:" + ephB64);
+            const padded = padPlaintext(plaintext);
+            const ct = new Uint8Array(
+                await subtle.encrypt(
+                    { name: "AES-GCM", iv: contentIv, additionalData: payloadAad },
+                    await subtle.importKey("raw", cek, { name: "AES-GCM" }, false, [
+                        "encrypt",
+                    ]),
+                    padded
+                )
+            );
+
+            // Web derives wrap key and seals with wrapAad
+            const devicePubRaw = new Uint8Array(
+                await subtle.exportKey("raw", devicePair.publicKey)
+            );
+            const sharedWeb = new Uint8Array(
+                await subtle.deriveBits(
+                    {
+                        name: "ECDH",
+                        public: await subtle.importKey(
+                            "raw",
+                            devicePubRaw,
+                            { name: "ECDH", namedCurve: "P-256" },
+                            false,
+                            []
+                        ),
+                    },
+                    ephPair.privateKey,
+                    256
+                )
+            );
+            const hkdfKey = await subtle.importKey("raw", sharedWeb, "HKDF", false, [
+                "deriveBits",
+            ]);
+            const wrapKeyWeb = new Uint8Array(
+                await subtle.deriveBits(
+                    { name: "HKDF", hash: "SHA-256", salt: EMPTY_SALT, info: HKDF_INFO },
+                    hkdfKey,
+                    256
+                )
+            );
+
+            const wrapIv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+            const wrapAad = enc.encode(targetDeviceId + ":" + ephB64);
+            const wrappedWeb = new Uint8Array(
+                await subtle.encrypt(
+                    { name: "AES-GCM", iv: wrapIv, additionalData: wrapAad },
+                    await subtle.importKey("raw", wrapKeyWeb, { name: "AES-GCM" }, false, [
+                        "encrypt",
+                    ]),
+                    cek
+                )
+            );
+
+            const env = {
+                v: 1,
+                p: 1,
+                alg: "ECDH-P256+HKDF-SHA256+AES-256-GCM",
+                e: ephB64,
+                iv: b64(contentIv),
+                ct: b64(ct),
+                w: [
+                    {
+                        d: targetDeviceId,
+                        k: b64(new Uint8Array([...wrapIv, ...wrappedWeb])),
+                    },
+                ],
+            };
+
+            // Mobile opens wrap with wrapAad
+            const sharedMobile = p256
+                .getSharedSecret(deviceScalar, unb64(env.e), false)
+                .slice(1, 33);
+            const wrapKeyMobile = hkdf(sha256, sharedMobile, EMPTY_SALT, HKDF_INFO, 32);
+            const packed = unb64(env.w[0].k);
+            const wrapIvNoble = packed.slice(0, 12);
+            const wrappedKeyNoble = packed.slice(12);
+
+            const expectedWrapAad = enc.encode(env.w[0].d + ":" + env.e);
+            const cekMobile = gcm(wrapKeyMobile, wrapIvNoble, expectedWrapAad).decrypt(
+                wrappedKeyNoble
+            );
+            expect(bytesEqual(cekMobile, cek)).toBe(true);
+
+            // Mobile opens payload with payloadAad and unpads
+            const expectedPayloadAad = enc.encode("circlehub:v1:" + env.e);
+            const plaintextPadded = gcm(
+                cekMobile,
+                unb64(env.iv),
+                expectedPayloadAad
+            ).decrypt(unb64(env.ct));
+            const resultText = unpadPlaintext(plaintextPadded);
+            expect(resultText).toBe(plaintext);
+        });
+
+        it("fails authentication when envelope or wrap metadata is tampered with (AAD integrity check)", async () => {
+            const devicePair = await subtle.generateKey(
+                { name: "ECDH", namedCurve: "P-256" },
+                true,
+                ["deriveKey", "deriveBits"]
+            );
+            const plaintext = "Authenticity check";
+            const ephScalar = globalThis.crypto.getRandomValues(new Uint8Array(32));
+            const ephPubNoble = p256.getPublicKey(ephScalar, false);
+            const ephB64 = b64(ephPubNoble);
+
+            const cek = globalThis.crypto.getRandomValues(new Uint8Array(32));
+            const contentIv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+            const payloadAad = enc.encode("circlehub:v1:" + ephB64);
+            const ct = gcm(cek, contentIv, payloadAad).encrypt(padPlaintext(plaintext));
+
+            const devicePubRaw = new Uint8Array(
+                await subtle.exportKey("raw", devicePair.publicKey)
+            );
+            const shared = p256
+                .getSharedSecret(ephScalar, devicePubRaw, false)
+                .slice(1, 33);
+            const wrapKey = hkdf(sha256, shared, EMPTY_SALT, HKDF_INFO, 32);
+            const wrapIv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+            const wrapAad = enc.encode("target-device-1:" + ephB64);
+            const wrapped = gcm(wrapKey, wrapIv, wrapAad).encrypt(cek);
+
+            // Tamper 1: Attempt to open wrap using wrong device ID in AAD
+            const tamperedWrapAad = enc.encode("different-device:" + ephB64);
+            expect(() => {
+                gcm(wrapKey, wrapIv, tamperedWrapAad).decrypt(wrapped);
+            }).toThrow();
+
+            // Tamper 2: Attempt to open payload using altered ephemeral key in AAD
+            const alteredPayloadAad = enc.encode("circlehub:v1:tampered-ephemeral-key");
+            expect(() => {
+                gcm(cek, contentIv, alteredPayloadAad).decrypt(ct);
+            }).toThrow();
+        });
     });
 });

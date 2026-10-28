@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, Lock, ShieldAlert } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
     BackHandler,
@@ -21,7 +21,10 @@ import GradientButton from "@/components/ui/gradientbutton";
 import { useChatConnection } from "@/context/chatconnectioncontext";
 import { useTheme } from "@/context/themecontext";
 import { useConversation } from "@/hooks/useConversation";
-import { prefetchRecipientDeviceKeys } from "@/services/messageCrypto";
+import {
+    hasCachedRecipientDeviceKeys,
+    prefetchRecipientDeviceKeys,
+} from "@/services/messageCrypto";
 import { dismissConversationNotifications } from "@/services/pushNotifications";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
@@ -53,6 +56,7 @@ export default function MessageThreadScreen() {
         height: number;
         screenY: number;
     } | null>(null);
+    const [e2eeStatus, setE2eeStatus] = useState<boolean | null>(null);
 
     useEffect(() => {
         if (Platform.OS === "web") return;
@@ -143,7 +147,15 @@ export default function MessageThreadScreen() {
 
     useEffect(() => {
         if (!isFocused || !resolvedOtherUser?.username) return;
-        prefetchRecipientDeviceKeys(resolvedOtherUser.username);
+        const cached = hasCachedRecipientDeviceKeys(resolvedOtherUser.username);
+        if (cached !== null) {
+            setE2eeStatus(cached);
+        }
+        prefetchRecipientDeviceKeys(resolvedOtherUser.username).then((status) => {
+            if (status !== null) {
+                setE2eeStatus(status);
+            }
+        });
     }, [isFocused, resolvedOtherUser?.username]);
 
     const goBack = useCallback(() => {
@@ -224,12 +236,28 @@ export default function MessageThreadScreen() {
                         />
 
                         <View className="min-w-0 flex-1">
-                            <Text
-                                numberOfLines={1}
-                                className="text-label-md font-semibold text-text-primary"
-                            >
-                                {resolvedOtherUser.name}
-                            </Text>
+                            <View className="flex-row items-center gap-1.5">
+                                <Text
+                                    numberOfLines={1}
+                                    className="text-label-md font-semibold text-text-primary"
+                                >
+                                    {resolvedOtherUser.name}
+                                </Text>
+                                {e2eeStatus === true && (
+                                    <Lock
+                                        size={12}
+                                        color={colors.textSecondary}
+                                        accessibilityLabel="End-to-end encrypted"
+                                    />
+                                )}
+                                {e2eeStatus === false && (
+                                    <ShieldAlert
+                                        size={12}
+                                        color="#eab308"
+                                        accessibilityLabel="Plaintext fallback - recipient has no keys"
+                                    />
+                                )}
+                            </View>
 
                             <PresenceLabel
                                 isOnline={resolvedOtherUser.isOnline}
