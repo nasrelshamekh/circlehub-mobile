@@ -12,7 +12,7 @@ export default function useSendMessage() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (input: SendMessageInput) => {
+        mutationFn: async (input: SendMessageInput & { clientTempId?: string }) => {
             const rawContent = input.content?.trim();
             const content = rawContent
                 ? await encryptMessageContent({
@@ -21,16 +21,23 @@ export default function useSendMessage() {
                   })
                 : input.content;
 
-            return sendMessage({
+            const res = await sendMessage({
                 ...input,
                 content,
                 previewText: rawContent ? rawContent.slice(0, 150) : undefined,
             });
+            return {
+                ...res,
+                clientTempId: input.clientTempId,
+            };
         },
 
         onSuccess: (result, variables) => {
             const conversationId = result?.data?.conversationId;
             const sentMessage = result?.data?.message;
+            const clientTempId =
+                (result as { clientTempId?: string })?.clientTempId ??
+                (variables as { clientTempId?: string })?.clientTempId;
             const trimmedPlaintext = variables?.content?.trim() ?? "";
 
             if (conversationId && sentMessage) {
@@ -38,6 +45,7 @@ export default function useSendMessage() {
                     ...sentMessage,
                     isMine: true,
                     deliveryStatus: "delivered" as const,
+                    ...(clientTempId ? { clientTempId } : {}),
                     ...(trimmedPlaintext ? { plaintext: trimmedPlaintext } : {}),
                 };
 

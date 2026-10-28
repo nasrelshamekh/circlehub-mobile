@@ -1581,3 +1581,38 @@ When a user signed in on the mobile app (`circlehub-mobile`) and received an enc
    - Replaced `peekStoredDeviceId()` with `getDeviceId()`, ensuring the device ID is consistently loaded or generated.
    - In `decryptEnvelope`, added `if (keys.length === 0 || ensurePromise) await ensureDeviceKey()`.
 
+---
+
+## 32. Instant, Smooth Mobile Message Dispatch & Elimination of Bubble Unmount Flashes
+
+### Symptoms
+1. **Perceived Send Latency & Recipient Precedence:** When sending a message from mobile, the webapp recipient received and rendered the message before the mobile sender's bubble even turned to its normal color.
+2. **Bubble Stutter / Flash:** The optimistic message bubble appeared greyed out, lingered for a moment, disappeared/blinked, and then reappeared as confirmed, instead of feeling instantaneous and persistent like on the webapp.
+
+### Root Causes
+1. **Network Push vs. Request/Response Architecture:**
+   - The mobile client sent messages via HTTP POST (`/api/messages`). Upon saving to the database, the server immediately emitted real-time SignalR WebSocket events to all participants (`_hub.Clients.Users(recipientId, senderId)`).
+   - The webapp, connected over an active WebSocket, received and rendered the message within ~15–30ms.
+   - The mobile sender's HTTP response was still in-flight returning over the network. Because the mobile bubble had an explicit greyed-out state (`opacity: 0.6` while `isPending`), this network turnaround time was highlighted to the user.
+2. **React FlatList Key Instability (`tempId` vs. `serverId`):**
+   - The optimistic message used a temporary ID (`pending-${timestamp}`), while the confirmed message returned the permanent server UUID (`serverId`).
+   - Because `keyExtractor` returned `message.id`, confirming the message caused FlatList to completely unmount the optimistic bubble component and mount a new one. In React Native Yoga layout, unmounting and remounting a cell causes a 1–2 frame visual blink.
+3. **SignalR Echo Decryption Race on Sender:**
+   - When the server emitted `ReceiveEncryptedMessage`, the sender's mobile client received its own SignalR echo before the HTTP response resolved.
+   - `chatconnectioncontext.tsx` placed the echo into the thread cache with an encrypted payload before asynchronous decryption finished. During those frames, `plaintext` was missing, causing the bubble to momentarily render a blank/skeleton state.
+4. **Directory Cache Expiration during Active Chat:**
+   - `DEVICE_KEY_CACHE_TTL_MS` was set to 30 seconds. If a user composed a message for longer than 30s, `encryptMessageContent` was forced to execute an extra HTTP GET (`/api/keys`) before initiating the send POST, adding 300–600ms of avoidable delay.
+
+### Fixes
+1. **Instant, Solid Bubble Appearance (`messagethread.tsx`):**
+   - Removed the heavy `opacity: 0.6` greyed-out styling from `MessageBubble`, rendering the bubble immediately in solid `bg-primary` matching the webapp.
+2. **Stable Component Identity (`clientTempId`):**
+   - Added `clientTempId?: string` to `Message` in `types/message.ts`.
+   - In `messagethread.tsx`, optimistic messages set `clientTempId = tempId`. `keyExtractor` now returns `message.clientTempId ?? message.id`.
+   - `useSendMessage.ts` and `messageCacheHelpers.ts` preserve `clientTempId` when transitioning the message from optimistic to confirmed.
+   - FlatList updates the existing bubble in-place with zero unmounting, zero remounting, and zero visual flashing.
+3. **Synchronous Plaintext Resolution on SignalR Echo (`chatconnectioncontext.tsx`):**
+   - In `RECEIVE_MESSAGE_EVENT`, added a synchronous check to `peekDecrypted(payload)`. Because the sending device already cached the plaintext upon encryption, own echoes resolve instantly without Hermes async latency.
+4. **Extended Chat Session Directory TTL (`messageCrypto.ts`, `messageCrypto.js`):**
+   - Increased `DEVICE_KEY_CACHE_TTL_MS` to 2 minutes (`120_000ms`), keeping pre-warmed keys available in RAM during active chat. Real-time key invalidation on new sign-ins remains guaranteed via `PRESENCE_CHANGED_EVENT`.
+

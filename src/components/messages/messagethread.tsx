@@ -157,14 +157,11 @@ const MessageBubble = memo(function MessageBubble({
                 >
                     {hasContent && (
                         <View
-                            style={isMine && isPending ? { opacity: 0.6 } : undefined}
                             className={
                                 isMine
                                     ? isFailed
                                         ? "rounded-2xl rounded-br-md border border-error bg-primary px-4 py-2.5"
-                                        : isPending
-                                            ? "rounded-2xl rounded-br-md bg-primary px-4 py-2.5 opacity-60"
-                                            : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
+                                        : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
                                     : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
                             }
                         >
@@ -469,10 +466,23 @@ export default function MessageThread({
         // pushes, optimistic entries), so compare them case-insensitively or the same message can
         // render twice.
         const storedIds = new Set(messages.map((m) => m.id.toLowerCase()));
+        const storedTempIds = new Set(
+            messages
+                .map((m) => m.clientTempId?.toLowerCase())
+                .filter(Boolean) as string[]
+        );
         const activePending = pendingMessages.filter((pending) => {
             const pId = pending.id.toLowerCase();
             if (storedIds.has(pId)) return false;
-            if (pending.realId && storedIds.has(pending.realId.toLowerCase())) return false;
+            if (
+                pending.clientTempId &&
+                storedTempIds.has(pending.clientTempId.toLowerCase())
+            ) {
+                return false;
+            }
+            if (pending.realId && storedIds.has(pending.realId.toLowerCase())) {
+                return false;
+            }
 
             // Content-based deduplication for outgoing messages: if the confirmed message
             // is already present in messages, drop the pending optimistic entry immediately
@@ -552,6 +562,7 @@ export default function MessageThread({
             const tempId = existingTempId ?? nextTempId();
             const optimistic: Message = {
                 id: tempId,
+                clientTempId: tempId,
                 content: contentText,
                 plaintext: contentText,
                 createdAt: new Date().toISOString(),
@@ -577,32 +588,19 @@ export default function MessageThread({
                 const response = await sendMessage.mutateAsync({
                     recipientUsername,
                     content: contentText,
+                    clientTempId: tempId,
                 });
                 const serverId = response?.data?.message?.id;
                 if (serverId) {
                     updatePending((prev) =>
-                        prev.map((m) =>
-                            m.id === tempId
-                                ? {
-                                      ...m,
-                                      id: serverId,
-                                      realId: serverId,
-                                      createdAt:
-                                          response.data.message?.createdAt ??
-                                          m.createdAt,
-                                      pending: false,
-                                      failed: false,
-                                      deliveryStatus: "delivered",
-                                  }
-                                : m
+                        prev.filter(
+                            (m) => m.id !== tempId && m.clientTempId !== tempId
                         )
                     );
                 } else {
                     updatePending((prev) =>
-                        prev.map((m) =>
-                            m.id === tempId
-                                ? { ...m, pending: false, failed: false, deliveryStatus: "delivered" }
-                                : m
+                        prev.filter(
+                            (m) => m.id !== tempId && m.clientTempId !== tempId
                         )
                     );
                 }
@@ -623,7 +621,7 @@ export default function MessageThread({
                 );
             }
         },
-        [recipientUsername, sendMessage, updatePending, user]
+        [nextTempId, recipientUsername, sendMessage, updatePending, user]
     );
 
     async function handleSend() {
@@ -660,7 +658,10 @@ export default function MessageThread({
         [retryingIds, transmitMessage]
     );
 
-    const keyExtractor = useCallback((message: Message) => message.id, []);
+    const keyExtractor = useCallback(
+        (message: Message) => message.clientTempId ?? message.id,
+        []
+    );
 
     const renderItem = useCallback(
         ({ item }: { item: Message }) => (

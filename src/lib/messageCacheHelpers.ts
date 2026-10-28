@@ -59,8 +59,18 @@ export function appendMessageToThreadCache(
                     ? firstPage.messages
                     : [];
 
-                const existingIndex = existingMessages.findIndex((m) =>
-                    sameId(m.id, newMessage.id)
+                const existingIndex = existingMessages.findIndex(
+                    (m) =>
+                        sameId(m.id, newMessage.id) ||
+                        (Boolean(newMessage.clientTempId) &&
+                            sameId(m.clientTempId, newMessage.clientTempId)) ||
+                        (m.isMine &&
+                            newMessage.isMine &&
+                            m.pending &&
+                            Boolean(
+                                newMessage.plaintext &&
+                                    m.plaintext === newMessage.plaintext
+                            ))
                 );
 
                 let nextMessages: Message[];
@@ -70,8 +80,16 @@ export function appendMessageToThreadCache(
                     nextMessages[existingIndex] = {
                         ...existing,
                         ...newMessage,
-                        plaintext: existing.plaintext || newMessage.plaintext,
-                        deliveryStatus: newMessage.deliveryStatus || existing.deliveryStatus,
+                        id: newMessage.id,
+                        clientTempId:
+                            existing.clientTempId ?? newMessage.clientTempId,
+                        pending: false,
+                        failed: false,
+                        plaintext: newMessage.plaintext || existing.plaintext,
+                        deliveryStatus:
+                            newMessage.deliveryStatus ||
+                            existing.deliveryStatus ||
+                            "delivered",
                     };
                 } else {
                     nextMessages = [...existingMessages, newMessage];

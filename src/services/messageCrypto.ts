@@ -293,7 +293,7 @@ export async function importDeviceKey(
 // legitimate reason to fall back to plaintext. A *failed* fetch means we don't know whether they
 // have keys, so it must throw: silently returning [] here would downgrade an E2EE message to
 // plaintext because of a transient network error.
-export const DEVICE_KEY_CACHE_TTL_MS = 30 * 1000;
+export const DEVICE_KEY_CACHE_TTL_MS = 2 * 60 * 1000;
 
 type CachedDeviceKeysEntry = {
     keys: DeviceKeyDto[];

@@ -40,6 +40,7 @@ export type Message = {
     plaintext?: string;
     deliveryStatus?: MessageDeliveryStatus;
     realId?: string;
+    clientTempId?: string;
 };
 
 export type ConversationThread = {

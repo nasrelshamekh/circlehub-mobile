@@ -47,6 +47,7 @@ import {
     clearDeviceKeyCache,
     decryptMessageContent,
     ensureDeviceKey,
+    peekDecrypted,
 } from "@/services/messageCrypto";
 import {
     dismissActivityNotifications,
@@ -515,16 +516,21 @@ export function ChatConnectionProvider({
                     message?.encryptedPayload ?? message?.EncryptedPayload;
                 let plaintext = "";
                 if (payload) {
-                    try {
-                        const decrypted = await decryptMessageContent(payload);
-                        if (
-                            decrypted &&
-                            decrypted !== "[Can't decrypt this message]"
-                        ) {
-                            plaintext = decrypted;
+                    const peeked = peekDecrypted(payload);
+                    if (peeked && peeked !== "[Can't decrypt this message]") {
+                        plaintext = peeked;
+                    } else {
+                        try {
+                            const decrypted = await decryptMessageContent(payload);
+                            if (
+                                decrypted &&
+                                decrypted !== "[Can't decrypt this message]"
+                            ) {
+                                plaintext = decrypted;
+                            }
+                        } catch {
+                            // ignore
                         }
-                    } catch {
-                        // ignore
                     }
                 }
 
