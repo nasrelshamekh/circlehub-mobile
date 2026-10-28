@@ -1488,3 +1488,26 @@ Across the mobile app, buttons had an inconsistent and overly sharp 12px border-
    - On web, moved `isOtherTyping` inside `contentRef` right below messages and above `bottomRef`. It renders as an inline bubble without full-width container and never overlaps the last message, naturally flowing with `ResizeObserver`.
 3. **Themed Custom Scrollbar (`CircleHub/src/index.css`, `MessageThread.jsx`, `Messages.jsx`):**
    - Added `.chat-scrollbar` and `.custom-scrollbar` with 6px width, transparent track, and `var(--border)` rounded thumb with `var(--outline)` hover matching light and dark modes.
+
+---
+
+## 29. Offline Popup Removal, In-Flight Greyed-Out Message Bubble & Web Typing Bubble Border Removal
+
+### Symptoms & Requests
+1. **Intrusive Top Slide-Down Offline Banner:** On mobile, whenever SignalR or network connection momentarily transitioned through `"reconnecting"` or `"connecting"`, an animated popup banner dropped down from the top saying *"You're offline... Connecting"*, which was disruptive and unnecessary.
+2. **Instant Greyed-Out Outgoing Bubble:** The user requested that as soon as Send is pressed on mobile, the outgoing message bubble appears immediately in a greyed-out state to indicate that it is sending, and then transitions to normal appearance (full opacity and checkmarks) once sent.
+3. **Web Typing Indicator Border:** The `{user} is typing...` indicator bubble on the webapp had a visible border around it that the user wanted removed.
+
+### Root Causes
+1. **`OfflineBanner` in Root Layout:** `<OfflineBanner />` was mounted at the top-level inside `src/app/_layout.tsx`. It listened to both `NetInfo` and `ChatConnectionContext.status`, animating a spring slide-down banner from `-40px` to `0px` every time SignalR reconnected.
+2. **Missing In-Flight Visual State on Bubble:** Outgoing optimistic messages in `src/components/messages/messagethread.tsx` were rendered with normal `bg-primary` and full opacity even while `pending: true`.
+3. **Border Class on Web Typing Bubble:** In `CircleHub/src/components/messages/MessageThread.jsx`, the typing indicator bubble container included `border border-(--border)`.
+
+### Fixes
+1. **Removed Top Slide-Down Banner (`src/app/_layout.tsx`):**
+   - Removed `<OfflineBanner />` and its import from the root layout, eliminating the disruptive drop-down banner while keeping the standalone component available for unit tests.
+2. **In-Flight Greyed-Out Message Bubble (`src/components/messages/messagethread.tsx`):**
+   - Added `style={isMine && isPending ? { opacity: 0.6 } : undefined}` and `opacity-60` to the message bubble `View` in `MessageBubble`.
+   - When the user presses Send, the optimistic message is immediately added to pending messages and rendered with 60% opacity. Once `sendMessage.mutateAsync` completes, `pending` becomes false, restoring the bubble to full 100% opacity and displaying the delivery checkmark.
+3. **Removed Web Typing Bubble Border (`CircleHub/src/components/messages/MessageThread.jsx`):**
+   - Removed `border border-(--border)` from the typing indicator bubble container, giving it a clean borderless appearance matching the mobile app.

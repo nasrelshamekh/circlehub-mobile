@@ -15,7 +15,6 @@ import { Platform, StatusBar, View } from "react-native";
 
 import ErrorFallback from "@/components/errors/errorfallback";
 import AppLoadingScreen from "@/components/ui/apploadingscreen";
-import OfflineBanner from "@/components/ui/offlinebanner";
 import { AlertProvider } from "@/context/alertcontext";
 import { AuthProvider, useAuth } from "@/context/authcontext";
 import { ChatConnectionProvider } from "@/context/chatconnectioncontext";
@@ -118,7 +117,6 @@ function RootNavigator() {
                     />
                 </Stack.Protected>
                 </Stack>
-                <OfflineBanner />
             </NavigationThemeProvider>
         </View>
     );

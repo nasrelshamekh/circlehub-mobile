@@ -157,11 +157,14 @@ const MessageBubble = memo(function MessageBubble({
                 >
                     {hasContent && (
                         <View
+                            style={isMine && isPending ? { opacity: 0.6 } : undefined}
                             className={
                                 isMine
                                     ? isFailed
                                         ? "rounded-2xl rounded-br-md border border-error bg-primary px-4 py-2.5"
-                                        : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
+                                        : isPending
+                                            ? "rounded-2xl rounded-br-md bg-primary px-4 py-2.5 opacity-60"
+                                            : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
                                     : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
                             }
                         >
