@@ -15,7 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Avatar from "@/components/avatar";
-import ChatConnectionStatus from "@/components/messages/chatconnectionstatus";
 import MessageThread from "@/components/messages/messagethread";
 import PresenceLabel from "@/components/messages/presencelabel";
 import GradientButton from "@/components/ui/gradientbutton";
@@ -241,8 +240,6 @@ export default function MessageThreadScreen() {
                         </View>
                     </View>
                 )}
-
-                <ChatConnectionStatus />
             </View>
 
             {error && messages.length === 0 ? (

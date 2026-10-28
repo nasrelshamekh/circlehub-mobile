@@ -1,4 +1,4 @@
-import { HubConnection } from "@microsoft/signalr";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import { router, usePathname } from "expo-router";
 import {
@@ -982,8 +982,21 @@ export function ChatConnectionProvider({
 
         connect();
 
+        const appStateSub = AppState.addEventListener("change", (nextState) => {
+            if (nextState === "active" && !disposed) {
+                if (connection.state === HubConnectionState.Disconnected) {
+                    if (retryTimer) {
+                        clearTimeout(retryTimer);
+                        retryTimer = null;
+                    }
+                    connect();
+                }
+            }
+        });
+
         return () => {
             disposed = true;
+            appStateSub.remove();
             if (retryTimer) clearTimeout(retryTimer);
             connectionRef.current = null;
             connection.off(RECEIVE_MESSAGE_EVENT);

@@ -24,15 +24,29 @@ export function resolveHubUrl(baseUrl = API_URL): string {
 }
 
 export function createChatConnection(): HubConnection {
-    return new HubConnectionBuilder()
+    const connection = new HubConnectionBuilder()
         .withUrl(resolveHubUrl(), {
             accessTokenFactory: async () => (await getToken()) ?? "",
         })
         .withAutomaticReconnect({
-            nextRetryDelayInMilliseconds: () => 10_000,
+            nextRetryDelayInMilliseconds: (retryContext) => {
+                // Immediate retry on first drop so reconnect is instantaneous
+                if (retryContext.previousRetryCount === 0) return 0;
+                if (retryContext.previousRetryCount === 1) return 1_000;
+                if (retryContext.previousRetryCount === 2) return 2_000;
+                if (retryContext.previousRetryCount === 3) return 5_000;
+                return 10_000;
+            },
         })
         .configureLogging(LogLevel.None)
         .build();
+
+    // 10s keepalive ping prevents reverse proxies / IIS from dropping idle connections.
+    // 60s server timeout gives mobile connections a forgiving buffer before treating a link as dead.
+    connection.keepAliveIntervalInMilliseconds = 10_000;
+    connection.serverTimeoutInMilliseconds = 60_000;
+
+    return connection;
 }
 
 export function sendTyping(

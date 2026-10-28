@@ -1511,3 +1511,34 @@ Across the mobile app, buttons had an inconsistent and overly sharp 12px border-
    - When the user presses Send, the optimistic message is immediately added to pending messages and rendered with 60% opacity. Once `sendMessage.mutateAsync` completes, `pending` becomes false, restoring the bubble to full 100% opacity and displaying the delivery checkmark.
 3. **Removed Web Typing Bubble Border (`CircleHub/src/components/messages/MessageThread.jsx`):**
    - Removed `border border-(--border)` from the typing indicator bubble container, giving it a clean borderless appearance matching the mobile app.
+
+---
+
+## 30. Mobile SignalR Resilience, Conversation Header Cleanup & Web Typing Area Border Elimination
+
+### Symptoms
+1. **Connection Drops & "Reconnecting…" Header Pill on Mobile:** The mobile app frequently dropped connection, leaving a visible "Reconnecting…" pill in the top-right header inside open conversations.
+2. **Persistent Border in Web Typing Area:** The user noted that a border was still perceived around the `{user} is typing` area on the web app.
+
+### Root Causes
+1. **SignalR Timeout Mismatch & 10s Reconnection Lag:**
+   - In `circlehub-mobile/src/services/chatHub.ts`, `withAutomaticReconnect` was configured with `nextRetryDelayInMilliseconds: () => 10_000`, forcing the client to wait 10 full seconds before its first reconnection attempt upon any network hiccup.
+   - SignalR's default 30-second `serverTimeout` is easily tripped on mobile networks and free IIS hosting (`runasp.net`), which aggressively closes idle TCP connections.
+   - When the phone screen locked or the app was backgrounded, the OS suspended background sockets. On foreground resume, `chatconnectioncontext.tsx` did not check or reconnect dead sockets, leaving them in limbo until timeout.
+   - `<ChatConnectionStatus />` was rendered inside `src/app/(tabs)/messages/[id].tsx`'s header, making any temporary background reconnect flash prominently on the chat header (unlike the web app, which only shows connection status on the conversation list).
+2. **Avatar Border Ring & Unbuilt / Cached Web Assets:**
+   - In `CircleHub`, `src/components/ui/avatar.jsx` applies `after:absolute after:inset-0 after:rounded-full after:border after:border-border` to all avatars, creating a circular border outline next to the typing text.
+   - Browser caching or in-flight deployment caused the user to view the previous bundle where `border border-(--border)` was still present.
+
+### Fixes
+1. **SignalR Keepalive & Immediate 0ms Reconnect (`src/services/chatHub.ts`, `CircleHub/src/services/chatHub.js`):**
+   - Configured `nextRetryDelayInMilliseconds` with immediate reconnect (`0ms` on first retry, followed by 1s, 2s, 5s, 10s backoff).
+   - Set client `keepAliveIntervalInMilliseconds = 10_000` (10s) and `serverTimeoutInMilliseconds = 60_000` (60s) so proxies don't drop connections as idle and mobile jitter doesn't cause false disconnects.
+2. **Foreground Socket Re-engagement (`src/context/chatconnectioncontext.tsx`):**
+   - Added an `AppState` active listener that immediately calls `connect()` if `connection.state === HubConnectionState.Disconnected`, reconnecting dead sockets the moment the user unlocks or resumes the app.
+3. **Clean Conversation Header (`src/app/(tabs)/messages/[id].tsx`):**
+   - Removed `<ChatConnectionStatus />` from the conversation screen header. Connection status remains properly located on the conversation list screen (`messages.tsx`), keeping chat headers clean and distraction-free.
+4. **Border Elimination in Web Typing Area (`CircleHub/src/components/messages/MessageThread.jsx`):**
+   - Added `border-0 border-none` explicitly to both the bubble and outer container.
+   - Added `after:hidden after:border-none` to `Avatar` to strip the pseudo-element ring border.
+
