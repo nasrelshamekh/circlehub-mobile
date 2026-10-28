@@ -1431,3 +1431,37 @@ Across the mobile app, buttons had an inconsistent and overly sharp 12px border-
    - Updated "New Message", "Create Community", and new message dialog buttons to `rounded-full` to match the web app.
 4. **Automated Unit Tests (`__tests__/components/gradientButton.test.tsx`):**
    - Added tests verifying default 24px radius, `rounded-full` 9999px pill radius, and custom utility class support (`rounded-lg` 16px).
+
+---
+
+## 27. E2EE Decryption Readiness & Delivered Double Checkmark Parity
+
+### Symptoms
+1. **Received Messages Showing `[Can't decrypt this message]` on Mobile:** Newly received messages sent from the webapp displayed `[Can't decrypt this message]` on mobile.
+2. **Outgoing Messages Stuck at Single Checkmark (`Sent`):** When sending messages from the mobile app, even after successfully landing on the backend and delivering to the recipient (acknowledged on the webapp), the message bubble remained permanently stuck displaying a single checkmark (`sent`) instead of transitioning to the double checkmark (`delivered`).
+
+### Root Causes
+1. **Pre-Warmed Stale Device Key Cache on Sender:**
+   - Both Web and Mobile senders cached the recipient's published device keys in memory for 5 minutes (`DEVICE_KEY_CACHE_TTL_MS = 5 * 60 * 1000`).
+   - When a mobile device signed in, reinstalled, or rotated its key, the webapp continued wrapping messages using the stale cached key list from before the rotation. The recipient's active device key was missing from `envelope.w`.
+   - In `selectWrapTargets`, recipient keys without timestamps were parsed to `0` and sorted to the back, causing them to be dropped if the user had historical keys.
+2. **Race Condition During Key Initialization on Mobile:**
+   - On mobile startup, when messages rendered before `ensureDeviceKey()` completed, `loadStoredKeys()` returned `[]`.
+   - `decryptEnvelope()` did not await `ensureDeviceKey()`, immediately falling back to `UNREADABLE_PLACEHOLDER`.
+   - Android's `SecureStore.setItemAsync` 2048-byte limit could silently fail if the keys list grew beyond 4 entries.
+3. **Delivery Status Locked to `sent` in Mutation & Cache:**
+   - In `src/hooks/mutations/useSendMessage.ts` and `src/components/messages/messagethread.tsx`, confirmed messages were explicitly tagged with `deliveryStatus: "sent"`.
+   - In `src/lib/messageCacheHelpers.ts`, `newMessage.deliveryStatus || existing.deliveryStatus` persisted `"sent"`.
+   - Because `messagethread.tsx` checked `if (message.deliveryStatus === "sent") deliveryState = "sent"`, the bubble stayed stuck at a single checkmark forever.
+
+### Fixes
+1. **Double Checkmark on Message Confirmation (`src/hooks/mutations/useSendMessage.ts`, `src/components/messages/messagethread.tsx`):**
+   - Updated `enrichedMessage` and `updatePending` upon successful `sendMessage.mutateAsync` resolution to set `deliveryStatus: "delivered" as const`.
+   - This transitions the outgoing bubble from in-flight (no checkmark) directly to double checkmarks (`CheckCheck` in primary color, expanding to "Delivered"), perfectly mirroring webapp behavior.
+2. **Key Cache Invalidation & Freshest Wrap Selection (`src/services/messageCrypto.ts`, `CircleHub/src/services/messageCrypto.js`):**
+   - In `prefetchRecipientDeviceKeys(recipientUsername)`, invalidated stale recipient cache before fetching so entering a thread always fetches the latest keys.
+   - Updated `seenAt` in `selectWrapTargets` to default missing or fresh stamps to `Date.now()`, ensuring freshly published devices are prioritized.
+   - Trimmed mobile `saveStoredKey` to the last 4 keys (~1100 bytes) to stay safely within Android `SecureStore`'s 2048-byte limit and added logging in `writeStorageItem`.
+3. **Decryption Retry Guard on Mobile (`src/services/messageCrypto.ts`):**
+   - Added an initialization check in `decryptEnvelope`: if local stored keys are empty, it awaits `ensureDeviceKey()` before giving up.
+   - Guarded `seedSettledPlaintext` against seeding `UNREADABLE_PLACEHOLDER`.

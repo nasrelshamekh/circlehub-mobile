@@ -588,7 +588,7 @@ export default function MessageThread({
                                           m.createdAt,
                                       pending: false,
                                       failed: false,
-                                      deliveryStatus: "sent",
+                                      deliveryStatus: "delivered",
                                   }
                                 : m
                         )
@@ -597,7 +597,7 @@ export default function MessageThread({
                     updatePending((prev) =>
                         prev.map((m) =>
                             m.id === tempId
-                                ? { ...m, pending: false, failed: false, deliveryStatus: "sent" }
+                                ? { ...m, pending: false, failed: false, deliveryStatus: "delivered" }
                                 : m
                         )
                     );

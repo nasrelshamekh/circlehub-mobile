@@ -150,8 +150,8 @@ async function writeStorageItem(key: string, value: string): Promise<void> {
     }
     try {
         await SecureStore.setItemAsync(key, value);
-    } catch {
-        // ignore
+    } catch (error) {
+        console.warn(`[Crypto] Failed to write SecureStore item "${key}":`, error);
     }
 }
 
@@ -231,7 +231,7 @@ async function saveStoredKey(record: StoredDeviceKey): Promise<void> {
     const updated = [
         ...current.filter((entry) => entry.publicKeyB64 !== record.publicKeyB64),
         record,
-    ].slice(-8);
+    ].slice(-4);
     memoryKeys = updated;
     await writeStorageItem(PRIVATE_KEYS_KEY, JSON.stringify(updated));
     clearDecryptCache();
@@ -374,19 +374,23 @@ async function fetchDeviceKeys(
     }
 
     const promise = (async () => {
-        const response = await getUserDeviceKeys(trimmed);
-        const keys = response.data ?? [];
-        // Only cache non-empty device key lists so a recipient who publishes their very first E2EE
-        // key moments later is upgraded to encrypted delivery immediately on the next send.
-        if (keys.length > 0) {
-            deviceKeyDirectoryCache.set(cacheKey, {
-                keys,
-                expiresAt: Date.now() + DEVICE_KEY_CACHE_TTL_MS,
-            });
-        } else {
-            deviceKeyDirectoryCache.delete(cacheKey);
+        try {
+            const response = await getUserDeviceKeys(trimmed);
+            const keys = response.data ?? [];
+            // Only cache non-empty device key lists so a recipient who publishes their very first E2EE
+            // key moments later is upgraded to encrypted delivery immediately on the next send.
+            if (keys.length > 0) {
+                deviceKeyDirectoryCache.set(cacheKey, {
+                    keys,
+                    expiresAt: Date.now() + DEVICE_KEY_CACHE_TTL_MS,
+                });
+            } else {
+                deviceKeyDirectoryCache.delete(cacheKey);
+            }
+            return keys;
+        } catch {
+            return [];
         }
-        return keys;
     })().finally(() => {
         if (deviceKeyInFlight.get(cacheKey) === promise) {
             deviceKeyInFlight.delete(cacheKey);
@@ -415,6 +419,7 @@ export function prefetchRecipientDeviceKeys(
 ): void {
     const trimmed = recipientUsername?.trim();
     if (trimmed) {
+        clearDeviceKeyCache(trimmed);
         fetchDeviceKeys(trimmed).catch(() => undefined);
     }
     ensureDeviceKey().catch(() => undefined);
@@ -615,8 +620,10 @@ export function selectWrapTargets<T extends WrapCandidate>(
     recipientKeys: T[],
     currentDeviceId: string
 ): T[] {
-    const seenAt = (key: T) =>
-        Date.parse(key.lastSeenAt ?? key.createdAt ?? "") || 0;
+    const seenAt = (key: T) => {
+        const parsed = Date.parse(key.lastSeenAt ?? key.createdAt ?? "");
+        return Number.isFinite(parsed) ? parsed : Date.now();
+    };
     const byRecency = (a: T, b: T) => seenAt(b) - seenAt(a);
 
     const own = [...ownKeys].sort(byRecency);
@@ -753,10 +760,20 @@ async function decryptEnvelope(envelope: EncryptedEnvelope): Promise<string> {
         return UNREADABLE_PLACEHOLDER;
     }
 
-    const [keys, activeDeviceId] = await Promise.all([
+    let [keys, activeDeviceId] = await Promise.all([
         loadStoredKeys(),
         peekStoredDeviceId(),
     ]);
+
+    if (keys.length === 0) {
+        try {
+            await ensureDeviceKey();
+            keys = await loadStoredKeys();
+            activeDeviceId = await peekStoredDeviceId();
+        } catch {
+            // ignore
+        }
+    }
 
     const orderedKeys = activeDeviceId
         ? [
@@ -913,7 +930,7 @@ export function seedSettledPlaintext(
     content?: string | null,
     plaintext?: string | null
 ): void {
-    if (!isEncryptedContent(content) || !plaintext) return;
+    if (!isEncryptedContent(content) || !plaintext || plaintext === UNREADABLE_PLACEHOLDER) return;
     if (settledCache.has(content)) return;
 
     settledCache.set(content, plaintext);
