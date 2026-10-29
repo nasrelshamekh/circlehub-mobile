@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Image, Pressable, Share, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import MediaLightbox from "@/components/common/medialightbox";
 import RichText from "@/components/common/richtext";
 import EditPostModal from "@/components/editpostmodal";
 import PostActions from "@/components/postactions";
@@ -49,6 +50,7 @@ export default function PostCard({
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
     const imageUri = getImageUrl(post.imageUrl);
@@ -210,10 +212,9 @@ export default function PostCard({
 
                 {imageUri && (
                     <Pressable
-                        onPress={openPost}
-                        disabled={isDetailsPage}
-                        accessibilityRole={isDetailsPage ? "none" : "button"}
-                        accessibilityLabel="View post details"
+                        onPress={isDetailsPage ? () => setLightboxOpen(true) : openPost}
+                        accessibilityRole="button"
+                        accessibilityLabel={isDetailsPage ? "Open full-screen image preview" : "View post details"}
                     >
                         {isDetailsPage ? (
                             <ExpoImage
@@ -281,6 +282,13 @@ export default function PostCard({
                     setDeleteError(null);
                 }}
                 onConfirm={handleDelete}
+            />
+
+            <MediaLightbox
+                visible={lightboxOpen}
+                imageUri={imageUri}
+                altText={post.content}
+                onClose={() => setLightboxOpen(false)}
             />
         </>
     );

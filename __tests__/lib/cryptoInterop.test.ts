@@ -541,7 +541,7 @@ describe("web (WebCrypto) <-> mobile (@noble) E2EE interop", () => {
                     await subtle.importKey("raw", cek, { name: "AES-GCM" }, false, [
                         "encrypt",
                     ]),
-                    padded
+                    padded as unknown as BufferSource
                 )
             );
 
