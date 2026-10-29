@@ -9,7 +9,8 @@ import { getImageUrl } from "@/lib/imageUrl";
 import { Post } from "@/types/post";
 
 export default function ExplorePostCard({ post }: { post: Post }) {
-    const imageUri = getImageUrl(post.imageUrl);
+    const rawImage = post.imageUrls?.[0] || post.imageUrl;
+    const imageUri = getImageUrl(rawImage);
 
     function openPost() {
         router.push(`/post/${post.id}`);
@@ -29,12 +30,20 @@ export default function ExplorePostCard({ post }: { post: Post }) {
                     onPress={openPost}
                     accessibilityRole="button"
                     accessibilityLabel="Open post"
+                    className="relative"
                 >
                     <Image
                         source={{ uri: imageUri }}
                         className="h-40 w-full"
                         resizeMode="cover"
                     />
+                    {post.imageUrls && post.imageUrls.length > 1 ? (
+                        <View className="absolute bottom-2 right-2 rounded-md bg-black/70 px-2 py-0.5">
+                            <Text className="text-label-xs font-semibold text-white">
+                                +{post.imageUrls.length}
+                            </Text>
+                        </View>
+                    ) : null}
                 </Pressable>
             ) : null}
 

@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     KeyboardAvoidingView,
     ScrollView,
@@ -8,21 +8,30 @@ import {
 } from "react-native";
 
 import ExploreSearch from "@/components/explore/exploresearch";
-import ExploreTabs from "@/components/explore/exploretabs";
+import ExploreTabs, { ExploreTabValue } from "@/components/explore/exploretabs";
 import useSearch from "@/hooks/useSearch";
 
 export default function ExploreScreen() {
     const params = useLocalSearchParams<{ q?: string }>();
     const initialQuery = typeof params.q === "string" ? params.q : "";
     const [searchQuery, setSearchQuery] = useState(initialQuery);
+    const [prevParamQ, setPrevParamQ] = useState(initialQuery);
 
-    useEffect(() => {
-        if (typeof params.q === "string") {
-            setSearchQuery(params.q);
-        }
-    }, [params.q]);
+    if (typeof params.q === "string" && params.q !== prevParamQ) {
+        setPrevParamQ(params.q);
+        setSearchQuery(params.q);
+    }
 
-    const { users, communities, posts, isLoading } = useSearch(searchQuery);
+    const [activeTab, setActiveTab] = useState<ExploreTabValue>("all");
+    const [sort, setSort] = useState<"latest" | "top">("latest");
+    const [mediaOnly, setMediaOnly] = useState(false);
+
+    const { users, communities, posts, isLoading } = useSearch({
+        q: searchQuery,
+        type: activeTab,
+        sort,
+        mediaOnly: mediaOnly || activeTab === "media",
+    });
 
     return (
         <KeyboardAvoidingView
@@ -43,7 +52,7 @@ export default function ExploreScreen() {
                         </Text>
 
                         <Text className="mt-1 text-body-sm text-text-secondary">
-                            Search for posts, people, and communities across
+                            Search for posts, people, communities, and media across
                             CircleHub.
                         </Text>
                     </View>
@@ -56,6 +65,12 @@ export default function ExploreScreen() {
                         communities={communities}
                         searchQuery={searchQuery}
                         isLoading={isLoading}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                        sort={sort}
+                        onSortChange={setSort}
+                        mediaOnly={mediaOnly}
+                        onMediaOnlyChange={setMediaOnly}
                     />
                 </View>
             </ScrollView>

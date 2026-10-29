@@ -15,7 +15,17 @@ export const queryKeys = {
     communityMembers: (id: string) => ["community", id, "members"],
     communityPosts: (id: string) => ["community", id, "posts"],
     communityRequests: (id: string) => ["community", id, "requests"],
-    search: (query: string) => ["search", query],
+    search: (params: string | { q?: string; type?: string; sort?: string; mediaOnly?: boolean }) => [
+        "search",
+        typeof params === "string"
+            ? { q: params }
+            : {
+                  q: params?.q ?? "",
+                  type: params?.type ?? "all",
+                  sort: params?.sort ?? "latest",
+                  mediaOnly: Boolean(params?.mediaOnly),
+              },
+    ],
     conversations: () => ["messages", "conversations"],
     conversation: (id: string) => ["messages", "conversations", id],
     messageRecipients: () => ["messages", "recipients"],
