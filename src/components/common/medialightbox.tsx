@@ -110,7 +110,10 @@ export default function MediaLightbox({
                 >
                     <Pressable
                         onPress={handleShare}
-                        style={styles.toolButton}
+                        style={({ pressed }) => [
+                            styles.toolButton,
+                            pressed && { opacity: 0.7 },
+                        ]}
                         accessibilityRole="button"
                         accessibilityLabel="Share image"
                         hitSlop={8}
@@ -120,7 +123,10 @@ export default function MediaLightbox({
 
                     <Pressable
                         onPress={onClose}
-                        style={styles.toolButton}
+                        style={({ pressed }) => [
+                            styles.toolButton,
+                            pressed && { opacity: 0.7 },
+                        ]}
                         accessibilityRole="button"
                         accessibilityLabel="Close image viewer"
                         hitSlop={8}
@@ -167,9 +173,11 @@ export default function MediaLightbox({
                         { paddingBottom: Math.max(insets.bottom, 12) + 8 },
                     ]}
                 >
-                    <Text style={styles.hintText}>
-                        Pinch or double-tap to zoom • Swipe down to close
-                    </Text>
+                    <View style={styles.hintPill}>
+                        <Text style={styles.hintText}>
+                            Pinch or double-tap to zoom • Swipe down to close
+                        </Text>
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -223,8 +231,16 @@ const styles = StyleSheet.create({
         alignItems: "center",
         zIndex: 40,
     },
+    hintPill: {
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 16,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(255, 255, 255, 0.15)",
+    },
     hintText: {
-        color: "rgba(255, 255, 255, 0.45)",
+        color: "rgba(255, 255, 255, 0.65)",
         fontSize: 12,
         fontWeight: "500",
         letterSpacing: 0.2,

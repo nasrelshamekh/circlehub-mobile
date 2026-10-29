@@ -30,6 +30,7 @@ import useCreatePost from "@/hooks/mutations/useCreatePost";
 import { requestFeedScrollToTop } from "@/lib/feedScroll";
 import { prepareUploadImage, UploadImage, uploadFailureMessage } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
+import { themes } from "@/theme/themes";
 
 export default function Create() {
     const { isDark } = useTheme();
@@ -42,6 +43,7 @@ export default function Create() {
     }>();
 
     const colors = isDark ? themeColors.dark : themeColors.light;
+    const theme = isDark ? themes.dark : themes.light;
 
     const [content, setContent] = useState("");
     const [images, setImages] = useState<UploadImage[]>([]);
@@ -190,7 +192,7 @@ export default function Create() {
 
     return (
         <Modal visible animationType="slide" onRequestClose={close}>
-            <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+            <SafeAreaView className="flex-1 bg-background" style={theme} edges={["top"]}>
                 <KeyboardAvoidingView
                     className="flex-1"
                     behavior="padding"
@@ -206,7 +208,7 @@ export default function Create() {
                             accessibilityRole="button"
                             accessibilityLabel="Close"
                             hitSlop={8}
-                            className="h-9 w-9 items-center justify-center rounded-full bg-surface-lowest"
+                            className="h-9 w-9 items-center justify-center rounded-full bg-surface-low active:bg-surface-high"
                         >
                             <X size={18} color={colors.textPrimary} />
                         </Pressable>
@@ -317,7 +319,7 @@ export default function Create() {
                                     <Pressable
                                         onPress={() => setShowPoll(false)}
                                         accessibilityLabel="Discard poll"
-                                        className="h-7 w-7 items-center justify-center rounded-full bg-surface-low"
+                                        className="h-7 w-7 items-center justify-center rounded-full bg-surface-low active:bg-surface-high"
                                     >
                                         <X size={15} color={colors.textSecondary} />
                                     </Pressable>
@@ -351,7 +353,7 @@ export default function Create() {
                                                 <Pressable
                                                     onPress={() => removePollOption(idx)}
                                                     accessibilityLabel={`Remove option ${idx + 1}`}
-                                                    className="h-9 w-9 items-center justify-center rounded-lg bg-surface-low"
+                                                    className="h-9 w-9 items-center justify-center rounded-lg bg-surface-low active:bg-surface-high"
                                                 >
                                                     <Trash2
                                                         size={16}
@@ -366,7 +368,7 @@ export default function Create() {
                                 {pollOptions.length < 6 && (
                                     <Pressable
                                         onPress={addPollOption}
-                                        className="flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5"
+                                        className="flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 active:bg-surface-low"
                                     >
                                         <Plus size={16} color={colors.primary} />
                                         <Text className="text-label-sm font-semibold text-primary">
@@ -380,28 +382,37 @@ export default function Create() {
                                     <Text className="text-label-xs text-text-secondary">
                                         Poll duration:
                                     </Text>
-                                    <View className="flex-row gap-1.5">
-                                        {[1, 3, 7].map((days) => (
-                                            <Pressable
-                                                key={days}
-                                                onPress={() => setPollDurationDays(days)}
-                                                className={`rounded-lg px-2.5 py-1 ${
-                                                    pollDurationDays === days
-                                                        ? "bg-primary"
-                                                        : "bg-surface-low"
-                                                }`}
-                                            >
-                                                <Text
-                                                    className={`text-label-xs font-medium ${
-                                                        pollDurationDays === days
-                                                            ? "text-white"
-                                                            : "text-text-secondary"
+                                    <View className="flex-row gap-2">
+                                        {[1, 3, 7].map((days) => {
+                                            const isActive = pollDurationDays === days;
+                                            return (
+                                                <Pressable
+                                                    key={days}
+                                                    onPress={() => setPollDurationDays(days)}
+                                                    style={
+                                                        isActive
+                                                            ? { backgroundColor: colors.primary }
+                                                            : undefined
+                                                    }
+                                                    className={`rounded-full px-3 py-1.5 ${
+                                                        isActive
+                                                            ? ""
+                                                            : "border border-border bg-surface-low active:bg-surface-high"
                                                     }`}
                                                 >
-                                                    {days} {days === 1 ? "day" : "days"}
-                                                </Text>
-                                            </Pressable>
-                                        ))}
+                                                    <Text
+                                                        style={{
+                                                            color: isActive
+                                                                ? colors.buttonGradientText
+                                                                : colors.textSecondary,
+                                                        }}
+                                                        className="text-label-xs font-semibold"
+                                                    >
+                                                        {days} {days === 1 ? "day" : "days"}
+                                                    </Text>
+                                                </Pressable>
+                                            );
+                                        })}
                                     </View>
                                 </View>
                             </View>
@@ -422,7 +433,7 @@ export default function Create() {
                                     onPress={pickImages}
                                     disabled={images.length >= 4}
                                     accessibilityLabel="Add photo"
-                                    className="h-10 flex-row items-center gap-1.5 rounded-full border border-border bg-surface-lowest px-3.5"
+                                    className="h-10 flex-row items-center gap-1.5 rounded-full border border-border bg-surface-lowest px-3.5 active:bg-surface-low"
                                 >
                                     <Images
                                         size={20}
@@ -444,10 +455,20 @@ export default function Create() {
                                     accessibilityLabel={
                                         showPoll ? "Discard poll" : "Add poll"
                                     }
+                                    style={
+                                        showPoll
+                                            ? {
+                                                  borderColor: colors.primary,
+                                                  backgroundColor: isDark
+                                                      ? "rgba(189, 194, 255, 0.12)"
+                                                      : "rgba(70, 72, 212, 0.08)",
+                                              }
+                                            : undefined
+                                    }
                                     className={`h-10 flex-row items-center gap-1.5 rounded-full border px-3.5 ${
                                         showPoll
-                                            ? "border-primary bg-primary/10"
-                                            : "border-border bg-surface-lowest"
+                                            ? ""
+                                            : "border-border bg-surface-lowest active:bg-surface-low"
                                     }`}
                                 >
                                     <BarChart2

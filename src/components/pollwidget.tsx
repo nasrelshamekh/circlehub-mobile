@@ -104,11 +104,16 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                                             {option.text}
                                         </Text>
                                         {isMyVote && (
-                                            <Check
-                                                size={15}
-                                                color={colors.primary}
-                                                strokeWidth={2.5}
-                                            />
+                                            <View
+                                                style={{ backgroundColor: colors.primary }}
+                                                className="h-5 w-5 items-center justify-center rounded-full"
+                                            >
+                                                <Check
+                                                    size={12}
+                                                    color={colors.buttonGradientText}
+                                                    strokeWidth={3}
+                                                />
+                                            </View>
                                         )}
                                     </View>
 
@@ -136,12 +141,12 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                             className={`flex-row items-center justify-between rounded-xl border px-3.5 py-3 ${
                                 isMyVote
                                     ? "border-primary bg-primary/10"
-                                    : "border-border bg-surface-low active:bg-surface-lowest"
+                                    : "border-border bg-surface-low active:bg-surface-high"
                             }`}
                         >
                             <Text
                                 className={`flex-1 text-body-sm font-medium ${
-                                    isMyVote ? "text-primary" : "text-text-primary"
+                                    isMyVote ? "font-semibold text-primary" : "text-text-primary"
                                 }`}
                                 numberOfLines={2}
                             >
@@ -159,7 +164,10 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                                     }`}
                                 >
                                     {isMyVote && (
-                                        <View className="h-2 w-2 rounded-full bg-white" />
+                                        <View
+                                            style={{ backgroundColor: colors.buttonGradientText }}
+                                            className="h-2 w-2 rounded-full"
+                                        />
                                     )}
                                 </View>
                             )}
@@ -189,7 +197,7 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                     <Pressable
                         onPress={() => setIsChangingVote((prev) => !prev)}
                         accessibilityRole="button"
-                        className="py-1 px-2 rounded-md"
+                        className="rounded-lg bg-surface-low px-2.5 py-1 active:bg-surface-high"
                     >
                         <Text className="text-label-xs font-semibold text-primary">
                             {isChangingVote ? "Cancel" : "Change vote"}
