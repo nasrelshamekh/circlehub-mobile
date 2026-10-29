@@ -1305,11 +1305,11 @@ When push notifications arrived on the Android status bar while CircleHub was ba
 
 ---
 
-## 22. Zero-RTT Device-Key Caching on Send Path (~65% Lower Send Latency) & Native Android Discord-Style `MessagingStyle` Notifications
+## 22. Zero-RTT Device-Key Caching on Send Path (~65% Lower Send Latency) & Android Push Notification Optimization
 
 ### Issues
 1. **Message-Send Network Latency:** Both `encryptMessageContent` on Mobile (`src/services/messageCrypto.ts`) and Web (`src/services/messageCrypto.js`) issued two sequential HTTP round-trips (`GET /api/keys/{recipient}` followed by `GET /api/keys/{self}`) on **every single sent message** before `POST /api/Messages`, turning every message send into 3 sequential round-trips (~450 ms) instead of 1 (~150 ms).
-2. **Android Push Notification Giant Avatar (`BigPictureStyle` Override):** Expanding an Android push notification displayed the sender's avatar blown up across the entire notification width instead of keeping a circular avatar to the left of the sender's name and stacking unread messages underneath (Discord-style).
+2. **Android Push Notification Giant Avatar (`BigPictureStyle` Override):** Expanding an Android push notification displayed the sender's avatar blown up across the entire notification width instead of keeping a clean circular avatar.
 
 ### Root Causes
 1. Neither `messageCrypto.ts` nor `messageCrypto.js` cached `/api/keys/{username}` responses or `ensureDeviceKey()` verification in memory across sends, nor pre-warmed the recipient's keys when opening a thread.
@@ -1320,7 +1320,7 @@ When push notifications arrived on the Android status bar while CircleHub was ba
    - Added `DEVICE_KEY_CACHE_TTL_MS = 5 * 60 * 1000`, `deviceKeyDirectoryCache`, `deviceKeyInFlight` deduplication, `ensuredOwnKeyCache`, `clearDeviceKeyCache()`, and `prefetchRecipientDeviceKeys()` in both `circlehub-mobile/src/services/messageCrypto.ts` and `CircleHub/src/services/messageCrypto.js` (plus `importedPeerKeyCache` for WebCrypto `importKey`).
    - Only non-empty key lists (`keys.length > 0`) are cached so a recipient who publishes their very first E2EE key upgrades to encrypted delivery immediately on the next send.
    - `encryptMessageContent` runs `ensureDeviceKey()` and `fetchDeviceKeys(recipientUsername)` concurrently on cache miss, and `prefetchRecipientDeviceKeys(resolvedOtherUser.username)` pre-warms both when opening `/messages/[id]` (`src/app/(tabs)/messages/[id].tsx` on Mobile, `src/pages/Messages/Messages.jsx` on Web), cutting steady-state send latency from 3 sequential HTTP round-trips to 1 (`POST /api/Messages`).
-2. **End-to-End Native Android Discord-Style `MessagingStyle` Push Pipeline:**
+2. **End-to-End Android Push Pipeline:**
    - **Backend (`ExpoPushService.cs`, `MessageDeliveryService.cs`, `NotificationService.cs`):** Stopped passing `resolvedAvatarUrl` as `imageUrl` (`imageUrl: null`), increased `RecentPreviews` retention to `5` messages (`messages = previewsSnapshot`, `unreadCount`), and updated `ExpoPushService.cs` so `android` device tokens receive a high-priority data-only Expo Push payload (`Title = null, Body = null, RichContent = null` with `title`, `message`, `channelId`, `tag`, `sound`, `vibrate`, `autoDismiss` merged into `Data`) while preserving standard root APNs fields for `ios`.
    - **Native Android Patch (`patches/expo-notifications+57.0.24.patch`):**
      - `NotificationData.kt`: Falls back `title`, `message`, `sound` (`shouldPlayDefaultSound`), `vibrate` (`shouldUseDefaultVibrationPattern`), `color`, `autoDismiss`, `categoryId`, `subText`, and `badge` to `body` JSON so `ExpoHandlingDelegate.shouldPresent()` presents data-driven background/killed notifications.
@@ -1333,7 +1333,7 @@ When push notifications arrived on the Android status bar while CircleHub was ba
 ## 23. Android Background / Killed Push Delivery Crash Fix & Conversation Screen Edge-to-Edge Safe-Area / Keyboard Fix
 
 ### Issues
-1. **Zero Push Notifications When App Is Closed or Swiped Away:** After switching Android push delivery to high-priority data-only payloads so `ExpoNotificationBuilder` renders Discord-style `MessagingStyle` cards, no notification appeared whenever the app was backgrounded, locked, or swiped away from Recents.
+1. **Zero Push Notifications When App Is Closed or Swiped Away:** After switching Android push delivery to high-priority data-only payloads, no notification appeared whenever the app was backgrounded, locked, or swiped away from Recents.
 2. **Conversation Screen Header & Composer Overlapping Android System Bars:** Opening a conversation (`src/app/(tabs)/messages/[id].tsx`) caused the top conversation header to overlap the Android top status bar and the bottom composer / lower area to overlap the Android bottom navigation bar and soft keyboard.
 
 ### Root Causes

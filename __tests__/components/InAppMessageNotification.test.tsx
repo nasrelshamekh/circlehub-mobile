@@ -17,7 +17,7 @@ afterEach(() => {
     cleanup();
 });
 
-describe("InAppMessageNotification (Discord-inspired notification layout)", () => {
+describe("InAppMessageNotification (In-app notification layout)", () => {
     it("renders single message in collapsed preview state by default", async () => {
         const onPress = jest.fn();
         const { getByText, getByTestId } = await renderWithTheme(
