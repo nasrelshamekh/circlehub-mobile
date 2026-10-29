@@ -1,4 +1,4 @@
-import { Check, Clock, LoaderCircle } from "lucide-react-native";
+import { Check, Clock, LoaderCircle, BarChart2 } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
@@ -57,12 +57,36 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
     }
 
     return (
-        <View className="my-2.5 rounded-2xl bg-surface-lowest p-4">
+        <View className="my-2.5 rounded-2xl bg-surface-low p-4">
+            {/* Header chip */}
+            <View className="mb-2 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1">
+                    <BarChart2 size={13} color={colors.primary} />
+                    <Text className="text-label-xs font-semibold text-primary">
+                        Community Poll
+                    </Text>
+                </View>
+                {poll.expiresAt ? (
+                    <View className="flex-row items-center gap-1">
+                        <Clock size={12} color={colors.textSecondary} />
+                        <Text className="text-label-xs text-text-secondary font-medium">
+                            {formatRemainingTime()}
+                        </Text>
+                    </View>
+                ) : null}
+            </View>
+
             {poll.question ? (
-                <Text className="mb-3 text-label-lg font-bold text-text-primary">
+                <Text className="mb-1 text-label-lg font-bold text-text-primary">
                     {poll.question}
                 </Text>
             ) : null}
+
+            {!showResults && !isExpired && (
+                <Text className="mb-3 text-label-xs text-text-secondary">
+                    Select an option to cast your vote:
+                </Text>
+            )}
 
             <View className="gap-2.5">
                 {poll.options.map((option) => {
@@ -75,10 +99,10 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                         return (
                             <View
                                 key={option.id}
-                                className={`relative overflow-hidden rounded-xl p-3 ${
+                                className={`relative overflow-hidden rounded-xl p-3.5 bg-surface-lowest border ${
                                     isMyVote
-                                        ? "bg-primary/10"
-                                        : "bg-surface-low"
+                                        ? "border-primary"
+                                        : "border-border/30"
                                 }`}
                             >
                                 {/* Progress Bar Fill */}
@@ -93,16 +117,6 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
 
                                 <View className="flex-row items-center justify-between z-10">
                                     <View className="flex-1 flex-row items-center gap-2 pr-2">
-                                        <Text
-                                            className={`text-body-sm ${
-                                                isMyVote
-                                                    ? "font-semibold text-text-primary"
-                                                    : "text-text-primary"
-                                            }`}
-                                            numberOfLines={2}
-                                        >
-                                            {option.text}
-                                        </Text>
                                         {isMyVote && (
                                             <View
                                                 style={{ backgroundColor: colors.primary }}
@@ -115,10 +129,22 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                                                 />
                                             </View>
                                         )}
+                                        <Text
+                                            className={`text-body-sm ${
+                                                isMyVote
+                                                    ? "font-bold text-text-primary"
+                                                    : "text-text-primary"
+                                            }`}
+                                            numberOfLines={2}
+                                        >
+                                            {option.text}
+                                        </Text>
                                     </View>
 
                                     <View className="flex-row items-center gap-1.5">
-                                        <Text className="text-label-sm font-semibold text-text-primary">
+                                        <Text className={`text-label-sm font-bold ${
+                                            isMyVote ? "text-primary" : "text-text-primary"
+                                        }`}>
                                             {percent}%
                                         </Text>
                                         <Text className="text-label-xs text-text-secondary">
@@ -138,16 +164,10 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                             disabled={voteMutation.isPending}
                             accessibilityRole="button"
                             accessibilityLabel={`Vote for ${option.text}`}
-                            className={`flex-row items-center justify-between rounded-xl px-3.5 py-3 ${
-                                isMyVote
-                                    ? "bg-primary/10"
-                                    : "bg-surface-low active:bg-surface-high"
-                            }`}
+                            className="flex-row items-center justify-between rounded-xl px-4 py-3.5 bg-surface-lowest active:bg-surface-high border border-border/40"
                         >
                             <Text
-                                className={`flex-1 text-body-sm font-medium ${
-                                    isMyVote ? "font-semibold text-primary" : "text-text-primary"
-                                }`}
+                                className="flex-1 text-body-sm font-medium pr-3 text-text-primary"
                                 numberOfLines={2}
                             >
                                 {option.text}
