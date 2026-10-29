@@ -138,10 +138,10 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                             disabled={voteMutation.isPending}
                             accessibilityRole="button"
                             accessibilityLabel={`Vote for ${option.text}`}
-                            className={`flex-row items-center justify-between rounded-xl border px-3.5 py-3 ${
+                            className={`flex-row items-center justify-between rounded-xl px-3.5 py-3 ${
                                 isMyVote
-                                    ? "border-primary bg-primary/10"
-                                    : "border-border bg-surface-low active:bg-surface-high"
+                                    ? "bg-primary/10"
+                                    : "bg-surface-low active:bg-surface-high"
                             }`}
                         >
                             <Text

@@ -394,10 +394,10 @@ export default function Create() {
                                                             ? { backgroundColor: colors.primary }
                                                             : undefined
                                                     }
-                                                    className={`rounded-full px-3 py-1.5 ${
+                                                    className={`rounded-full px-3.5 py-1.5 ${
                                                         isActive
                                                             ? ""
-                                                            : "border border-border bg-surface-low active:bg-surface-high"
+                                                            : "bg-surface-low active:bg-surface-high"
                                                     }`}
                                                 >
                                                     <Text
@@ -433,7 +433,7 @@ export default function Create() {
                                     onPress={pickImages}
                                     disabled={images.length >= 4}
                                     accessibilityLabel="Add photo"
-                                    className="h-10 flex-row items-center gap-1.5 rounded-full border border-border bg-surface-lowest px-3.5 active:bg-surface-low"
+                                    className="h-10 flex-row items-center gap-1.5 rounded-full bg-surface-low px-3.5 active:bg-surface-high"
                                 >
                                     <Images
                                         size={20}
@@ -458,17 +458,16 @@ export default function Create() {
                                     style={
                                         showPoll
                                             ? {
-                                                  borderColor: colors.primary,
                                                   backgroundColor: isDark
-                                                      ? "rgba(189, 194, 255, 0.12)"
-                                                      : "rgba(70, 72, 212, 0.08)",
+                                                      ? "rgba(189, 194, 255, 0.15)"
+                                                      : "rgba(70, 72, 212, 0.12)",
                                               }
                                             : undefined
                                     }
-                                    className={`h-10 flex-row items-center gap-1.5 rounded-full border px-3.5 ${
+                                    className={`h-10 flex-row items-center gap-1.5 rounded-full px-3.5 ${
                                         showPoll
                                             ? ""
-                                            : "border-border bg-surface-lowest active:bg-surface-low"
+                                            : "bg-surface-low active:bg-surface-high"
                                     }`}
                                 >
                                     <BarChart2
