@@ -1,6 +1,6 @@
 import { InfiniteData, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createPost } from "@/api/posts";
+import { createPost, CreatePollPayload } from "@/api/posts";
 import { queryKeys } from "@/lib/queryKeys";
 import { UploadImage } from "@/lib/imageUpload";
 import { PageMeta } from "@/types/api";
@@ -12,14 +12,16 @@ type CreatePostInput = {
     content: string;
     image?: UploadImage | null;
     communityId?: string;
+    poll?: CreatePollPayload | null;
+    images?: UploadImage[] | null;
 };
 
 export default function useCreatePost() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ content, image, communityId }: CreatePostInput) =>
-            createPost(content, image, communityId),
+        mutationFn: ({ content, image, communityId, poll, images }: CreatePostInput) =>
+            createPost(content, image, communityId, poll, images),
 
         onSuccess: (response, variables) => {
             const post = response.data;

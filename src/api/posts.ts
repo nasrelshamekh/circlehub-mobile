@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import { apiFetch, apiUpload } from "./client";
 import { appendImageToFormData, UploadImage } from "@/lib/imageUpload";
 import { PageMeta } from "@/types/api";
-import { Post, PostComment, PostDetails } from "@/types/post";
+import { Poll, Post, PostComment, PostDetails } from "@/types/post";
 
 export function getPosts(page = 1, pageSize = 10) {
     return apiFetch<{ data: Post[]; meta: PageMeta }>(
@@ -24,28 +24,69 @@ export function toggleLike(postId: string) {
     );
 }
 
+export type CreatePollPayload = {
+    question: string;
+    options: string[];
+    durationDays?: number;
+};
+
+export function votePoll(postId: string, optionId: string) {
+    return apiFetch<{ message: string; data: Poll }>(
+        `/api/Posts/${postId}/poll/vote`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ optionId }),
+        }
+    );
+}
+
 export function createPost(
     content: string,
     image?: UploadImage | null,
-    communityId?: string
+    communityId?: string,
+    poll?: CreatePollPayload | null,
+    images?: UploadImage[] | null
 ) {
     const endpoint = communityId
         ? `/api/Communities/${communityId}/posts`
         : "/api/Posts";
 
-    if (image && Platform.OS !== "web") {
-        return apiUpload<{ message: string; data: Post }>(endpoint, image.uri, {
+    const allImages = images && images.length > 0 ? images : image ? [image] : [];
+
+    if (allImages.length === 1 && Platform.OS !== "web" && !poll) {
+        const singleImage = allImages[0];
+        const parameters: Record<string, string> = { content };
+
+        return apiUpload<{ message: string; data: Post }>(endpoint, singleImage.uri, {
             method: "POST",
             fieldName: "image",
-            mimeType: image.type,
-            parameters: { content },
+            mimeType: singleImage.type,
+            parameters,
         });
     }
 
     const formData = new FormData();
 
     formData.append("content", content);
-    appendImageToFormData(formData, "image", image);
+
+    if (allImages.length === 1) {
+        appendImageToFormData(formData, "image", allImages[0]);
+    } else if (allImages.length > 1) {
+        allImages.forEach((img) => {
+            appendImageToFormData(formData, "images", img);
+        });
+    }
+
+    if (poll) {
+        formData.append("pollQuestion", poll.question);
+        poll.options.forEach((opt) => {
+            formData.append("pollOptions", opt);
+        });
+        if (poll.durationDays) {
+            formData.append("pollDurationDays", String(poll.durationDays));
+        }
+    }
 
     return apiFetch<{ message: string; data: Post }>(endpoint, {
         method: "POST",

@@ -15,10 +15,30 @@ export type PostCommunity = {
     visibility: string;
 };
 
+export type PollOption = {
+    id: string;
+    text: string;
+    displayOrder: number;
+    votesCount: number;
+    percentage: number;
+};
+
+export type Poll = {
+    id: string;
+    question: string;
+    expiresAt: string | null;
+    isExpired: boolean;
+    totalVotes: number;
+    myVotedOptionId: string | null;
+    options: PollOption[];
+};
+
 export type Post = {
     id: string;
     content: string;
     imageUrl: string | null;
+    imageUrls?: string[];
+    poll?: Poll | null;
     createdAt: string;
     updatedAt: string;
     likesCount: number;

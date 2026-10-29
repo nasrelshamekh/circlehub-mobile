@@ -9,6 +9,7 @@ import Avatar from "@/components/avatar";
 import MediaLightbox from "@/components/common/medialightbox";
 import RichText from "@/components/common/richtext";
 import EditPostModal from "@/components/editpostmodal";
+import PollWidget from "@/components/pollwidget";
 import PostActions from "@/components/postactions";
 import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
 import ConfirmModal from "@/components/ui/confirmmodal";
@@ -51,14 +52,22 @@ export default function PostCard({
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [aspectRatio, setAspectRatio] = useState<number | null>(null);
     const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
-    const imageUri = getImageUrl(post.imageUrl);
+    const rawImages =
+        post.imageUrls && post.imageUrls.length > 0
+            ? post.imageUrls
+            : post.imageUrl
+              ? [post.imageUrl]
+              : [];
+    const allImages = rawImages.map(getImageUrl).filter(Boolean) as string[];
+    const firstImageUri = allImages[0] ?? null;
 
     useEffect(() => {
-        if (imageUri && isDetailsPage) {
+        if (firstImageUri && isDetailsPage && allImages.length === 1) {
             Image.getSize(
-                imageUri,
+                firstImageUri,
                 (width, height) => {
                     if (width > 0 && height > 0) {
                         setAspectRatio(width / height);
@@ -69,7 +78,12 @@ export default function PostCard({
                 }
             );
         }
-    }, [imageUri, isDetailsPage]);
+    }, [firstImageUri, isDetailsPage, allImages.length]);
+
+    function handleOpenImage(uri: string) {
+        setSelectedImageUri(uri);
+        setLightboxOpen(true);
+    }
 
     function openPost() {
         if (!isDetailsPage) {
@@ -210,15 +224,19 @@ export default function PostCard({
                     </Pressable>
                 )}
 
-                {imageUri && (
+                {post.poll && (
+                    <PollWidget postId={post.id} poll={post.poll} />
+                )}
+
+                {allImages.length === 1 && (
                     <Pressable
-                        onPress={isDetailsPage ? () => setLightboxOpen(true) : openPost}
+                        onPress={() => handleOpenImage(allImages[0])}
                         accessibilityRole="button"
-                        accessibilityLabel={isDetailsPage ? "Open full-screen image preview" : "View post details"}
+                        accessibilityLabel="Open full-screen image preview"
                     >
                         {isDetailsPage ? (
                             <ExpoImage
-                                source={{ uri: imageUri }}
+                                source={{ uri: allImages[0] }}
                                 onLoad={(e) => {
                                     const { width, height } = e.source;
                                     if (width > 0 && height > 0) {
@@ -237,7 +255,7 @@ export default function PostCard({
                             />
                         ) : (
                             <ExpoImage
-                                source={{ uri: imageUri }}
+                                source={{ uri: allImages[0] }}
                                 className="h-[200px] w-full rounded-2xl"
                                 contentFit="cover"
                                 cachePolicy="memory-disk"
@@ -245,6 +263,127 @@ export default function PostCard({
                             />
                         )}
                     </Pressable>
+                )}
+
+                {allImages.length === 2 && (
+                    <View className="flex-row gap-2 h-[200px] w-full">
+                        {allImages.map((uri, idx) => (
+                            <Pressable
+                                key={idx}
+                                onPress={() => handleOpenImage(uri)}
+                                className="flex-1 overflow-hidden rounded-2xl"
+                                accessibilityRole="button"
+                                accessibilityLabel={`View image ${idx + 1}`}
+                            >
+                                <ExpoImage
+                                    source={{ uri }}
+                                    className="h-full w-full"
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                    transition={150}
+                                />
+                            </Pressable>
+                        ))}
+                    </View>
+                )}
+
+                {allImages.length === 3 && (
+                    <View className="flex-row gap-2 h-[220px] w-full">
+                        <Pressable
+                            onPress={() => handleOpenImage(allImages[0])}
+                            className="flex-1 overflow-hidden rounded-2xl"
+                            accessibilityRole="button"
+                            accessibilityLabel="View image 1"
+                        >
+                            <ExpoImage
+                                source={{ uri: allImages[0] }}
+                                className="h-full w-full"
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                                transition={150}
+                            />
+                        </Pressable>
+                        <View className="flex-1 gap-2">
+                            {allImages.slice(1, 3).map((uri, idx) => (
+                                <Pressable
+                                    key={idx}
+                                    onPress={() => handleOpenImage(uri)}
+                                    className="flex-1 overflow-hidden rounded-2xl"
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`View image ${idx + 2}`}
+                                >
+                                    <ExpoImage
+                                        source={{ uri }}
+                                        className="h-full w-full"
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                        transition={150}
+                                    />
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
+                {allImages.length >= 4 && (
+                    <View className="gap-2 w-full">
+                        <View className="flex-row gap-2 h-[120px] w-full">
+                            {allImages.slice(0, 2).map((uri, idx) => (
+                                <Pressable
+                                    key={idx}
+                                    onPress={() => handleOpenImage(uri)}
+                                    className="flex-1 overflow-hidden rounded-2xl"
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`View image ${idx + 1}`}
+                                >
+                                    <ExpoImage
+                                        source={{ uri }}
+                                        className="h-full w-full"
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                        transition={150}
+                                    />
+                                </Pressable>
+                            ))}
+                        </View>
+                        <View className="flex-row gap-2 h-[120px] w-full">
+                            <Pressable
+                                onPress={() => handleOpenImage(allImages[2])}
+                                className="flex-1 overflow-hidden rounded-2xl"
+                                accessibilityRole="button"
+                                accessibilityLabel="View image 3"
+                            >
+                                <ExpoImage
+                                    source={{ uri: allImages[2] }}
+                                    className="h-full w-full"
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                    transition={150}
+                                />
+                            </Pressable>
+                            <Pressable
+                                onPress={() => handleOpenImage(allImages[3])}
+                                className="relative flex-1 overflow-hidden rounded-2xl"
+                                accessibilityRole="button"
+                                accessibilityLabel={`View image 4${allImages.length > 4 ? ` and ${allImages.length - 4} more` : ""}`}
+                            >
+                                <ExpoImage
+                                    source={{ uri: allImages[3] }}
+                                    className="h-full w-full"
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                    transition={150}
+                                />
+                                {allImages.length > 4 && (
+                                    <View className="absolute inset-0 items-center justify-center bg-black/60">
+                                        <Text className="text-title-lg font-bold text-white">
+                                            +{allImages.length - 3}
+                                        </Text>
+                                    </View>
+                                )}
+                            </Pressable>
+                        </View>
+                    </View>
                 )}
 
                 <View className="flex-row items-center gap-2 pt-3">
@@ -286,7 +425,7 @@ export default function PostCard({
 
             <MediaLightbox
                 visible={lightboxOpen}
-                imageUri={imageUri}
+                imageUri={selectedImageUri ?? firstImageUri}
                 altText={post.content}
                 onClose={() => setLightboxOpen(false)}
             />
