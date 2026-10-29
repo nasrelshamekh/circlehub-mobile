@@ -75,10 +75,10 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
                         return (
                             <View
                                 key={option.id}
-                                className={`relative overflow-hidden rounded-xl border p-3 ${
+                                className={`relative overflow-hidden rounded-xl p-3 ${
                                     isMyVote
-                                        ? "border-primary/50 bg-primary/5"
-                                        : "border-border/60 bg-surface-low/60"
+                                        ? "bg-primary/10"
+                                        : "bg-surface-low"
                                 }`}
                             >
                                 {/* Progress Bar Fill */}
