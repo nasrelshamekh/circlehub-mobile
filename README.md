@@ -108,14 +108,32 @@ const BASE_URL = "https://circlehub.runasp.net";
 | `npm run ios` | Launch app on iOS simulator |
 | `npx tsc --noEmit` | Run TypeScript type checks across the codebase |
 | `npm run lint` | Run Expo ESLint checks |
-| `npm test` | Run the complete Jest test suite (27 test suites, 147 tests) |
+| `npm test` | Run the complete Jest test suite (29 test suites, 166 tests) |
 | `npm run test:watch` | Run Jest in interactive watch mode |
 
 ---
 
 ## Release History
 
-### v1.2.0 (Current Release)
+### v1.3.0 (Current Release)
+- **Full-Screen Media Lightbox (`medialightbox.tsx`)**:
+  - Full-screen modal utilizing React Native gesture handling for smooth pinch-to-zoom and pan.
+  - Interactive vertical swipe-to-dismiss gesture with dynamic backdrop opacity fading.
+  - Multi-image pagination indicators and top toolbar with close button.
+  - Deeply integrated into `postcard.tsx`, post details view, and profile media grids.
+- **Community Polls & Rich Post Types**:
+  - **Interactive Community Polls (`PollWidget.tsx`)**: Dynamic voting cards with live percentage calculation, animated progress bars, total vote count, and expired poll state handling.
+  - **Multi-Image Uploads (up to 4 photos)**: Multi-selection and sequential picking in composer (`compose.tsx`), responsive thumbnail preview strip with individual `✕` removal buttons.
+  - **Post Validation & Error Handling**: Client-side enforcement preventing submitting photos without post text, with instant input autofocus and clear user alerts.
+- **Enhanced Search Filters & Discovery**:
+  - **Categorical Facets**: 5 horizontal scrollable tabs (`All`, `Posts`, `Media`, `People`, `Communities`) with dynamic count badges.
+  - **Sorting & Filtering**: `Latest` and `Top` sort pill selectors, plus a `Photos only` media filter toggle switch.
+  - **Trending Hashtag Chips**: Horizontal scrolling suggestion chips (`#technology`, `#announcements`, `#design`, `#general`, `#photos`) for one-tap search population.
+  - **Multi-Image Indicators**: `+{count}` count badge on post card thumbnail previews.
+- **Form Spinner Overhaul**:
+  - Replaced frozen SVG spinners with React Native native `<ActivityIndicator size="small" />` across all 11 mutation forms for smooth native spinning during async operations.
+
+### v1.2.0
 - **Universal Sharing & "Copy Link to Post"**:
   - Universal post options menu (`...`) accessible to all viewers on every post.
   - One-click "Copy link" action (`expo-clipboard`) copying the canonical web URL.
@@ -141,13 +159,3 @@ const BASE_URL = "https://circlehub.runasp.net";
 
 ### v1.0.0
 - Initial mobile release: Tab navigation, authentication, user profiles, feed browsing, community exploration, and posting.
-
----
-
-## Upcoming (v1.3.0 — Package 2: Media & Community Experience)
-
-The upcoming **v1.3.0** release will focus on rich media and community engagement:
-
-1. **Full-Screen Media Lightbox**: Pinch-to-zoom, high-res previews, and swipe-to-dismiss for post images.
-2. **Community Polls & Rich Post Types**: Interactive community polls and multi-image galleries.
-3. **Enhanced Search Filters**: Categorical search facets and advanced discovery tools.

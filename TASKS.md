@@ -10,11 +10,12 @@ place and what is still open. Keep it current when parity work lands.
 - **Email verification** — deep-linkable `verify-email` screen, resend, and unverified-login
   routing to the verify screen (web parity).
 - **Feed & explore** — public feed, post detail, comments, likes, browse/search communities.
-- **Posts & Comments** — create, edit, delete; text with an optional single image; community posts; full-screen
+- **Posts & Comments** — create, edit, delete; text with up to 4 images; community posts; full-screen
   slide-up/slide-down Create Post modal (`presentation: "transparentModal"`, `animation: "slide_from_bottom"`);
   pressable post cards that navigate to post details with full natural image height display;
   consistent themed in-app `ActionModal` and `ConfirmModal` for post and comment options/deletion (replacing native OS alerts).
 - **Social Reach & Discovery (v1.2.0)** — RichText tokenizer (`@mentions`, `#hashtags`, clickable URLs) across posts and comments; universal post options (`...`) with one-click "Copy link" and native OS share sheet (`Share.share`); personal client-side post bookmarks (`useBookmarks` with `expo-secure-store` persistence) with interactive bookmark button and dedicated "Saved" tab on self-profile.
+- **Media & Community Experience (v1.3.0)** — Full-screen media lightbox (`medialightbox.tsx`) with pinch-to-zoom, pan, and vertical swipe-to-dismiss gesture; interactive community polls (`PollWidget.tsx`) with animated voting percentage bars; multi-image composer (`compose.tsx`) supporting up to 4 photos with preview strip and text validation; enhanced search filters (`exploretabs.tsx`, `exploresearch.tsx`, `explorescreen.tsx`) with 5 facets (`All`, `Posts`, `Media`, `People`, `Communities`), `Latest` / `Top` sorting, `Photos only` filter, and trending hashtag suggestion chips; native animated `<ActivityIndicator>` loading spinners across all 11 mutation forms.
 - **Communities** — browse, create, join/leave, and the detail screen (Posts / Members / Media /
   About tabs).
 - **Manage community** (admins & moderators) — settings, members, and join requests (including
