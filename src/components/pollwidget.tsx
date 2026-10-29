@@ -1,4 +1,4 @@
-import { Check, Clock, LoaderCircle, BarChart2 } from "lucide-react-native";
+import { Check, Clock, BarChart2 } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 

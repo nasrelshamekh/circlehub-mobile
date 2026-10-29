@@ -1,7 +1,8 @@
 import * as ImagePicker from "expo-image-picker";
-import { Images, LoaderCircle, X } from "lucide-react-native";
+import { Images, X } from "lucide-react-native";
 import { useState } from "react";
 import {
+    ActivityIndicator,
     Image,
     KeyboardAvoidingView,
     Modal,
@@ -194,8 +195,8 @@ export default function EditPostModal({
                             disabled={isSubmitting}
                             icon={
                                 isSubmitting ? (
-                                    <LoaderCircle
-                                        size={18}
+                                    <ActivityIndicator
+                                        size="small"
                                         color={colors.buttonGradientText}
                                     />
                                 ) : undefined

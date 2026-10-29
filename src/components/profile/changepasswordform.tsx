@@ -1,7 +1,7 @@
 import { router } from "expo-router";
-import { CheckCircle2, LoaderCircle } from "lucide-react-native";
+import { CheckCircle2 } from "lucide-react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 import { changePassword } from "@/api/auth";
 import PasswordField from "@/components/auth/passwordfield";
@@ -116,8 +116,8 @@ export default function ChangePasswordForm() {
                 disabled={submitting}
                 icon={
                     submitting ? (
-                        <LoaderCircle
-                            size={18}
+                        <ActivityIndicator
+                            size="small"
                             color={colors.buttonGradientText}
                         />
                     ) : (

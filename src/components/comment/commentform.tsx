@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 
 import Avatar from "@/components/avatar";
 import GradientButton from "@/components/ui/gradientbutton";
@@ -74,6 +74,7 @@ export default function CommentForm({ postId }: { postId: string }) {
             <GradientButton
                 onPress={handleSubmit}
                 disabled={isSubmitting}
+                icon={isSubmitting ? <ActivityIndicator size="small" color={colors.buttonGradientText} /> : undefined}
                 label={isSubmitting ? "Posting..." : "Post"}
                 accessibilityLabel="Add comment"
                 className="self-end rounded-full"

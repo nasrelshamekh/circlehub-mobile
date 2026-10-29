@@ -1,7 +1,7 @@
 import { router } from "expo-router";
-import { LoaderCircle, Trash2 } from "lucide-react-native";
+import { Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import { useTheme } from "@/context/themecontext";
 import useDeleteCommunity from "@/hooks/mutations/useDeleteCommunity";
@@ -83,7 +83,7 @@ export default function DeleteCommunityCard({
                 style={!isConfirmed || isDeleting ? { opacity: 0.6 } : undefined}
             >
                 {isDeleting ? (
-                    <LoaderCircle size={16} color={colors.buttonGradientText} />
+                    <ActivityIndicator size="small" color={colors.buttonGradientText} />
                 ) : (
                     <Trash2 size={16} color={colors.buttonGradientText} />
                 )}

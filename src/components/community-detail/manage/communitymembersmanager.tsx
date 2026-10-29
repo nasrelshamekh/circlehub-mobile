@@ -1,12 +1,11 @@
 import { router } from "expo-router";
 import {
-    LoaderCircle,
     Shield,
     ShieldUser,
     UserMinus,
     UserRound,
 } from "lucide-react-native";
-import { Alert, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
 import Skeleton from "@/components/ui/skeleton";
@@ -235,8 +234,8 @@ export default function CommunityMembersManager({
                                                     </Text>
 
                                                     {isChangingRole ? (
-                                                        <LoaderCircle
-                                                            size={15}
+                                                        <ActivityIndicator
+                                                            size="small"
                                                             color={colors.primary}
                                                         />
                                                     ) : null}
@@ -265,8 +264,8 @@ export default function CommunityMembersManager({
                                                 }
                                             >
                                                 {isRemoving ? (
-                                                    <LoaderCircle
-                                                        size={15}
+                                                    <ActivityIndicator
+                                                        size="small"
                                                         color={
                                                             colors.textSecondary
                                                         }

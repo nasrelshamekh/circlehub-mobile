@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
 import { Save } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Switch, Text, View } from "react-native";
 
 import Field from "@/components/ui/formfield";
 import FormError from "@/components/ui/formerror";
@@ -219,7 +219,7 @@ export default function ProfileSettingsForm() {
             <GradientButton
                 onPress={handleSave}
                 disabled={updateSettings.isPending}
-                icon={<Save size={18} color={colors.buttonGradientText} />}
+                icon={updateSettings.isPending ? (<ActivityIndicator size="small" color={colors.buttonGradientText} />) : (<Save size={18} color={colors.buttonGradientText} />)}
                 label={updateSettings.isPending ? "Saving..." : "Save Changes"}
                 className="rounded-xl"
                 contentStyle={{ paddingVertical: 14 }}

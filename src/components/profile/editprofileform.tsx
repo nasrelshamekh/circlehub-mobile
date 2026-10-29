@@ -1,8 +1,8 @@
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
-import { CalendarDays, LoaderCircle, Save } from "lucide-react-native";
+import { CalendarDays, Save } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import ProfileImagePicker from "@/components/profile/profileimagepicker";
 import DatePicker, {
@@ -376,8 +376,8 @@ export default function EditProfileForm() {
                     disabled={isSaving}
                     icon={
                         isSaving ? (
-                            <LoaderCircle
-                                size={18}
+                            <ActivityIndicator
+                                size="small"
                                 color={colors.buttonGradientText}
                             />
                         ) : (

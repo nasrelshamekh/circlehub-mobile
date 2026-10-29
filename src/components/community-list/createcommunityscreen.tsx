@@ -1,7 +1,8 @@
 import { router } from "expo-router";
-import { CirclePlus, Globe, LoaderCircle, Lock } from "lucide-react-native";
+import { CirclePlus, Globe, Lock } from "lucide-react-native";
 import { useState } from "react";
 import {
+    ActivityIndicator,
     KeyboardAvoidingView,
     Pressable,
     ScrollView,
@@ -18,7 +19,7 @@ import VisibilityOption from "@/components/ui/visibilityoption";
 import { useTheme } from "@/context/themecontext";
 import useCreateCommunity from "@/hooks/mutations/useCreateCommunity";
 import { useCommunityCategories } from "@/hooks/useCommunityCategories";
-import { UploadImage, uploadFailureMessage } from "@/lib/imageUpload";
+import { UploadImage } from "@/lib/imageUpload";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 
@@ -251,8 +252,8 @@ export default function CreateCommunityScreen() {
                         disabled={isSubmitting}
                         icon={
                             isSubmitting ? (
-                                <LoaderCircle
-                                    size={18}
+                                <ActivityIndicator
+                                    size="small"
                                     color={colors.buttonGradientText}
                                 />
                             ) : (

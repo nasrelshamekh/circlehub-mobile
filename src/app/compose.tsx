@@ -4,13 +4,13 @@ import {
     BarChart2,
     CirclePlus,
     Images,
-    LoaderCircle,
     Plus,
     Trash2,
     X,
 } from "lucide-react-native";
 import { useState } from "react";
 import {
+    ActivityIndicator,
     Image,
     KeyboardAvoidingView,
     Modal,
@@ -500,8 +500,8 @@ export default function Create() {
                             disabled={isSubmitting}
                             icon={
                                 isSubmitting ? (
-                                    <LoaderCircle
-                                        size={18}
+                                    <ActivityIndicator
+                                        size="small"
                                         color={colors.buttonGradientText}
                                     />
                                 ) : (
