@@ -145,8 +145,12 @@ export default function Create() {
             }
         }
 
-        if (!trimmed && images.length === 0 && !showPoll) {
-            setError("Please write something, add a photo, or create a poll.");
+        if (!showPoll && !trimmed) {
+            if (images.length > 0) {
+                setError("Please write something in your post before sharing photos.");
+            } else {
+                setError("Please write something, add a photo, or create a poll.");
+            }
             return;
         }
 
