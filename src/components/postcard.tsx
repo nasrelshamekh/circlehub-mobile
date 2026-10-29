@@ -209,7 +209,9 @@ export default function PostCard({
                     </Pressable>
                 </View>
 
-                {post.content && (
+                {post.content &&
+                    (!post.poll ||
+                        post.content.trim() !== post.poll.question?.trim()) && (
                     <Pressable
                         onPress={openPost}
                         disabled={isDetailsPage}
