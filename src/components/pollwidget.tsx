@@ -57,7 +57,7 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
     }
 
     return (
-        <View className="my-2.5 rounded-2xl border border-border bg-surface-lowest p-4">
+        <View className="my-2.5 rounded-2xl bg-surface-lowest p-4">
             {poll.question ? (
                 <Text className="mb-3 text-label-lg font-bold text-text-primary">
                     {poll.question}
@@ -177,7 +177,7 @@ export default function PollWidget({ postId, poll }: PollWidgetProps) {
             </View>
 
             {/* Footer with stats & action */}
-            <View className="mt-3.5 flex-row items-center justify-between border-t border-border/60 pt-2.5">
+            <View className="mt-3.5 flex-row items-center justify-between pt-1">
                 <View className="flex-row items-center gap-3">
                     <Text className="text-label-xs text-text-secondary">
                         {totalVotes} {totalVotes === 1 ? "vote" : "votes"}

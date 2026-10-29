@@ -260,7 +260,7 @@ export default function Create() {
                             multiline
                             textAlignVertical="top"
                             maxLength={5000}
-                            className="min-h-32 rounded-xl border border-border bg-surface-lowest p-4 text-body-md text-text-primary"
+                            className="min-h-32 rounded-xl bg-surface-lowest p-4 text-body-md text-text-primary"
                         />
 
                         {/* Images Preview */}
@@ -274,7 +274,7 @@ export default function Create() {
                                     {images.map((img, index) => (
                                         <View
                                             key={index}
-                                            className="relative h-28 w-28 overflow-hidden rounded-xl border border-border"
+                                            className="relative h-28 w-28 overflow-hidden rounded-xl"
                                         >
                                             <Image
                                                 source={{ uri: img.uri }}
@@ -294,7 +294,7 @@ export default function Create() {
                                         <Pressable
                                             onPress={pickImages}
                                             accessibilityLabel="Add more photos"
-                                            className="h-28 w-28 items-center justify-center rounded-xl border border-dashed border-border bg-surface-low active:bg-surface-lowest"
+                                            className="h-28 w-28 items-center justify-center rounded-xl bg-surface-low active:bg-surface-lowest"
                                         >
                                             <Plus size={22} color={colors.textSecondary} />
                                             <Text className="mt-1 text-label-xs text-text-secondary">
@@ -308,8 +308,8 @@ export default function Create() {
 
                         {/* Poll Creator Section */}
                         {showPoll && (
-                            <View className="gap-3 rounded-2xl border border-border bg-surface-lowest p-4">
-                                <View className="flex-row items-center justify-between border-b border-border/50 pb-2">
+                            <View className="gap-3 rounded-2xl bg-surface-lowest p-4">
+                                <View className="flex-row items-center justify-between pb-2">
                                     <View className="flex-row items-center gap-2">
                                         <BarChart2 size={18} color={colors.primary} />
                                         <Text className="text-label-md font-semibold text-text-primary">
@@ -333,7 +333,7 @@ export default function Create() {
                                     }}
                                     placeholder="Ask a question (optional if in post)..."
                                     placeholderTextColor={colors.textSecondary}
-                                    className="rounded-xl border border-border bg-surface-low px-3.5 py-2.5 text-body-sm text-text-primary"
+                                    className="rounded-xl bg-surface-low px-3.5 py-2.5 text-body-sm text-text-primary"
                                 />
 
                                 <View className="gap-2">
@@ -347,7 +347,7 @@ export default function Create() {
                                                 }}
                                                 placeholder={`Option ${idx + 1}`}
                                                 placeholderTextColor={colors.textSecondary}
-                                                className="flex-1 rounded-xl border border-border bg-surface-low px-3.5 py-2.5 text-body-sm text-text-primary"
+                                                className="flex-1 rounded-xl bg-surface-low px-3.5 py-2.5 text-body-sm text-text-primary"
                                             />
                                             {pollOptions.length > 2 && (
                                                 <Pressable
@@ -368,7 +368,7 @@ export default function Create() {
                                 {pollOptions.length < 6 && (
                                     <Pressable
                                         onPress={addPollOption}
-                                        className="flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 active:bg-surface-low"
+                                        className="flex-row items-center justify-center gap-1.5 rounded-xl bg-surface-low py-2.5 active:bg-surface-high"
                                     >
                                         <Plus size={16} color={colors.primary} />
                                         <Text className="text-label-sm font-semibold text-primary">
