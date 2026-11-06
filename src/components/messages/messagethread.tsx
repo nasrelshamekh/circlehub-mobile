@@ -6,7 +6,9 @@ import {
     Alert,
     FlatList,
     Keyboard,
+    Modal,
     Pressable,
+    StyleSheet,
     Text,
     TextInput,
     View,
@@ -109,6 +111,8 @@ const MessageBubble = memo(function MessageBubble({
 
     const [isExpanded, setIsExpanded] = useState(false);
     const [showReactionPicker, setShowReactionPicker] = useState(false);
+    const [pickerY, setPickerY] = useState<number>(200);
+    const bubbleContainerRef = useRef<View>(null);
     const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
@@ -118,6 +122,24 @@ const MessageBubble = memo(function MessageBubble({
 
         return () => clearTimeout(timeout);
     }, [isCopied]);
+
+    const handleLongPress = useCallback(() => {
+        if (isPending || isFailed || !onReaction) return;
+        haptics.medium();
+        if (
+            bubbleContainerRef.current &&
+            typeof bubbleContainerRef.current.measureInWindow === "function"
+        ) {
+            bubbleContainerRef.current.measureInWindow((_x, y, _width, height) => {
+                const targetY = y > 110 ? y - 56 : y + height + 10;
+                setPickerY(targetY);
+                setShowReactionPicker(true);
+            });
+        } else {
+            setPickerY(200);
+            setShowReactionPicker(true);
+        }
+    }, [isPending, isFailed, onReaction]);
 
     async function handleCopy() {
         if (!displayText) return;
@@ -131,65 +153,20 @@ const MessageBubble = memo(function MessageBubble({
             duration={isPending ? MOTION.quick : 0}
             from={isPending ? 4 : 0}
         >
-            {/* Long-press Floating Quick Reaction Bar */}
-            {showReactionPicker && !isPending && !isFailed && onReaction && (
-                <View
+            <View ref={bubbleContainerRef} collapsable={false}>
+                <Pressable
+                    onPress={() => setIsExpanded((expanded) => !expanded)}
+                    onLongPress={handleLongPress}
+                    delayLongPress={280}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: isExpanded }}
+                    accessibilityHint="Shows when the message was sent or opens reaction bar on long press"
                     className={
                         isMine
-                            ? "mb-1.5 flex-row items-center gap-1.5 self-end rounded-full bg-surface-lowest px-2.5 py-1.5 shadow-lg border border-border"
-                            : "mb-1.5 ml-10 flex-row items-center gap-1.5 self-start rounded-full bg-surface-lowest px-2.5 py-1.5 shadow-lg border border-border"
+                            ? "mb-3 flex-col items-end"
+                            : "mb-3 flex-col items-start"
                     }
                 >
-                    {QUICK_EMOJIS.map((emoji) => {
-                        const hasReacted = message.reactions?.some(
-                            (r) => r.emoji === emoji && r.reactedByMe
-                        );
-                        return (
-                            <Pressable
-                                key={emoji}
-                                onPress={() => {
-                                    void haptics.selection();
-                                    onReaction(message.id, emoji);
-                                    setShowReactionPicker(false);
-                                }}
-                                hitSlop={4}
-                                className={
-                                    hasReacted
-                                        ? "rounded-full bg-primary/20 p-1"
-                                        : "rounded-full p-1 active:scale-125"
-                                }
-                            >
-                                <Text className="text-xl leading-none">{emoji}</Text>
-                            </Pressable>
-                        );
-                    })}
-                </View>
-            )}
-
-            <Pressable
-                onPress={() => {
-                    if (showReactionPicker) {
-                        setShowReactionPicker(false);
-                    } else {
-                        setIsExpanded((expanded) => !expanded);
-                    }
-                }}
-                onLongPress={() => {
-                    if (!isPending && !isFailed && onReaction) {
-                        haptics.medium();
-                        setShowReactionPicker((prev) => !prev);
-                    }
-                }}
-                delayLongPress={300}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: isExpanded }}
-                accessibilityHint="Shows when the message was sent or opens reaction bar on long press"
-                className={
-                    isMine
-                        ? "mb-3 flex-col items-end"
-                        : "mb-3 flex-col items-start"
-                }
-            >
             <View
                 className={
                     isMine
@@ -258,7 +235,7 @@ const MessageBubble = memo(function MessageBubble({
                                 <Pressable
                                     key={reaction.emoji}
                                     onPress={() => {
-                                        void haptics.selection();
+                                        haptics.selection();
                                         onReaction?.(message.id, reaction.emoji);
                                     }}
                                     hitSlop={4}
@@ -383,37 +360,61 @@ const MessageBubble = memo(function MessageBubble({
                             </Text>
                         </Pressable>
                     )}
-
-                    {/* Quick Reactions in Expanded View */}
-                    {onReaction && !isPending && !isFailed && (
-                        <View className="flex-row items-center gap-2 py-0.5">
-                            {QUICK_EMOJIS.map((emoji) => {
-                                const hasReacted = message.reactions?.some(
-                                    (r) => r.emoji === emoji && r.reactedByMe
-                                );
-                                return (
-                                    <Pressable
-                                        key={emoji}
-                                        onPress={() => {
-                                            void haptics.selection();
-                                            onReaction(message.id, emoji);
-                                        }}
-                                        hitSlop={4}
-                                        className={
-                                            hasReacted
-                                                ? "rounded-full bg-primary/20 p-1"
-                                                : "rounded-full p-1 active:scale-125"
-                                        }
-                                    >
-                                        <Text className="text-base leading-none">{emoji}</Text>
-                                    </Pressable>
-                                );
-                            })}
-                        </View>
-                    )}
                 </View>
             )}
         </Pressable>
+        </View>
+
+        {/* Reaction Modal Overlay on Long Press */}
+        <Modal
+            transparent
+            visible={showReactionPicker}
+            animationType="fade"
+            onRequestClose={() => setShowReactionPicker(false)}
+        >
+            <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => setShowReactionPicker(false)}
+                className="bg-black/35"
+            >
+                <View
+                    style={{
+                        position: "absolute",
+                        top: pickerY,
+                        ...(isMine ? { right: 16 } : { left: 44 }),
+                    }}
+                >
+                    <Pressable
+                        onPress={(e) => e.stopPropagation()}
+                        className="flex-row items-center gap-2 rounded-full bg-surface-lowest px-3.5 py-2 shadow-2xl border border-border"
+                    >
+                        {QUICK_EMOJIS.map((emoji) => {
+                            const hasReacted = message.reactions?.some(
+                                (r) => r.emoji === emoji && r.reactedByMe
+                            );
+                            return (
+                                <Pressable
+                                    key={emoji}
+                                    onPress={() => {
+                                        haptics.selection();
+                                        onReaction?.(message.id, emoji);
+                                        setShowReactionPicker(false);
+                                    }}
+                                    hitSlop={8}
+                                    className={`rounded-full p-1.5 ${
+                                        hasReacted
+                                            ? "bg-primary/20 scale-110"
+                                            : "active:scale-125"
+                                    }`}
+                                >
+                                    <Text className="text-2xl leading-none">{emoji}</Text>
+                                </Pressable>
+                            );
+                        })}
+                    </Pressable>
+                </View>
+            </Pressable>
+        </Modal>
         </FadeSlideIn>
     );
 });
