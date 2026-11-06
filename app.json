@@ -2,7 +2,7 @@
   "expo": {
     "name": "CircleHub",
     "slug": "circlehub-mobile",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/circlehub-app-icon.png",
     "scheme": "circlehubmobile",
@@ -22,7 +22,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": false,
-      "versionCode": 2,
+      "versionCode": 3,
       "package": "com.nasrdev97.circlehubmobile",
       "googleServicesFile": "./google-services.json"
     },
