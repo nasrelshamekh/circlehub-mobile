@@ -20,6 +20,15 @@ export const haptics = {
             }
         } catch {}
     },
+    selection: () => {
+        if (Platform.OS === "web") return;
+        try {
+            const res = Haptics.selectionAsync();
+            if (res && typeof res.catch === "function") {
+                res.catch(() => {});
+            }
+        } catch {}
+    },
     success: () => {
         if (Platform.OS === "web") return;
         try {

@@ -33,6 +33,11 @@ import { MAX_PLAINTEXT_LENGTH, peekDecrypted } from "@/services/messageCrypto";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { Message } from "@/types/message";
+import { useQueryClient } from "@tanstack/react-query";
+import { setMessageReaction } from "@/api/messages";
+import { updateMessageReactionsInThreadCache } from "@/lib/messageCacheHelpers";
+
+const QUICK_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🔥"];
 
 const COUNTER_SHOW_THRESHOLD = 2500;
 const COUNTER_WARN_THRESHOLD = 3800;
@@ -68,10 +73,12 @@ const MessageBubble = memo(function MessageBubble({
     message,
     onRetry,
     isRetrying,
+    onReaction,
 }: {
     message: Message;
     onRetry?: (message: Message) => void;
     isRetrying?: boolean;
+    onReaction?: (messageId: string, emoji: string) => void;
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -101,6 +108,7 @@ const MessageBubble = memo(function MessageBubble({
     const isActuallyDecrypting = !cachedPlaintext && isDecrypting && !isMine;
 
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
@@ -123,11 +131,59 @@ const MessageBubble = memo(function MessageBubble({
             duration={isPending ? MOTION.quick : 0}
             from={isPending ? 4 : 0}
         >
+            {/* Long-press Floating Quick Reaction Bar */}
+            {showReactionPicker && !isPending && !isFailed && onReaction && (
+                <View
+                    className={
+                        isMine
+                            ? "mb-1.5 flex-row items-center gap-1.5 self-end rounded-full bg-surface-lowest px-2.5 py-1.5 shadow-lg border border-border"
+                            : "mb-1.5 ml-10 flex-row items-center gap-1.5 self-start rounded-full bg-surface-lowest px-2.5 py-1.5 shadow-lg border border-border"
+                    }
+                >
+                    {QUICK_EMOJIS.map((emoji) => {
+                        const hasReacted = message.reactions?.some(
+                            (r) => r.emoji === emoji && r.reactedByMe
+                        );
+                        return (
+                            <Pressable
+                                key={emoji}
+                                onPress={() => {
+                                    void haptics.selection();
+                                    onReaction(message.id, emoji);
+                                    setShowReactionPicker(false);
+                                }}
+                                hitSlop={4}
+                                className={
+                                    hasReacted
+                                        ? "rounded-full bg-primary/20 p-1"
+                                        : "rounded-full p-1 active:scale-125"
+                                }
+                            >
+                                <Text className="text-xl leading-none">{emoji}</Text>
+                            </Pressable>
+                        );
+                    })}
+                </View>
+            )}
+
             <Pressable
-                onPress={() => setIsExpanded((expanded) => !expanded)}
+                onPress={() => {
+                    if (showReactionPicker) {
+                        setShowReactionPicker(false);
+                    } else {
+                        setIsExpanded((expanded) => !expanded);
+                    }
+                }}
+                onLongPress={() => {
+                    if (!isPending && !isFailed && onReaction) {
+                        haptics.medium();
+                        setShowReactionPicker((prev) => !prev);
+                    }
+                }}
+                delayLongPress={300}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: isExpanded }}
-                accessibilityHint="Shows when the message was sent"
+                accessibilityHint="Shows when the message was sent or opens reaction bar on long press"
                 className={
                     isMine
                         ? "mb-3 flex-col items-end"
@@ -188,6 +244,44 @@ const MessageBubble = memo(function MessageBubble({
                     )}
 
                     {message.postId && <SharedPostCard post={message.post} />}
+
+                    {/* Reaction Badges */}
+                    {message.reactions && message.reactions.length > 0 && (
+                        <View
+                            className={
+                                isMine
+                                    ? "mt-1 flex-row flex-wrap items-center justify-end gap-1"
+                                    : "mt-1 flex-row flex-wrap items-center gap-1"
+                            }
+                        >
+                            {message.reactions.map((reaction) => (
+                                <Pressable
+                                    key={reaction.emoji}
+                                    onPress={() => {
+                                        void haptics.selection();
+                                        onReaction?.(message.id, reaction.emoji);
+                                    }}
+                                    hitSlop={4}
+                                    className={
+                                        reaction.reactedByMe
+                                            ? "flex-row items-center gap-1 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5"
+                                            : "flex-row items-center gap-1 rounded-full border border-border/50 bg-surface-lowest px-2 py-0.5"
+                                    }
+                                >
+                                    <Text className="text-xs">{reaction.emoji}</Text>
+                                    <Text
+                                        className={
+                                            reaction.reactedByMe
+                                                ? "text-[11px] font-semibold text-primary"
+                                                : "text-[11px] font-medium text-text-secondary"
+                                        }
+                                    >
+                                        {reaction.count}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    )}
                 </View>
 
             </View>
@@ -251,8 +345,8 @@ const MessageBubble = memo(function MessageBubble({
                 <View
                     className={
                         isMine
-                            ? "mt-1 flex-row items-center gap-3"
-                            : "mt-1 flex-row items-center gap-3 pl-10"
+                            ? "mt-1 flex-row flex-wrap items-center gap-3"
+                            : "mt-1 flex-row flex-wrap items-center gap-3 pl-10"
                     }
                 >
                     <Text className="text-label-sm text-text-secondary">
@@ -289,6 +383,34 @@ const MessageBubble = memo(function MessageBubble({
                             </Text>
                         </Pressable>
                     )}
+
+                    {/* Quick Reactions in Expanded View */}
+                    {onReaction && !isPending && !isFailed && (
+                        <View className="flex-row items-center gap-2 py-0.5">
+                            {QUICK_EMOJIS.map((emoji) => {
+                                const hasReacted = message.reactions?.some(
+                                    (r) => r.emoji === emoji && r.reactedByMe
+                                );
+                                return (
+                                    <Pressable
+                                        key={emoji}
+                                        onPress={() => {
+                                            void haptics.selection();
+                                            onReaction(message.id, emoji);
+                                        }}
+                                        hitSlop={4}
+                                        className={
+                                            hasReacted
+                                                ? "rounded-full bg-primary/20 p-1"
+                                                : "rounded-full p-1 active:scale-125"
+                                        }
+                                    >
+                                        <Text className="text-base leading-none">{emoji}</Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    )}
                 </View>
             )}
         </Pressable>
@@ -301,11 +423,13 @@ const MessageRow = memo(function MessageRow({
     showDateDivider,
     onRetry,
     isRetrying,
+    onReaction,
 }: {
     message: Message;
     showDateDivider: boolean;
     onRetry: (message: Message) => void;
     isRetrying: boolean;
+    onReaction?: (messageId: string, emoji: string) => void;
 }) {
     return (
         <View>
@@ -314,6 +438,7 @@ const MessageRow = memo(function MessageRow({
                 message={message}
                 onRetry={onRetry}
                 isRetrying={isRetrying}
+                onReaction={onReaction}
             />
         </View>
     );
@@ -439,6 +564,8 @@ export default function MessageThread({
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
     const { user } = useAuth();
+    const userId = user?.id;
+    const queryClient = useQueryClient();
     const sendMessage = useSendMessage();
     const { reportTyping, stopTyping } = useTypingBroadcast(recipientId);
     const isPartnerTyping = useTypingIndicator(recipientId);
@@ -446,6 +573,29 @@ export default function MessageThread({
     const [text, setText] = useState("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+
+    const handleReaction = useCallback(
+        async (messageId: string, emoji: string) => {
+            if (!conversationId || !messageId || !emoji) return;
+
+            haptics.selection();
+            try {
+                const response = await setMessageReaction(messageId, emoji);
+                if (response?.data) {
+                    updateMessageReactionsInThreadCache(
+                        queryClient,
+                        conversationId,
+                        messageId,
+                        response.data,
+                        userId
+                    );
+                }
+            } catch {
+                Alert.alert("Error", "Could not update reaction.");
+            }
+        },
+        [conversationId, queryClient, userId]
+    );
 
     // Conversation-scoped so switching threads (or remounting) does not lose in-flight sends.
     const conversationKey = useMemo(() => {
@@ -670,9 +820,10 @@ export default function MessageThread({
                 showDateDivider={newDayMessageIds.has(item.id)}
                 onRetry={handleRetry}
                 isRetrying={retryingIds.has(item.id)}
+                onReaction={handleReaction}
             />
         ),
-        [newDayMessageIds, handleRetry, retryingIds]
+        [newDayMessageIds, handleRetry, retryingIds, handleReaction]
     );
 
     const showCounter = text.length >= COUNTER_SHOW_THRESHOLD;

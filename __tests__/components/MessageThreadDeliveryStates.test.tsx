@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 import MessageThread from "@/components/messages/messagethread";
@@ -54,10 +55,20 @@ jest.mock("@/hooks/useDecryptedContent", () => ({
     }),
 }));
 
+const testQueryClient = new QueryClient({
+    defaultOptions: {
+        queries: { retry: false },
+    },
+});
+
 async function renderWithProviders(ui: React.ReactElement) {
     let result: any;
     await act(async () => {
-        result = render(<ThemeProvider>{ui}</ThemeProvider>);
+        result = render(
+            <QueryClientProvider client={testQueryClient}>
+                <ThemeProvider>{ui}</ThemeProvider>
+            </QueryClientProvider>
+        );
     });
     return result;
 }

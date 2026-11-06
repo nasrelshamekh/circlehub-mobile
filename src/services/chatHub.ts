@@ -14,6 +14,7 @@ export const TYPING_CHANGED_EVENT = "TypingChanged";
 export const NOTIFICATION_CREATED_EVENT = "NotificationCreated";
 export const NOTIFICATION_DELETED_EVENT = "NotificationDeleted";
 export const POST_CREATED_EVENT = "PostCreated";
+export const MESSAGE_REACTION_UPDATED_EVENT = "MessageReactionUpdated";
 export const SEND_TYPING_METHOD = "SendTyping";
 
 const HUB_PATH = "/hubs/chat";

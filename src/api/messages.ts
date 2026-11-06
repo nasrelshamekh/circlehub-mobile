@@ -3,10 +3,11 @@ import {
     Conversation,
     ConversationThread,
     Message,
+    MessageReaction,
     MessageRecipient,
 } from "@/types/message";
 
-export type { MessageRecipient };
+export type { MessageReaction, MessageRecipient };
 
 export function getConversations() {
     return apiFetch<{ message: string; data: Conversation[] }>(
@@ -82,5 +83,25 @@ export function sendMessage(input: SendMessageInput) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
+    });
+}
+
+export function setMessageReaction(messageId: string, emoji: string) {
+    return apiFetch<{
+        message: string;
+        data: MessageReaction[];
+    }>(`/api/Messages/${messageId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+    });
+}
+
+export function removeMessageReaction(messageId: string) {
+    return apiFetch<{
+        message: string;
+        data: MessageReaction[];
+    }>(`/api/Messages/${messageId}/reactions`, {
+        method: "DELETE",
     });
 }

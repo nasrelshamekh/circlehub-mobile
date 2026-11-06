@@ -6,6 +6,7 @@ import {
     ConversationThread,
     Message,
     MessagePreview,
+    MessageReaction,
 } from "@/types/message";
 
 export type ConversationThreadWithMeta = ConversationThread & {
@@ -115,6 +116,86 @@ export function appendMessageToThreadCache(
                     ...current,
                     pages: [nextFirstPage, ...current.pages.slice(1)],
                 };
+            }
+        );
+    }
+
+    return updatedAny;
+}
+
+export function updateMessageReactionsInThreadCache(
+    queryClient: QueryClient,
+    conversationId: string,
+    messageId: string,
+    reactions: MessageReaction[],
+    currentUserId?: string | null
+): boolean {
+    if (!conversationId || !messageId) return false;
+
+    const matchingQueries = queryClient.getQueriesData<
+        Conversation[] | InfiniteData<ConversationThreadWithMeta>
+    >({
+        queryKey: queryKeys.conversations(),
+    });
+
+    let updatedAny = false;
+
+    const normalizedReactions: MessageReaction[] = (reactions || []).map((r) => ({
+        ...r,
+        reactedByMe: currentUserId
+            ? (r.users?.some((u) => sameId(u.id, currentUserId)) ?? r.reactedByMe ?? false)
+            : (r.reactedByMe ?? false),
+    }));
+
+    for (const [key] of matchingQueries) {
+        if (
+            !Array.isArray(key) ||
+            key.length !== 3 ||
+            !sameId(String(key[2]), conversationId)
+        ) {
+            continue;
+        }
+
+        queryClient.setQueryData<InfiniteData<ConversationThreadWithMeta>>(
+            key,
+            (current) => {
+                if (
+                    !current ||
+                    !Array.isArray(current.pages) ||
+                    current.pages.length === 0
+                ) {
+                    return current;
+                }
+
+                let found = false;
+                const nextPages = current.pages.map((page) => {
+                    if (!Array.isArray(page.messages)) return page;
+                    const msgIndex = page.messages.findIndex((m) =>
+                        sameId(m.id, messageId)
+                    );
+                    if (msgIndex === -1) return page;
+
+                    found = true;
+                    const nextMessages = [...page.messages];
+                    nextMessages[msgIndex] = {
+                        ...nextMessages[msgIndex],
+                        reactions: normalizedReactions,
+                    };
+                    return {
+                        ...page,
+                        messages: nextMessages,
+                    };
+                });
+
+                if (found) {
+                    updatedAny = true;
+                    return {
+                        ...current,
+                        pages: nextPages,
+                    };
+                }
+
+                return current;
             }
         );
     }

@@ -25,6 +25,7 @@ import { haptics } from "@/lib/haptics";
 import {
     appendMessageToThreadCache,
     patchConversationListOnMessage,
+    updateMessageReactionsInThreadCache,
 } from "@/lib/messageCacheHelpers";
 import {
     hasNotificationTarget,
@@ -34,6 +35,7 @@ import {
 import { queryKeys } from "@/lib/queryKeys";
 import {
     createChatConnection,
+    MESSAGE_REACTION_UPDATED_EVENT,
     NOTIFICATION_CREATED_EVENT,
     NOTIFICATION_DELETED_EVENT,
     POST_CREATED_EVENT,
@@ -935,6 +937,21 @@ export function ChatConnectionProvider({
             }
         });
 
+        connection.on(MESSAGE_REACTION_UPDATED_EVENT, (payload?: any) => {
+            const messageId = payload?.messageId || payload?.MessageId;
+            const conversationId = payload?.conversationId || payload?.ConversationId;
+            const reactions = payload?.reactions || payload?.Reactions || [];
+            if (messageId && conversationId) {
+                updateMessageReactionsInThreadCache(
+                    queryClient,
+                    conversationId,
+                    messageId,
+                    reactions,
+                    userRef.current?.id
+                );
+            }
+        });
+
         let wasOfflineOrClosed = false;
 
         function resyncMissedRealtimeData() {
@@ -1030,6 +1047,7 @@ export function ChatConnectionProvider({
             connection.off(NOTIFICATION_CREATED_EVENT);
             connection.off(NOTIFICATION_DELETED_EVENT);
             connection.off(POST_CREATED_EVENT);
+            connection.off(MESSAGE_REACTION_UPDATED_EVENT);
             connection.stop().catch(() => { });
             setTypingUsers({});
         };

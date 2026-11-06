@@ -27,6 +27,13 @@ export type Conversation = {
 
 export type MessageDeliveryStatus = "sending" | "sent" | "delivered" | "failed";
 
+export type MessageReaction = {
+    emoji: string;
+    count: number;
+    reactedByMe: boolean;
+    users?: MessageUser[];
+};
+
 export type Message = {
     id: string;
     content?: string | null;
@@ -41,6 +48,7 @@ export type Message = {
     deliveryStatus?: MessageDeliveryStatus;
     realId?: string;
     clientTempId?: string;
+    reactions?: MessageReaction[];
 };
 
 export type ConversationThread = {
