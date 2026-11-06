@@ -1,4 +1,5 @@
 import { Hash, Search, X } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { useTheme } from "@/context/themecontext";
@@ -64,17 +65,33 @@ export default function ExploreSearch({
                             onPress={() => onChangeText(isSelected ? "" : tag)}
                             accessibilityRole="button"
                             accessibilityLabel={`Search ${tag}`}
-                            className={`rounded-full px-3 py-1 ${
-                                isSelected ? "bg-primary" : "bg-surface-low active:bg-surface-high"
-                            }`}
+                            className="overflow-hidden rounded-full"
                         >
-                            <Text
-                                className={`text-label-xs font-semibold ${
-                                    isSelected ? "text-white" : "text-text-secondary"
-                                }`}
-                            >
-                                {tag}
-                            </Text>
+                            {isSelected ? (
+                                <LinearGradient
+                                    colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={{
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 4,
+                                        borderRadius: 9999,
+                                    }}
+                                >
+                                    <Text
+                                        className="text-label-xs font-semibold"
+                                        style={{ color: colors.buttonGradientText }}
+                                    >
+                                        {tag}
+                                    </Text>
+                                </LinearGradient>
+                            ) : (
+                                <View className="rounded-full bg-surface-low px-3 py-1 active:bg-surface-high">
+                                    <Text className="text-label-xs font-semibold text-text-secondary">
+                                        {tag}
+                                    </Text>
+                                </View>
+                            )}
                         </Pressable>
                     );
                 })}

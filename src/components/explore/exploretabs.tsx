@@ -8,6 +8,7 @@ import {
     Network,
     Users,
 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import CommunityResultCard from "@/components/explore/communityresultcard";
@@ -120,40 +121,90 @@ export default function ExploreTabs({
 
                         <Pressable
                             onPress={() => onSortChange("latest")}
-                            className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${
-                                sort === "latest" ? "bg-primary" : "bg-surface-lowest"
-                            }`}
+                            accessibilityRole="button"
+                            accessibilityLabel="Sort by latest"
+                            className="overflow-hidden rounded-full"
                         >
-                            <Clock
-                                size={12}
-                                color={sort === "latest" ? "#ffffff" : colors.textSecondary}
-                            />
-                            <Text
-                                className={`text-label-xs font-semibold ${
-                                    sort === "latest" ? "text-white" : "text-text-secondary"
-                                }`}
-                            >
-                                Latest
-                            </Text>
+                            {sort === "latest" ? (
+                                <LinearGradient
+                                    colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 6,
+                                        gap: 4,
+                                        borderRadius: 9999,
+                                    }}
+                                >
+                                    <Clock
+                                        size={12}
+                                        color={colors.buttonGradientText}
+                                    />
+                                    <Text
+                                        className="text-label-xs font-semibold"
+                                        style={{ color: colors.buttonGradientText }}
+                                    >
+                                        Latest
+                                    </Text>
+                                </LinearGradient>
+                            ) : (
+                                <View className="flex-row items-center gap-1 rounded-full bg-surface-lowest px-3 py-1.5">
+                                    <Clock
+                                        size={12}
+                                        color={colors.textSecondary}
+                                    />
+                                    <Text className="text-label-xs font-semibold text-text-secondary">
+                                        Latest
+                                    </Text>
+                                </View>
+                            )}
                         </Pressable>
 
                         <Pressable
                             onPress={() => onSortChange("top")}
-                            className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${
-                                sort === "top" ? "bg-primary" : "bg-surface-lowest"
-                            }`}
+                            accessibilityRole="button"
+                            accessibilityLabel="Sort by top"
+                            className="overflow-hidden rounded-full"
                         >
-                            <Flame
-                                size={12}
-                                color={sort === "top" ? "#ffffff" : colors.textSecondary}
-                            />
-                            <Text
-                                className={`text-label-xs font-semibold ${
-                                    sort === "top" ? "text-white" : "text-text-secondary"
-                                }`}
-                            >
-                                Top
-                            </Text>
+                            {sort === "top" ? (
+                                <LinearGradient
+                                    colors={[colors.primaryGradientStart, colors.primaryGradientEnd]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 6,
+                                        gap: 4,
+                                        borderRadius: 9999,
+                                    }}
+                                >
+                                    <Flame
+                                        size={12}
+                                        color={colors.buttonGradientText}
+                                    />
+                                    <Text
+                                        className="text-label-xs font-semibold"
+                                        style={{ color: colors.buttonGradientText }}
+                                    >
+                                        Top
+                                    </Text>
+                                </LinearGradient>
+                            ) : (
+                                <View className="flex-row items-center gap-1 rounded-full bg-surface-lowest px-3 py-1.5">
+                                    <Flame
+                                        size={12}
+                                        color={colors.textSecondary}
+                                    />
+                                    <Text className="text-label-xs font-semibold text-text-secondary">
+                                        Top
+                                    </Text>
+                                </View>
+                            )}
                         </Pressable>
                     </View>
 
