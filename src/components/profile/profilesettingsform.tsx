@@ -11,6 +11,7 @@ import { useTheme } from "@/context/themecontext";
 import useUpdateSettings from "@/hooks/mutations/useUpdateSettings";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
+import { haptics, useHapticsSetting } from "@/lib/haptics";
 
 const profileVisibilityOptions = [
     { value: "public", label: "Public" },
@@ -109,6 +110,7 @@ export default function ProfileSettingsForm() {
     const colors = isDark ? themeColors.dark : themeColors.light;
     const { user } = useAuth();
     const updateSettings = useUpdateSettings();
+    const [hapticsEnabled, setHapticsEnabled] = useHapticsSetting();
 
     const [profileVisibility, setProfileVisibility] = useState(
         user?.profileVisibility ?? "public"
@@ -199,6 +201,16 @@ export default function ProfileSettingsForm() {
             </Field>
 
             <View className="gap-3">
+                <ToggleRow
+                    title="Haptic Feedback"
+                    description="Vibrate on reactions, emoji selection, and interactive gestures."
+                    value={hapticsEnabled}
+                    onValueChange={(val) => {
+                        setHapticsEnabled(val);
+                        if (val) haptics.selection();
+                    }}
+                />
+
                 <ToggleRow
                     title="Email Notifications"
                     description="Receive important account and activity updates by email."
