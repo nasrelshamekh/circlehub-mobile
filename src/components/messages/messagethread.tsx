@@ -267,47 +267,47 @@ const MessageBubble = memo(function MessageBubble({
                     )}
 
                     {message.postId && <SharedPostCard post={message.post} />}
-
-                    {/* Reaction Badges */}
-                    {message.reactions && message.reactions.length > 0 && (
-                        <View
-                            className={
-                                isMine
-                                    ? "mt-1 flex-row flex-wrap items-center justify-end gap-1"
-                                    : "mt-1 flex-row flex-wrap items-center gap-1"
-                            }
-                        >
-                            {message.reactions.map((reaction) => (
-                                <Pressable
-                                    key={reaction.emoji}
-                                    onPress={() => {
-                                        haptics.selection();
-                                        onReaction?.(message.id, reaction.emoji);
-                                    }}
-                                    hitSlop={4}
-                                    className={
-                                        reaction.reactedByMe
-                                            ? "flex-row items-center gap-1 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5"
-                                            : "flex-row items-center gap-1 rounded-full border border-border/50 bg-surface-lowest px-2 py-0.5"
-                                    }
-                                >
-                                    <Text className="text-xs">{reaction.emoji}</Text>
-                                    <Text
-                                        className={
-                                            reaction.reactedByMe
-                                                ? "text-[11px] font-semibold text-primary"
-                                                : "text-[11px] font-medium text-text-secondary"
-                                        }
-                                    >
-                                        {reaction.count}
-                                    </Text>
-                                </Pressable>
-                            ))}
-                        </View>
-                    )}
                 </View>
 
             </View>
+
+            {/* Reaction Badges placed directly under the bubble row to push the next message downwards */}
+            {message.reactions && message.reactions.length > 0 && (
+                <View
+                    className={
+                        isMine
+                            ? "mt-1 flex-row flex-wrap items-center justify-end gap-1 pr-1"
+                            : "mt-1 flex-row flex-wrap items-center gap-1 pl-10"
+                    }
+                >
+                    {message.reactions.map((reaction) => (
+                        <Pressable
+                            key={reaction.emoji}
+                            onPress={() => {
+                                haptics.selection();
+                                onReaction?.(message.id, reaction.emoji);
+                            }}
+                            hitSlop={4}
+                            className={
+                                reaction.reactedByMe
+                                    ? "flex-row items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5"
+                                    : "flex-row items-center gap-1 rounded-full bg-surface-lowest px-2 py-0.5"
+                            }
+                        >
+                            <Text className="text-xs">{reaction.emoji}</Text>
+                            <Text
+                                className={
+                                    reaction.reactedByMe
+                                        ? "text-[11px] font-semibold text-primary"
+                                        : "text-[11px] font-medium text-text-secondary"
+                                }
+                            >
+                                {reaction.count}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
 
             {isFailed && (
                 <View
