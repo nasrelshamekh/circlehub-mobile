@@ -15,6 +15,7 @@ import {
 import { useDecryptedContent } from "@/hooks/useDecryptedContent";
 import { formatShortTime } from "@/lib/formatPostDate";
 import { queryKeys } from "@/lib/queryKeys";
+import { parseGifContent } from "@/services/gifService";
 import { themeColors } from "@/theme/colors";
 import { Conversation } from "@/types/message";
 
@@ -33,9 +34,16 @@ const ConversationRow = memo(function ConversationRow({
 
     let preview = "No messages yet";
     if (last) {
-        const body = last.hasPost
+        let body = last.hasPost
             ? decryptedBody || "Shared a post"
             : decryptedBody || "";
+
+        if (body && !last.hasPost) {
+            const { text, gifUrl } = parseGifContent(body);
+            if (gifUrl) {
+                body = text ? `${text} [GIF]` : "Sent a GIF";
+            }
+        }
         preview = last.isMine ? `You: ${body}` : body;
     }
 

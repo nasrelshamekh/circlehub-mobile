@@ -16,6 +16,8 @@ import {
 
 import Avatar from "@/components/avatar";
 import EmojiPicker from "@/components/messages/emojipicker";
+import GifPicker from "@/components/common/gifpicker";
+import MediaLightbox from "@/components/common/medialightbox";
 import SharedPostCard from "@/components/messages/sharedpostcard";
 import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
 import {
@@ -32,6 +34,8 @@ import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { formatMessageDate, formatMessageTime } from "@/lib/formatPostDate";
 import { haptics } from "@/lib/haptics";
 import { MAX_PLAINTEXT_LENGTH, peekDecrypted } from "@/services/messageCrypto";
+import { GifItem, parseGifContent } from "@/services/gifService";
+import { Image as ExpoImage } from "expo-image";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { Message } from "@/types/message";
@@ -76,11 +80,13 @@ const MessageBubble = memo(function MessageBubble({
     onRetry,
     isRetrying,
     onReaction,
+    onOpenMedia,
 }: {
     message: Message;
     onRetry?: (message: Message) => void;
     isRetrying?: boolean;
     onReaction?: (messageId: string, emoji: string) => void;
+    onOpenMedia?: (uri: string) => void;
 }) {
     const { isDark } = useTheme();
     const colors = isDark ? themeColors.dark : themeColors.light;
@@ -108,6 +114,10 @@ const MessageBubble = memo(function MessageBubble({
 
     const displayText = cachedPlaintext ?? decryptedText;
     const isActuallyDecrypting = !cachedPlaintext && isDecrypting && !isMine;
+    const { text, gifUrl } = useMemo(
+        () => parseGifContent(displayText),
+        [displayText]
+    );
 
     const [isExpanded, setIsExpanded] = useState(false);
     const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -189,33 +199,69 @@ const MessageBubble = memo(function MessageBubble({
                     }
                 >
                     {hasContent && (
-                        <View
-                            className={
-                                isMine
-                                    ? isFailed
-                                        ? "rounded-2xl rounded-br-md border border-error bg-primary px-4 py-2.5"
-                                        : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
-                                    : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
-                            }
-                        >
+                        <View className={isMine ? "items-end gap-1.5" : "items-start gap-1.5"}>
                             {isActuallyDecrypting && !displayText ? (
                                 <View
-                                    accessibilityLabel="Loading message"
-                                    className="gap-1.5"
-                                >
-                                    <View className="h-3 w-28 rounded-full bg-surface-high" />
-                                    <View className="h-3 w-16 rounded-full bg-surface-high" />
-                                </View>
-                            ) : (
-                                <Text
                                     className={
                                         isMine
-                                            ? "text-body-sm text-on-primary"
-                                            : "text-body-sm text-text-primary"
+                                            ? "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
+                                            : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
                                     }
                                 >
-                                    {displayText}
-                                </Text>
+                                    <View
+                                        accessibilityLabel="Loading message"
+                                        className="gap-1.5"
+                                    >
+                                        <View className="h-3 w-28 rounded-full bg-surface-high" />
+                                        <View className="h-3 w-16 rounded-full bg-surface-high" />
+                                    </View>
+                                </View>
+                            ) : (
+                                <>
+                                    {Boolean(text) && (
+                                        <View
+                                            className={
+                                                isMine
+                                                    ? isFailed
+                                                        ? "rounded-2xl rounded-br-md border border-error bg-primary px-4 py-2.5"
+                                                        : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
+                                                    : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
+                                            }
+                                        >
+                                            <Text
+                                                className={
+                                                    isMine
+                                                        ? "text-body-sm text-on-primary"
+                                                        : "text-body-sm text-text-primary"
+                                                }
+                                            >
+                                                {text}
+                                            </Text>
+                                        </View>
+                                    )}
+
+                                    {Boolean(gifUrl) && (
+                                        <Pressable
+                                            onPress={() => onOpenMedia?.(gifUrl!)}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="View GIF"
+                                            className="overflow-hidden rounded-2xl border border-border bg-surface-lowest"
+                                            style={{ width: 220, height: 160 }}
+                                        >
+                                            <ExpoImage
+                                                source={{ uri: gifUrl! }}
+                                                style={{ width: "100%", height: "100%" }}
+                                                contentFit="cover"
+                                                transition={150}
+                                            />
+                                            <View className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5">
+                                                <Text className="text-[9px] font-bold text-white tracking-wider">
+                                                    GIF
+                                                </Text>
+                                            </View>
+                                        </Pressable>
+                                    )}
+                                </>
                             )}
                         </View>
                     )}
@@ -425,12 +471,14 @@ const MessageRow = memo(function MessageRow({
     onRetry,
     isRetrying,
     onReaction,
+    onOpenMedia,
 }: {
     message: Message;
     showDateDivider: boolean;
     onRetry: (message: Message) => void;
     isRetrying: boolean;
     onReaction?: (messageId: string, emoji: string) => void;
+    onOpenMedia?: (uri: string) => void;
 }) {
     return (
         <View>
@@ -440,6 +488,7 @@ const MessageRow = memo(function MessageRow({
                 onRetry={onRetry}
                 isRetrying={isRetrying}
                 onReaction={onReaction}
+                onOpenMedia={onOpenMedia}
             />
         </View>
     );
@@ -573,6 +622,8 @@ export default function MessageThread({
 
     const [text, setText] = useState("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showGifPicker, setShowGifPicker] = useState(false);
+    const [lightboxUri, setLightboxUri] = useState<string | null>(null);
     const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
     const handleReaction = useCallback(
@@ -784,9 +835,27 @@ export default function MessageThread({
         setText("");
         stopTyping();
         setShowEmojiPicker(false);
+        setShowGifPicker(false);
         haptics.medium();
         void transmitMessage(trimmed);
     }
+
+    const handleSelectGif = useCallback(
+        (gif: GifItem) => {
+            if (!gif?.url) return;
+            const current = text.trim();
+            const payload = current ? `${current}\n${gif.url}` : gif.url;
+            inputRef.current?.clear();
+            inputRef.current?.setNativeProps({ text: "" });
+            setText("");
+            stopTyping();
+            setShowEmojiPicker(false);
+            setShowGifPicker(false);
+            haptics.medium();
+            void transmitMessage(payload);
+        },
+        [text, stopTyping, transmitMessage]
+    );
 
     const handleRetry = useCallback(
         async (failedMsg: Message) => {
@@ -822,6 +891,7 @@ export default function MessageThread({
                 onRetry={handleRetry}
                 isRetrying={retryingIds.has(item.id)}
                 onReaction={handleReaction}
+                onOpenMedia={setLightboxUri}
             />
         ),
         [newDayMessageIds, handleRetry, retryingIds, handleReaction]
@@ -919,6 +989,25 @@ export default function MessageThread({
                             />
                         </Pressable>
 
+                        <Pressable
+                            onPress={() => {
+                                haptics.selection();
+                                Keyboard.dismiss();
+                                setShowEmojiPicker(false);
+                                setShowGifPicker(true);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Add GIF"
+                            hitSlop={6}
+                            className="h-10 w-9 items-center justify-center rounded-full"
+                        >
+                            <View className="rounded border border-border px-1 py-0.5">
+                                <Text className="text-[10px] font-bold text-text-secondary">
+                                    GIF
+                                </Text>
+                            </View>
+                        </Pressable>
+
                         <TextInput
                             ref={inputRef}
                             value={text}
@@ -963,6 +1052,23 @@ export default function MessageThread({
                     <EmojiPicker onSelect={handleSelectEmoji} />
                 )}
             </View>
+
+            {showGifPicker && (
+                <GifPicker
+                    visible={showGifPicker}
+                    onClose={() => setShowGifPicker(false)}
+                    onSelect={handleSelectGif}
+                />
+            )}
+
+            {Boolean(lightboxUri) && (
+                <MediaLightbox
+                    visible={Boolean(lightboxUri)}
+                    imageUri={lightboxUri}
+                    altText="GIF Preview"
+                    onClose={() => setLightboxUri(null)}
+                />
+            )}
         </View>
     );
 }

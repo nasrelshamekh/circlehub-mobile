@@ -7,6 +7,7 @@ import {
 } from "@/lib/messageCacheHelpers";
 import { queryKeys } from "@/lib/queryKeys";
 import { encryptMessageContent } from "@/services/messageCrypto";
+import { parseGifContent } from "@/services/gifService";
 
 export default function useSendMessage() {
     const queryClient = useQueryClient();
@@ -21,10 +22,20 @@ export default function useSendMessage() {
                   })
                 : input.content;
 
+            let previewText: string | undefined = undefined;
+            if (rawContent) {
+                const { text, gifUrl } = parseGifContent(rawContent);
+                if (gifUrl) {
+                    previewText = text ? `${text.slice(0, 100)} [GIF]` : "Sent a GIF";
+                } else {
+                    previewText = rawContent.slice(0, 150);
+                }
+            }
+
             const res = await sendMessage({
                 ...input,
                 content,
-                previewText: rawContent ? rawContent.slice(0, 150) : undefined,
+                previewText,
             });
             return {
                 ...res,

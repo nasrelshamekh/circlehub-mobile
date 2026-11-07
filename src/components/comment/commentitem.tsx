@@ -1,8 +1,10 @@
+import { Image as ExpoImage } from "expo-image";
 import { MoreHorizontal, Trash2 } from "lucide-react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import Avatar from "@/components/avatar";
+import MediaLightbox from "@/components/common/medialightbox";
 import RichText from "@/components/common/richtext";
 import ActionModal, { ActionOption } from "@/components/ui/actionmodal";
 import ConfirmModal from "@/components/ui/confirmmodal";
@@ -10,6 +12,7 @@ import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useDeleteComment from "@/hooks/mutations/useDeleteComment";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { parseGifContent } from "@/services/gifService";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { PostComment } from "@/types/post";
@@ -29,10 +32,16 @@ export default function CommentItem({
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [lightboxUri, setLightboxUri] = useState<string | null>(null);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
     const isOwner = user?.id === comment.author.id;
+
+    const { text, gifUrl } = useMemo(
+        () => parseGifContent(comment.content),
+        [comment.content]
+    );
 
     async function handleDelete() {
         try {
@@ -106,10 +115,34 @@ export default function CommentItem({
                     </View>
                 </View>
 
-                <RichText
-                    text={comment.content}
-                    className="mt-1 text-body-sm text-text-secondary"
-                />
+                {Boolean(text) && (
+                    <RichText
+                        text={text}
+                        className="mt-1 text-body-sm text-text-secondary"
+                    />
+                )}
+
+                {Boolean(gifUrl) && (
+                    <Pressable
+                        onPress={() => setLightboxUri(gifUrl)}
+                        accessibilityRole="button"
+                        accessibilityLabel="View comment GIF"
+                        className="mt-2 self-start overflow-hidden rounded-2xl border border-border bg-surface-lowest"
+                        style={{ width: 200, height: 140 }}
+                    >
+                        <ExpoImage
+                            source={{ uri: gifUrl! }}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                            transition={150}
+                        />
+                        <View className="absolute bottom-1 left-1.5 rounded bg-black/60 px-1 py-0.5">
+                            <Text className="text-[9px] font-bold text-white tracking-wider">
+                                GIF
+                            </Text>
+                        </View>
+                    </Pressable>
+                )}
             </View>
 
             <ActionModal
@@ -134,6 +167,13 @@ export default function CommentItem({
                     setDeleteError(null);
                 }}
                 onConfirm={handleDelete}
+            />
+
+            <MediaLightbox
+                visible={Boolean(lightboxUri)}
+                imageUri={lightboxUri}
+                altText="Comment GIF"
+                onClose={() => setLightboxUri(null)}
             />
         </View>
     );
