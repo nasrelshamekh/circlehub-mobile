@@ -26,7 +26,7 @@ function nestComments(flatComments: PostComment[]): PostComment[] {
             roots.push(item);
         }
     });
-    return roots.length > 0 ? roots : flatComments;
+    return roots.length > 0 ? roots.reverse() : flatComments;
 }
 
 export default function CommentList({ post }: { post: PostDetails }) {
