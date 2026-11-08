@@ -99,7 +99,9 @@ const MessageBubble = memo(function MessageBubble({
     const isMine = message.isMine;
     const isPending = Boolean(message.pending);
     const isFailed = Boolean(message.failed);
-    const hasContent = Boolean(message.content && message.content.length > 0);
+    const hasContent = Boolean(
+        (message.content && message.content.length > 0) || message.plaintext
+    );
 
     let deliveryState: "sent" | "delivered" | "seen" | "failed" | null = null;
     if (isMine) {
@@ -246,10 +248,14 @@ const MessageBubble = memo(function MessageBubble({
 
     return (
         <FadeSlideIn
-            duration={isPending ? MOTION.quick : 0}
-            from={isPending ? 4 : 0}
+            duration={0}
+            from={0}
         >
-            <View ref={bubbleContainerRef} collapsable={false}>
+            <View
+                ref={bubbleContainerRef}
+                collapsable={false}
+                style={{ opacity: isPending ? 0.6 : 1 }}
+            >
                 <Pressable
                     onPress={() => setIsExpanded((expanded) => !expanded)}
                     onLongPress={handleLongPress}
@@ -306,10 +312,13 @@ const MessageBubble = memo(function MessageBubble({
                                 <>
                                     {Boolean(text) && (
                                         <View
+                                            style={isPending ? { opacity: 0.65 } : undefined}
                                             className={
                                                 isMine
                                                     ? isFailed
                                                         ? "rounded-2xl rounded-br-md border border-error bg-primary px-4 py-2.5"
+                                                        : isPending
+                                                        ? "rounded-2xl rounded-br-md bg-primary opacity-60 px-4 py-2.5"
                                                         : "rounded-2xl rounded-br-md bg-primary px-4 py-2.5"
                                                     : "rounded-2xl rounded-bl-md bg-surface-lowest px-4 py-2.5"
                                             }
@@ -332,7 +341,7 @@ const MessageBubble = memo(function MessageBubble({
                                             accessibilityRole="button"
                                             accessibilityLabel="View GIF"
                                             className="overflow-hidden rounded-2xl border border-border bg-surface-lowest"
-                                            style={{ width: 220, height: 160 }}
+                                            style={[{ width: 220, height: 160 }, isPending ? { opacity: 0.65 } : undefined]}
                                         >
                                             <ExpoImage
                                                 source={{ uri: gifUrl! }}
@@ -516,7 +525,7 @@ const MessageBubble = memo(function MessageBubble({
                             accessibilityLabel="Unsend message"
                             hitSlop={6}
                         >
-                            <Text className="text-label-sm font-semibold text-error">
+                            <Text className="text-label-sm font-semibold text-primary">
                                 Unsend
                             </Text>
                         </Pressable>
@@ -586,7 +595,7 @@ const MessageBubble = memo(function MessageBubble({
                                     accessibilityLabel="Unsend message"
                                     className="rounded-full p-2 active:bg-surface-medium"
                                 >
-                                    <Trash2 size={18} color={colors.error} />
+                                    <Trash2 size={18} color={colors.primary} />
                                 </Pressable>
                             </>
                         )}
@@ -940,7 +949,7 @@ export default function MessageThread({
                 isMine: true,
                 pending: true,
                 failed: false,
-                deliveryStatus: "sent",
+                deliveryStatus: "sending",
                 sender: {
                     id: user?.id ?? "me",
                     name: user?.name ?? "",
@@ -1249,7 +1258,7 @@ export default function MessageThread({
                 message="Are you sure you want to unsend this message? It will be removed for everyone in this chat."
                 cancelText="Cancel"
                 confirmText="Unsend"
-                destructive
+                destructive={false}
                 loading={isDeleting}
                 onCancel={() => setMessageToDelete(null)}
                 onConfirm={handleConfirmDelete}
