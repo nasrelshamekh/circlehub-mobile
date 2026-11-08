@@ -40,7 +40,7 @@ export default function CommentItem({
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [lightboxUri, setLightboxUri] = useState<string | null>(null);
     const [isReplying, setIsReplying] = useState(false);
-    const [showReplies, setShowReplies] = useState(false);
+    const [showReplies, setShowReplies] = useState(true);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
@@ -228,10 +228,39 @@ export default function CommentItem({
                 </View>
             )}
 
-            {/* Collapsible Nested Replies */}
+            {/* Nested Threaded Replies */}
             {Boolean(comment.replies && comment.replies.length > 0) && (
-                <View className="ml-10 mt-2">
-                    {!showReplies ? (
+                <View className="ml-5 mt-3">
+                    {showReplies ? (
+                        <View className="pl-3 border-l-2 border-border/50 gap-3">
+                            {comment.replies!.map((reply) => (
+                                <CommentItem
+                                    key={reply.id}
+                                    postId={postId}
+                                    comment={reply}
+                                    depth={depth + 1}
+                                />
+                            ))}
+
+                            {comment.replies!.length > 2 && (
+                                <Pressable
+                                    onPress={() => {
+                                        haptics.selection();
+                                        setShowReplies(false);
+                                    }}
+                                    hitSlop={8}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Hide replies"
+                                    className="flex-row items-center gap-1.5 pt-1"
+                                >
+                                    <ChevronUp size={13} color={colors.textSecondary} />
+                                    <Text className="text-label-sm font-medium text-text-secondary">
+                                        Hide replies
+                                    </Text>
+                                </Pressable>
+                            )}
+                        </View>
+                    ) : (
                         <Pressable
                             onPress={() => {
                                 haptics.selection();
@@ -249,37 +278,6 @@ export default function CommentItem({
                                 {comment.replies!.length === 1 ? "reply" : "replies"}
                             </Text>
                         </Pressable>
-                    ) : (
-                        <View className="flex-col">
-                            <Pressable
-                                onPress={() => {
-                                    haptics.selection();
-                                    setShowReplies(false);
-                                }}
-                                hitSlop={8}
-                                accessibilityRole="button"
-                                accessibilityLabel="Hide replies"
-                                className="flex-row items-center gap-2 py-1 mb-2"
-                            >
-                                <View className="w-5 h-[1.5px] bg-border" />
-                                <ChevronUp size={14} color={colors.textSecondary} />
-                                <Text className="text-label-sm font-semibold text-text-secondary">
-                                    Hide{" "}
-                                    {comment.replies!.length === 1 ? "reply" : "replies"}
-                                </Text>
-                            </Pressable>
-
-                            <View className="ml-3 pl-3 border-l-2 border-border/50 gap-3">
-                                {comment.replies!.map((reply) => (
-                                    <CommentItem
-                                        key={reply.id}
-                                        postId={postId}
-                                        comment={reply}
-                                        depth={depth + 1}
-                                    />
-                                ))}
-                            </View>
-                        </View>
                     )}
                 </View>
             )}
