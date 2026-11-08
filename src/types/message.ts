@@ -14,6 +14,7 @@ export type MessagePreview = {
     content?: string | null;
     hasPost: boolean;
     isMine: boolean;
+    isDeleted?: boolean;
     createdAt: string;
 };
 
@@ -41,10 +42,11 @@ export type Message = {
     post?: Post | null;
     createdAt: string;
     isMine: boolean;
+    isDeleted?: boolean;
     sender: MessageUser;
     pending?: boolean;
     failed?: boolean;
-    plaintext?: string;
+    plaintext?: string | null;
     deliveryStatus?: MessageDeliveryStatus;
     realId?: string;
     clientTempId?: string;

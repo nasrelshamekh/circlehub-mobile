@@ -33,18 +33,26 @@ const ConversationRow = memo(function ConversationRow({
     const { text: decryptedBody } = useDecryptedContent(last?.content);
 
     let preview = "No messages yet";
+    let isDeleted = false;
     if (last) {
-        let body = last.hasPost
-            ? decryptedBody || "Shared a post"
-            : decryptedBody || "";
+        if (last.isDeleted || (!last.content && !last.hasPost)) {
+            isDeleted = true;
+            preview = last.isMine
+                ? "You: Message has been deleted"
+                : "Message has been deleted";
+        } else {
+            let body = last.hasPost
+                ? decryptedBody || "Shared a post"
+                : decryptedBody || "";
 
-        if (body && !last.hasPost) {
-            const { text, gifUrl } = parseGifContent(body);
-            if (gifUrl) {
-                body = text ? `${text} [GIF]` : "Sent a GIF";
+            if (body && !last.hasPost) {
+                const { text, gifUrl } = parseGifContent(body);
+                if (gifUrl) {
+                    body = text ? `${text} [GIF]` : "Sent a GIF";
+                }
             }
+            preview = last.isMine ? `You: ${body}` : body;
         }
-        preview = last.isMine ? `You: ${body}` : body;
     }
 
     function prewarmConversation() {
@@ -116,8 +124,12 @@ const ConversationRow = memo(function ConversationRow({
                         numberOfLines={1}
                         className={
                             unread
-                                ? "flex-1 text-body-sm font-semibold text-text-primary"
-                                : "flex-1 text-body-sm text-text-secondary"
+                                ? `flex-1 text-body-sm font-semibold text-text-primary ${
+                                      isDeleted ? "italic text-text-secondary" : ""
+                                  }`
+                                : `flex-1 text-body-sm text-text-secondary ${
+                                      isDeleted ? "italic" : ""
+                                  }`
                         }
                     >
                         {preview}

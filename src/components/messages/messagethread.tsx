@@ -1,5 +1,5 @@
 import * as Clipboard from "expo-clipboard";
-import { AlertCircle, Check, CheckCheck, RotateCcw, Send, Smile, Trash2 } from "lucide-react-native";
+import { AlertCircle, Ban, Check, CheckCheck, RotateCcw, Send, Smile, Trash2 } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     ActivityIndicator,
@@ -171,6 +171,77 @@ const MessageBubble = memo(function MessageBubble({
 
         await Clipboard.setStringAsync(displayText);
         setIsCopied(true);
+    }
+
+    const isDeleted = Boolean(
+        message.isDeleted || (!message.content && !message.postId && !message.plaintext)
+    );
+
+    if (isDeleted) {
+        return (
+            <View ref={bubbleContainerRef} collapsable={false}>
+                <Pressable
+                    onPress={() => setIsExpanded((expanded) => !expanded)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: isExpanded }}
+                    className={
+                        isMine
+                            ? "mb-3 flex-col items-end"
+                            : "mb-3 flex-col items-start"
+                    }
+                >
+                    <View
+                        className={
+                            isMine
+                                ? "flex-row items-end justify-end gap-2"
+                                : "flex-row items-end gap-2"
+                        }
+                    >
+                        {!isMine && (
+                            <Avatar
+                                src={message.sender.avatarUrl}
+                                name={message.sender.name}
+                                className="h-8 w-8"
+                                textClassName="text-label-sm"
+                            />
+                        )}
+
+                        <View
+                            className={
+                                isMine ? "max-w-[78%] items-end" : "max-w-[78%]"
+                            }
+                        >
+                            <View
+                                className={
+                                    isMine
+                                        ? "flex-row items-center gap-2 rounded-2xl rounded-br-md border border-border/60 bg-surface-lowest px-4 py-2.5"
+                                        : "flex-row items-center gap-2 rounded-2xl rounded-bl-md border border-border/60 bg-surface-lowest px-4 py-2.5"
+                                }
+                            >
+                                <Ban size={14} color={colors.textSecondary} />
+                                <Text className="text-body-sm italic text-text-secondary">
+                                    Message has been deleted
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {isExpanded && (
+                        <View
+                            className={
+                                isMine
+                                    ? "mt-1 flex-row flex-wrap items-center gap-3"
+                                    : "mt-1 flex-row flex-wrap items-center gap-3 pl-10"
+                            }
+                        >
+                            <Text className="text-label-sm text-text-secondary">
+                                {formatMessageTime(message.createdAt)}
+                            </Text>
+                        </View>
+                    )}
+                </Pressable>
+            </View>
+        );
     }
 
     return (

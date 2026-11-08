@@ -203,7 +203,11 @@ export function updateMessageReactionsInThreadCache(
     return updatedAny;
 }
 
-export function removeMessageFromThreadCache(
+/**
+ * Marks a message as deleted in-place in a cached conversation thread across all pages,
+ * preserving thread position (WhatsApp-style tombstone), and updates conversation list preview.
+ */
+export function markMessageDeletedInThreadCache(
     queryClient: QueryClient,
     conversationId: string,
     messageId: string
@@ -241,17 +245,26 @@ export function removeMessageFromThreadCache(
                 let found = false;
                 const nextPages = current.pages.map((page) => {
                     if (!Array.isArray(page.messages)) return page;
-                    const filtered = page.messages.filter(
-                        (m) => !sameId(m.id, messageId)
+                    const msgIndex = page.messages.findIndex((m) =>
+                        sameId(m.id, messageId)
                     );
-                    if (filtered.length !== page.messages.length) {
-                        found = true;
-                        return {
-                            ...page,
-                            messages: filtered,
-                        };
-                    }
-                    return page;
+                    if (msgIndex === -1) return page;
+
+                    found = true;
+                    const nextMessages = [...page.messages];
+                    nextMessages[msgIndex] = {
+                        ...nextMessages[msgIndex],
+                        isDeleted: true,
+                        content: null,
+                        plaintext: null,
+                        postId: null,
+                        post: null,
+                        reactions: [],
+                    };
+                    return {
+                        ...page,
+                        messages: nextMessages,
+                    };
                 });
 
                 if (found) {
@@ -267,21 +280,34 @@ export function removeMessageFromThreadCache(
         );
     }
 
-    const list = queryClient.getQueryData<Conversation[]>(
-        queryKeys.conversations()
-    );
-    if (Array.isArray(list)) {
-        const item = list.find((c) => sameId(c.id, conversationId));
-        if (item && sameId(item.lastMessage?.id, messageId)) {
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.conversations(),
-                exact: true,
+    queryClient.setQueryData<Conversation[]>(
+        queryKeys.conversations(),
+        (currentList) => {
+            if (!Array.isArray(currentList)) return currentList;
+            return currentList.map((item) => {
+                if (!sameId(item.id, conversationId)) return item;
+                if (sameId(item.lastMessage?.id, messageId)) {
+                    return {
+                        ...item,
+                        lastMessage: item.lastMessage
+                            ? {
+                                  ...item.lastMessage,
+                                  isDeleted: true,
+                                  content: null,
+                                  hasPost: false,
+                              }
+                            : item.lastMessage,
+                    };
+                }
+                return item;
             });
         }
-    }
+    );
 
     return updatedAny;
 }
+
+export const removeMessageFromThreadCache = markMessageDeletedInThreadCache;
 
 export function markConversationReadInThreadCache(
     queryClient: QueryClient,

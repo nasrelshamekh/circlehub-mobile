@@ -281,4 +281,30 @@ describe("MessageThread delivery states", () => {
 
         expect(deleteMessage).toHaveBeenCalledWith("msg-to-delete");
     });
+
+    it("renders WhatsApp-style 'Message has been deleted' placeholder when isDeleted is true", async () => {
+        const deletedMessage: Message = {
+            id: "msg-deleted-1",
+            content: null,
+            plaintext: null,
+            isDeleted: true,
+            createdAt: "2026-10-26T12:00:00.000Z",
+            isMine: true,
+            pending: false,
+            failed: false,
+            sender: mockUser,
+        };
+
+        const { getByText, queryByText } = await renderWithProviders(
+            <MessageThread
+                conversationId="conv-1"
+                messages={[deletedMessage]}
+                recipientUsername="bob"
+                isLoading={false}
+            />
+        );
+
+        expect(getByText("Message has been deleted")).toBeTruthy();
+        expect(queryByText("Unsend")).toBeNull();
+    });
 });
