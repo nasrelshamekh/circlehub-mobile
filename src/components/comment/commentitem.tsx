@@ -1,5 +1,5 @@
 import { Image as ExpoImage } from "expo-image";
-import { Heart, MoreHorizontal, Reply, Trash2 } from "lucide-react-native";
+import { ChevronDown, ChevronUp, Heart, MoreHorizontal, Reply, Trash2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -13,6 +13,7 @@ import { useTheme } from "@/context/themecontext";
 import useDeleteComment from "@/hooks/mutations/useDeleteComment";
 import useToggleCommentLike from "@/hooks/mutations/useToggleCommentLike";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { haptics } from "@/lib/haptics";
 import { parseGifContent } from "@/services/gifService";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
@@ -39,6 +40,7 @@ export default function CommentItem({
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [lightboxUri, setLightboxUri] = useState<string | null>(null);
     const [isReplying, setIsReplying] = useState(false);
+    const [showReplies, setShowReplies] = useState(false);
 
     const colors = isDark ? themeColors.dark : themeColors.light;
 
@@ -218,22 +220,67 @@ export default function CommentItem({
                             username: comment.author.username,
                         }}
                         onCancelReply={() => setIsReplying(false)}
-                        onSuccess={() => setIsReplying(false)}
+                        onSuccess={() => {
+                            setIsReplying(false);
+                            setShowReplies(true);
+                        }}
                     />
                 </View>
             )}
 
-            {/* Nested Replies */}
+            {/* Collapsible Nested Replies */}
             {Boolean(comment.replies && comment.replies.length > 0) && (
-                <View className="ml-5 mt-3 pl-3 border-l-2 border-border/50 gap-3">
-                    {comment.replies!.map((reply) => (
-                        <CommentItem
-                            key={reply.id}
-                            postId={postId}
-                            comment={reply}
-                            depth={depth + 1}
-                        />
-                    ))}
+                <View className="ml-10 mt-2">
+                    {!showReplies ? (
+                        <Pressable
+                            onPress={() => {
+                                haptics.selection();
+                                setShowReplies(true);
+                            }}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`View ${comment.replies!.length} replies`}
+                            className="flex-row items-center gap-2 py-1"
+                        >
+                            <View className="w-5 h-[1.5px] bg-border" />
+                            <ChevronDown size={14} color={colors.textSecondary} />
+                            <Text className="text-label-sm font-semibold text-text-secondary">
+                                View {comment.replies!.length}{" "}
+                                {comment.replies!.length === 1 ? "reply" : "replies"}
+                            </Text>
+                        </Pressable>
+                    ) : (
+                        <View className="flex-col">
+                            <Pressable
+                                onPress={() => {
+                                    haptics.selection();
+                                    setShowReplies(false);
+                                }}
+                                hitSlop={8}
+                                accessibilityRole="button"
+                                accessibilityLabel="Hide replies"
+                                className="flex-row items-center gap-2 py-1 mb-2"
+                            >
+                                <View className="w-5 h-[1.5px] bg-border" />
+                                <ChevronUp size={14} color={colors.textSecondary} />
+                                <Text className="text-label-sm font-semibold text-text-secondary">
+                                    Hide{" "}
+                                    {comment.replies!.length === 1 ? "reply" : "replies"}
+                                </Text>
+                            </Pressable>
+
+                            <View className="ml-3 pl-3 border-l-2 border-border/50 gap-3">
+                                {comment.replies!.map((reply) => (
+                                    <CommentItem
+                                        key={reply.id}
+                                        postId={postId}
+                                        comment={reply}
+                                        depth={depth + 1}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    )}
                 </View>
             )}
 
