@@ -6,7 +6,6 @@ import {
     Alert,
     FlatList,
     Keyboard,
-    Modal,
     Pressable,
     StyleSheet,
     Text,
@@ -82,6 +81,7 @@ const MessageBubble = memo(function MessageBubble({
     onRetry,
     isRetrying,
     onReaction,
+    onOpenReactionPicker,
     onDeleteMessage,
     onOpenMedia,
 }: {
@@ -90,6 +90,11 @@ const MessageBubble = memo(function MessageBubble({
     onRetry?: (message: Message) => void;
     isRetrying?: boolean;
     onReaction?: (messageId: string, emoji: string) => void;
+    onOpenReactionPicker?: (
+        message: Message,
+        targetY: number,
+        isMine: boolean
+    ) => void;
     onDeleteMessage?: (message: Message) => void;
     onOpenMedia?: (uri: string) => void;
 }) {
@@ -137,8 +142,6 @@ const MessageBubble = memo(function MessageBubble({
     );
 
     const [isExpanded, setIsExpanded] = useState(false);
-    const [showReactionPicker, setShowReactionPicker] = useState(false);
-    const [pickerY, setPickerY] = useState<number>(200);
     const bubbleContainerRef = useRef<View>(null);
     const [isCopied, setIsCopied] = useState(false);
 
@@ -159,14 +162,12 @@ const MessageBubble = memo(function MessageBubble({
         ) {
             bubbleContainerRef.current.measureInWindow((_x, y, _width, height) => {
                 const targetY = y > 110 ? y - 56 : y + height + 10;
-                setPickerY(targetY);
-                setShowReactionPicker(true);
+                onOpenReactionPicker?.(message, targetY, isMine);
             });
         } else {
-            setPickerY(200);
-            setShowReactionPicker(true);
+            onOpenReactionPicker?.(message, 200, isMine);
         }
-    }, [isPending, isFailed, onReaction]);
+    }, [isPending, isFailed, onReaction, onOpenReactionPicker, message, isMine]);
 
     async function handleCopy() {
         if (!displayText) return;
@@ -534,75 +535,6 @@ const MessageBubble = memo(function MessageBubble({
             )}
         </Pressable>
         </View>
-
-        {/* Reaction Modal Overlay on Long Press */}
-        <Modal
-            transparent
-            visible={showReactionPicker}
-            animationType="fade"
-            onRequestClose={() => setShowReactionPicker(false)}
-        >
-            <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={() => setShowReactionPicker(false)}
-                className="bg-black/35"
-            >
-                <View
-                    style={{
-                        position: "absolute",
-                        top: pickerY,
-                        ...(isMine ? { right: 16 } : { left: 44 }),
-                    }}
-                >
-                    <Pressable
-                        onPress={(e) => e.stopPropagation()}
-                        className="flex-row items-center gap-2 rounded-full bg-surface-lowest px-3.5 py-2 shadow-2xl border border-border/30"
-                    >
-                        {QUICK_EMOJIS.map((emoji) => {
-                            const hasReacted = message.reactions?.some(
-                                (r) => r.emoji === emoji && r.reactedByMe
-                            );
-                            return (
-                                <Pressable
-                                    key={emoji}
-                                    onPress={() => {
-                                        haptics.selection();
-                                        onReaction?.(message.id, emoji);
-                                        setShowReactionPicker(false);
-                                    }}
-                                    hitSlop={8}
-                                    className={`rounded-full p-1.5 ${
-                                        hasReacted
-                                            ? "bg-primary/20 scale-110"
-                                            : "active:scale-125"
-                                    }`}
-                                >
-                                    <Text className="text-2xl leading-none">{emoji}</Text>
-                                </Pressable>
-                            );
-                        })}
-
-                        {isMine && !isPending && !isFailed && (
-                            <>
-                                <View className="h-5 w-px bg-border mx-0.5" />
-                                <Pressable
-                                    onPress={() => {
-                                        setShowReactionPicker(false);
-                                        onDeleteMessage?.(message);
-                                    }}
-                                    hitSlop={8}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Unsend message"
-                                    className="rounded-full p-2 active:bg-surface-medium"
-                                >
-                                    <Trash2 size={18} color={colors.primary} />
-                                </Pressable>
-                            </>
-                        )}
-                    </Pressable>
-                </View>
-            </Pressable>
-        </Modal>
         </FadeSlideIn>
     );
 });
@@ -614,6 +546,7 @@ const MessageRow = memo(function MessageRow({
     onRetry,
     isRetrying,
     onReaction,
+    onOpenReactionPicker,
     onDeleteMessage,
     onOpenMedia,
 }: {
@@ -623,6 +556,11 @@ const MessageRow = memo(function MessageRow({
     onRetry: (message: Message) => void;
     isRetrying: boolean;
     onReaction?: (messageId: string, emoji: string) => void;
+    onOpenReactionPicker?: (
+        message: Message,
+        targetY: number,
+        isMine: boolean
+    ) => void;
     onDeleteMessage?: (message: Message) => void;
     onOpenMedia?: (uri: string) => void;
 }) {
@@ -635,6 +573,7 @@ const MessageRow = memo(function MessageRow({
                 onRetry={onRetry}
                 isRetrying={isRetrying}
                 onReaction={onReaction}
+                onOpenReactionPicker={onOpenReactionPicker}
                 onDeleteMessage={onDeleteMessage}
                 onOpenMedia={onOpenMedia}
             />
@@ -777,6 +716,22 @@ export default function MessageThread({
     const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
     const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const threadRef = useRef<View>(null);
+    const [threadTop, setThreadTop] = useState(0);
+    const [activeReactionTarget, setActiveReactionTarget] = useState<{
+        message: Message;
+        pickerY: number;
+        isMine: boolean;
+    } | null>(null);
+
+    const handleOpenReactionPicker = useCallback(
+        (message: Message, windowY: number, isMine: boolean) => {
+            const relativeY = Math.max(12, windowY - threadTop);
+            setActiveReactionTarget({ message, pickerY: relativeY, isMine });
+        },
+        [threadTop]
+    );
 
     const handleConfirmDelete = useCallback(async () => {
         if (!conversationId || !messageToDelete?.id) return;
@@ -1011,6 +966,10 @@ export default function MessageThread({
         setShowGifPicker(false);
         haptics.medium();
         void transmitMessage(trimmed);
+
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+        });
     }
 
     const handleSelectGif = useCallback(
@@ -1065,6 +1024,7 @@ export default function MessageThread({
                 onRetry={handleRetry}
                 isRetrying={retryingIds.has(item.id)}
                 onReaction={handleReaction}
+                onOpenReactionPicker={handleOpenReactionPicker}
                 onDeleteMessage={setMessageToDelete}
                 onOpenMedia={setLightboxUri}
             />
@@ -1075,6 +1035,7 @@ export default function MessageThread({
             handleRetry,
             retryingIds,
             handleReaction,
+            handleOpenReactionPicker,
             setMessageToDelete,
         ]
     );
@@ -1083,7 +1044,17 @@ export default function MessageThread({
     const isNearLimit = text.length >= COUNTER_WARN_THRESHOLD;
 
     return (
-        <View className="flex-1">
+        <View
+            ref={threadRef}
+            className="flex-1"
+            onLayout={() => {
+                threadRef.current?.measureInWindow?.((_x, threadY) => {
+                    if (typeof threadY === "number" && threadY > 0) {
+                        setThreadTop(threadY);
+                    }
+                });
+            }}
+        >
             {isLoading && orderedMessages.length === 0 ? (
                 <View className="flex-1 justify-end bg-surface-low">
                     <MessageThreadSkeleton />
@@ -1199,6 +1170,7 @@ export default function MessageThread({
                             placeholder="Write a message..."
                             placeholderTextColor={colors.textSecondary}
                             multiline
+                            blurOnSubmit={false}
                             className="max-h-32 flex-1 rounded-2xl border border-border/40 bg-surface-low px-4 py-2.5 text-body-sm text-text-primary"
                         />
 
@@ -1263,6 +1235,72 @@ export default function MessageThread({
                 onCancel={() => setMessageToDelete(null)}
                 onConfirm={handleConfirmDelete}
             />
+
+            {activeReactionTarget && (
+                <Pressable
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => setActiveReactionTarget(null)}
+                    className="bg-black/35"
+                >
+                    <View
+                        style={{
+                            position: "absolute",
+                            top: Math.max(16, activeReactionTarget.pickerY),
+                            ...(activeReactionTarget.isMine ? { right: 16 } : { left: 44 }),
+                        }}
+                    >
+                        <Pressable
+                            onPress={(e) => e.stopPropagation()}
+                            className="flex-row items-center gap-2 rounded-full bg-surface-lowest px-3.5 py-2 shadow-2xl border border-border/30"
+                        >
+                            {QUICK_EMOJIS.map((emoji) => {
+                                const hasReacted = activeReactionTarget.message.reactions?.some(
+                                    (r) => r.emoji === emoji && r.reactedByMe
+                                );
+                                return (
+                                    <Pressable
+                                        key={emoji}
+                                        onPress={() => {
+                                            haptics.selection();
+                                            handleReaction(activeReactionTarget.message.id, emoji);
+                                            setActiveReactionTarget(null);
+                                        }}
+                                        hitSlop={8}
+                                        className={`rounded-full p-1.5 ${
+                                            hasReacted
+                                                ? "bg-primary/20 scale-110"
+                                                : "active:scale-125"
+                                        }`}
+                                    >
+                                        <Text className="text-2xl leading-none">{emoji}</Text>
+                                    </Pressable>
+                                );
+                            })}
+
+                            {activeReactionTarget.isMine &&
+                                !activeReactionTarget.message.pending &&
+                                !activeReactionTarget.message.failed && (
+                                    <>
+                                        <View className="h-5 w-px bg-border mx-0.5" />
+                                        <Pressable
+                                            onPress={() => {
+                                                const msg = activeReactionTarget.message;
+                                                setActiveReactionTarget(null);
+                                                setMessageToDelete(msg);
+                                            }}
+                                            hitSlop={8}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="Unsend message"
+                                            className="rounded-full p-2 active:bg-surface-medium"
+                                        >
+                                            <Trash2 size={18} color={colors.primary} />
+                                        </Pressable>
+                                    </>
+                                )}
+                        </Pressable>
+                    </View>
+                </Pressable>
+            )}
         </View>
     );
 }
