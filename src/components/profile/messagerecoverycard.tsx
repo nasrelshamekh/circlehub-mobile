@@ -266,7 +266,8 @@ export default function MessageRecoveryCard() {
                         accessibilityLabel="Set up 12-word recovery phrase"
                         label="Set Up 12-Word Recovery Phrase"
                         icon={<KeyRound size={17} color={colors.buttonGradientText} />}
-                        contentStyle={{ paddingVertical: 14 }}
+                        className="rounded-full"
+                        contentStyle={{ paddingVertical: 14, borderRadius: 9999 }}
                         textClassName="text-label-md font-semibold"
                     />
                 ) : (
@@ -280,16 +281,17 @@ export default function MessageRecoveryCard() {
                             accessibilityLabel="Unlock with recovery phrase"
                             label="Unlock with Recovery Phrase"
                             icon={<Unlock size={17} color={colors.buttonGradientText} />}
-                            contentStyle={{ paddingVertical: 14 }}
+                            className="rounded-full"
+                            contentStyle={{ paddingVertical: 14, borderRadius: 9999 }}
                             textClassName="text-label-md font-semibold"
                         />
 
-                        <View className="flex-row gap-2">
+                        <View className="flex-row gap-2.5">
                             <Pressable
                                 onPress={handleOpenSetup}
                                 accessibilityRole="button"
                                 accessibilityLabel="Generate new phrase"
-                                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-low py-3"
+                                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full border border-border/50 bg-surface-low py-3 active:bg-surface-high"
                             >
                                 <RefreshCw
                                     size={15}
@@ -305,7 +307,7 @@ export default function MessageRecoveryCard() {
                                 onPress={handleRemoveBackup}
                                 accessibilityRole="button"
                                 accessibilityLabel="Turn off backup"
-                                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-low py-3"
+                                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full border border-border/50 bg-surface-low py-3 active:bg-surface-high"
                             >
                                 <Trash2 size={15} color={colors.error} />
                                 <Text className="text-label-sm font-semibold text-error">
@@ -337,13 +339,13 @@ export default function MessageRecoveryCard() {
                             from restoring with your recovery phrase.
                         </Text>
 
-                        <View className="mt-5 flex-row gap-2">
+                        <View className="mt-5 flex-row gap-2.5">
                             <Pressable
                                 disabled={removing}
                                 onPress={() => setRemoveModalOpen(false)}
                                 accessibilityRole="button"
                                 accessibilityLabel="Cancel"
-                                className="flex-1 items-center rounded-xl border border-border bg-surface-low py-3"
+                                className="flex-1 items-center rounded-full border border-border/50 bg-surface-low py-3 active:bg-surface-high"
                             >
                                 <Text className="text-label-md font-semibold text-text-primary">
                                     Cancel
@@ -355,14 +357,14 @@ export default function MessageRecoveryCard() {
                                 onPress={confirmRemoveBackup}
                                 accessibilityRole="button"
                                 accessibilityLabel="Turn off backup"
-                                className="flex-1 items-center rounded-xl bg-error py-3"
+                                className="flex-1 items-center justify-center rounded-full bg-error py-3 active:opacity-90"
                             >
                                 {removing ? (
                                     <ActivityIndicator
                                         color={colors.buttonGradientText}
                                     />
                                 ) : (
-                                    <Text className="text-label-md font-semibold text-on-primary">
+                                    <Text className="text-label-md font-semibold text-white">
                                         Turn Off
                                     </Text>
                                 )}
@@ -407,7 +409,7 @@ export default function MessageRecoveryCard() {
                                     {words.map((word, index) => (
                                         <View
                                             key={`${index + 1}-${word}`}
-                                            className="w-[31%] flex-row items-center gap-1.5 rounded-xl border border-border bg-surface-low px-2.5 py-2"
+                                            className="w-[31%] flex-row items-center gap-1.5 rounded-xl border border-border/50 bg-surface-low px-2.5 py-2"
                                         >
                                             <Text className="text-label-sm text-text-secondary">
                                                 {index + 1}.
@@ -421,7 +423,7 @@ export default function MessageRecoveryCard() {
 
                                 <Pressable
                                     onPress={handleCopyPhrase}
-                                    className="mt-4 flex-row items-center justify-center gap-2 rounded-xl border border-border bg-surface-low py-2.5"
+                                    className="mt-4 flex-row items-center justify-center gap-2 rounded-full border border-border/50 bg-surface-low py-3 active:bg-surface-high"
                                 >
                                     {copiedPhrase ? (
                                         <Check size={16} color={colors.primary} />
@@ -458,8 +460,8 @@ export default function MessageRecoveryCard() {
                                     disabled={!confirmedSaved}
                                     onPress={() => setSetupModalOpen(false)}
                                     label="Done"
-                                    className="mt-4 rounded-xl"
-                                    contentStyle={{ paddingVertical: 14 }}
+                                    className="mt-4 rounded-full"
+                                    contentStyle={{ paddingVertical: 14, borderRadius: 9999 }}
                                     textClassName="text-label-md font-semibold"
                                 />
                             </ScrollView>
@@ -507,7 +509,7 @@ export default function MessageRecoveryCard() {
                             autoCapitalize="none"
                             autoCorrect={false}
                             multiline
-                            className="mt-4 min-h-[88px] rounded-xl border border-border bg-surface-low p-3 text-body-sm text-text-primary"
+                            className="mt-4 min-h-[88px] rounded-xl border border-border/50 bg-surface-low p-3 text-body-sm text-text-primary"
                             textAlignVertical="top"
                         />
 
@@ -550,8 +552,8 @@ export default function MessageRecoveryCard() {
                                     />
                                 ) : undefined
                             }
-                            className="mt-4 rounded-xl"
-                            contentStyle={{ paddingVertical: 14 }}
+                            className="mt-4 rounded-full"
+                            contentStyle={{ paddingVertical: 14, borderRadius: 9999 }}
                             textClassName="text-label-md font-semibold"
                         />
                     </View>

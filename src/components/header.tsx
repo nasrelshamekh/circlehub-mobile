@@ -141,7 +141,7 @@ export default function Header() {
 
                     <View
                         style={{ top: topInset + 56 }}
-                        className="absolute right-4 w-[200px] rounded-lg bg-surface-lowest py-1 shadow-lg"
+                        className="absolute right-4 w-[200px] rounded-2xl bg-surface-lowest py-1 shadow-2xl"
                     >
                         <Text className="px-4 pb-1 pt-3 text-body-md font-bold text-text-secondary">
                             My Account

@@ -81,7 +81,7 @@ export default function ActionModal({
                         onPress={onClose}
                         accessibilityRole="button"
                         accessibilityLabel="Cancel"
-                        className="mt-3 w-full items-center rounded-xl border border-border bg-surface-low py-3 active:bg-surface-high"
+                        className="mt-3 w-full items-center rounded-full border border-border/50 bg-surface-low py-3.5 active:bg-surface-high"
                     >
                         <Text className="text-label-md font-semibold text-text-primary">
                             Cancel

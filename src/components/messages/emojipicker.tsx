@@ -245,8 +245,8 @@ export default function EmojiPicker({
     const currentList = filteredEmojis ?? EMOJI_CATEGORIES[activeTab].emojis;
 
     return (
-        <View className="h-64 border-t border-border bg-surface-lowest">
-            <View className="flex-row items-center gap-2 border-b border-border px-3 py-2">
+        <View className="h-64 border-t border-border/40 bg-surface-lowest">
+            <View className="flex-row items-center gap-2 border-b border-border/40 px-3 py-2">
                 <Search size={15} color={colors.textSecondary} />
                 <TextInput
                     value={search}
@@ -268,7 +268,7 @@ export default function EmojiPicker({
             </View>
 
             {!filteredEmojis && (
-                <View className="flex-row border-b border-border px-2 py-1">
+                <View className="flex-row border-b border-border/40 px-2 py-1">
                     {EMOJI_CATEGORIES.map((cat, idx) => (
                         <Pressable
                             key={cat.name}

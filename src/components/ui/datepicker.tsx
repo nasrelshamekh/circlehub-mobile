@@ -173,7 +173,7 @@ export default function DatePicker({
                     onPress={(e) => e.stopPropagation?.()}
                     className="w-full max-w-lg self-center overflow-hidden rounded-2xl bg-surface-lowest"
                 >
-                    <View className="flex-row items-center justify-between border-b border-border px-5 py-4">
+                    <View className="flex-row items-center justify-between border-b border-border/40 px-5 py-4">
                         <Pressable onPress={onClose} hitSlop={12}>
                             <Text className="text-body-sm font-semibold text-text-secondary">
                                 Cancel

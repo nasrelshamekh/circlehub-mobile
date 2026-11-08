@@ -52,13 +52,13 @@ const COUNTER_WARN_THRESHOLD = 3800;
 function DateDivider({ value }: { value: string }) {
     return (
         <View className="mb-3 flex-row items-center gap-3">
-            <View className="h-px flex-1 bg-border" />
+            <View className="h-px flex-1 bg-border/40" />
 
             <Text className="text-label-sm text-text-secondary">
                 {formatMessageDate(value)}
             </Text>
 
-            <View className="h-px flex-1 bg-border" />
+            <View className="h-px flex-1 bg-border/40" />
         </View>
     );
 }
@@ -340,7 +340,7 @@ const MessageBubble = memo(function MessageBubble({
                                             onPress={() => onOpenMedia?.(gifUrl!)}
                                             accessibilityRole="button"
                                             accessibilityLabel="View GIF"
-                                            className="overflow-hidden rounded-2xl border border-border bg-surface-lowest"
+                                            className="overflow-hidden rounded-2xl border border-border/40 bg-surface-lowest"
                                             style={[{ width: 220, height: 160 }, isPending ? { opacity: 0.65 } : undefined]}
                                         >
                                             <ExpoImage
@@ -556,7 +556,7 @@ const MessageBubble = memo(function MessageBubble({
                 >
                     <Pressable
                         onPress={(e) => e.stopPropagation()}
-                        className="flex-row items-center gap-2 rounded-full bg-surface-lowest px-3.5 py-2 shadow-2xl border border-border"
+                        className="flex-row items-center gap-2 rounded-full bg-surface-lowest px-3.5 py-2 shadow-2xl border border-border/30"
                     >
                         {QUICK_EMOJIS.map((emoji) => {
                             const hasReacted = message.reactions?.some(
@@ -1199,7 +1199,7 @@ export default function MessageThread({
                             placeholder="Write a message..."
                             placeholderTextColor={colors.textSecondary}
                             multiline
-                            className="max-h-32 flex-1 rounded-2xl border border-border bg-surface-low px-4 py-2.5 text-body-sm text-text-primary"
+                            className="max-h-32 flex-1 rounded-2xl border border-border/40 bg-surface-low px-4 py-2.5 text-body-sm text-text-primary"
                         />
 
                         <Pressable
