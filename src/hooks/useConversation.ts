@@ -269,6 +269,7 @@ export function useConversation(
         conversation: pages?.[0],
         messages,
         otherUser: pages?.[0]?.otherUser ?? cachedConv?.otherUser,
+        otherUserLastReadAt: pages?.[0]?.otherUserLastReadAt,
         hasMore: Boolean(query.hasNextPage),
         isLoadingOlder: query.isFetchingNextPage,
         loadOlder,

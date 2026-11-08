@@ -117,6 +117,7 @@ export default function MessageThreadScreen() {
     const {
         messages,
         otherUser,
+        otherUserLastReadAt,
         isLoading,
         isLoadingOlder,
         loadOlder,
@@ -305,6 +306,7 @@ export default function MessageThreadScreen() {
                     <MessageThread
                         conversationId={id}
                         messages={messages}
+                        otherUserLastReadAt={otherUserLastReadAt}
                         recipientId={resolvedOtherUser?.id}
                         recipientUsername={resolvedOtherUser?.username ?? ""}
                         recipientName={resolvedOtherUser?.name}

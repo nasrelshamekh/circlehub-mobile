@@ -24,7 +24,9 @@ import { emitPostCreated } from "@/lib/feedEvents";
 import { haptics } from "@/lib/haptics";
 import {
     appendMessageToThreadCache,
+    markConversationReadInThreadCache,
     patchConversationListOnMessage,
+    removeMessageFromThreadCache,
     updateMessageReactionsInThreadCache,
 } from "@/lib/messageCacheHelpers";
 import {
@@ -34,7 +36,9 @@ import {
 } from "@/lib/notificationCopy";
 import { queryKeys } from "@/lib/queryKeys";
 import {
+    CONVERSATION_READ_EVENT,
     createChatConnection,
+    MESSAGE_DELETED_EVENT,
     MESSAGE_REACTION_UPDATED_EVENT,
     NOTIFICATION_CREATED_EVENT,
     NOTIFICATION_DELETED_EVENT,
@@ -949,6 +953,22 @@ export function ChatConnectionProvider({
                     reactions,
                     userRef.current?.id
                 );
+            }
+        });
+
+        connection.on(MESSAGE_DELETED_EVENT, (payload?: any) => {
+            const messageId = payload?.messageId || payload?.MessageId;
+            const conversationId = payload?.conversationId || payload?.ConversationId;
+            if (messageId && conversationId) {
+                removeMessageFromThreadCache(queryClient, conversationId, messageId);
+            }
+        });
+
+        connection.on(CONVERSATION_READ_EVENT, (payload?: any) => {
+            const conversationId = payload?.conversationId || payload?.ConversationId;
+            const readAt = payload?.readAt || payload?.ReadAt;
+            if (conversationId && readAt) {
+                markConversationReadInThreadCache(queryClient, conversationId, readAt);
             }
         });
 

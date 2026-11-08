@@ -25,7 +25,7 @@ export type Conversation = {
     lastMessage?: MessagePreview | null;
 };
 
-export type MessageDeliveryStatus = "sending" | "sent" | "delivered" | "failed";
+export type MessageDeliveryStatus = "sending" | "sent" | "delivered" | "seen" | "failed";
 
 export type MessageReaction = {
     emoji: string;
@@ -56,6 +56,7 @@ export type ConversationThread = {
     otherUser: MessageUser;
     messages: Message[];
     hasMore: boolean;
+    otherUserLastReadAt?: string | null;
 };
 
 export type MessageRecipient = {

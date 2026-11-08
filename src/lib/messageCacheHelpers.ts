@@ -203,6 +203,143 @@ export function updateMessageReactionsInThreadCache(
     return updatedAny;
 }
 
+export function removeMessageFromThreadCache(
+    queryClient: QueryClient,
+    conversationId: string,
+    messageId: string
+): boolean {
+    if (!conversationId || !messageId) return false;
+
+    const matchingQueries = queryClient.getQueriesData<
+        Conversation[] | InfiniteData<ConversationThreadWithMeta>
+    >({
+        queryKey: queryKeys.conversations(),
+    });
+
+    let updatedAny = false;
+
+    for (const [key] of matchingQueries) {
+        if (
+            !Array.isArray(key) ||
+            key.length !== 3 ||
+            !sameId(String(key[2]), conversationId)
+        ) {
+            continue;
+        }
+
+        queryClient.setQueryData<InfiniteData<ConversationThreadWithMeta>>(
+            key,
+            (current) => {
+                if (
+                    !current ||
+                    !Array.isArray(current.pages) ||
+                    current.pages.length === 0
+                ) {
+                    return current;
+                }
+
+                let found = false;
+                const nextPages = current.pages.map((page) => {
+                    if (!Array.isArray(page.messages)) return page;
+                    const filtered = page.messages.filter(
+                        (m) => !sameId(m.id, messageId)
+                    );
+                    if (filtered.length !== page.messages.length) {
+                        found = true;
+                        return {
+                            ...page,
+                            messages: filtered,
+                        };
+                    }
+                    return page;
+                });
+
+                if (found) {
+                    updatedAny = true;
+                    return {
+                        ...current,
+                        pages: nextPages,
+                    };
+                }
+
+                return current;
+            }
+        );
+    }
+
+    const list = queryClient.getQueryData<Conversation[]>(
+        queryKeys.conversations()
+    );
+    if (Array.isArray(list)) {
+        const item = list.find((c) => sameId(c.id, conversationId));
+        if (item && sameId(item.lastMessage?.id, messageId)) {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.conversations(),
+                exact: true,
+            });
+        }
+    }
+
+    return updatedAny;
+}
+
+export function markConversationReadInThreadCache(
+    queryClient: QueryClient,
+    conversationId: string,
+    readAt: string
+): boolean {
+    if (!conversationId || !readAt) return false;
+
+    const matchingQueries = queryClient.getQueriesData<
+        Conversation[] | InfiniteData<ConversationThreadWithMeta>
+    >({
+        queryKey: queryKeys.conversations(),
+    });
+
+    let updatedAny = false;
+
+    for (const [key] of matchingQueries) {
+        if (
+            !Array.isArray(key) ||
+            key.length !== 3 ||
+            !sameId(String(key[2]), conversationId)
+        ) {
+            continue;
+        }
+
+        queryClient.setQueryData<InfiniteData<ConversationThreadWithMeta>>(
+            key,
+            (current) => {
+                if (
+                    !current ||
+                    !Array.isArray(current.pages) ||
+                    current.pages.length === 0
+                ) {
+                    return current;
+                }
+
+                updatedAny = true;
+                const nextPages = current.pages.map((page, index) => {
+                    if (index === 0) {
+                        return {
+                            ...page,
+                            otherUserLastReadAt: readAt,
+                        };
+                    }
+                    return page;
+                });
+
+                return {
+                    ...current,
+                    pages: nextPages,
+                };
+            }
+        );
+    }
+
+    return updatedAny;
+}
+
 export function patchConversationListOnMessage(
     queryClient: QueryClient,
     params: {

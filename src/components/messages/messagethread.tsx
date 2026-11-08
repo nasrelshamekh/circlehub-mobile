@@ -1,5 +1,5 @@
 import * as Clipboard from "expo-clipboard";
-import { AlertCircle, Check, CheckCheck, RotateCcw, Send, Smile } from "lucide-react-native";
+import { AlertCircle, Check, CheckCheck, RotateCcw, Send, Smile, Trash2 } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     ActivityIndicator,
@@ -20,6 +20,7 @@ import GifPicker from "@/components/common/gifpicker";
 import MediaLightbox from "@/components/common/medialightbox";
 import SharedPostCard from "@/components/messages/sharedpostcard";
 import MessageThreadSkeleton from "@/components/skeletons/messagethreadskeleton";
+import ConfirmModal from "@/components/ui/confirmmodal";
 import {
     FadeSlideIn,
     MOTION,
@@ -40,8 +41,8 @@ import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { Message } from "@/types/message";
 import { useQueryClient } from "@tanstack/react-query";
-import { setMessageReaction } from "@/api/messages";
-import { updateMessageReactionsInThreadCache } from "@/lib/messageCacheHelpers";
+import { deleteMessage, setMessageReaction } from "@/api/messages";
+import { removeMessageFromThreadCache, updateMessageReactionsInThreadCache } from "@/lib/messageCacheHelpers";
 
 const QUICK_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🔥"];
 
@@ -77,15 +78,19 @@ function isNewDay(current: string, previous?: string) {
 
 const MessageBubble = memo(function MessageBubble({
     message,
+    otherUserLastReadAt,
     onRetry,
     isRetrying,
     onReaction,
+    onDeleteMessage,
     onOpenMedia,
 }: {
     message: Message;
+    otherUserLastReadAt?: string | null;
     onRetry?: (message: Message) => void;
     isRetrying?: boolean;
     onReaction?: (messageId: string, emoji: string) => void;
+    onDeleteMessage?: (message: Message) => void;
     onOpenMedia?: (uri: string) => void;
 }) {
     const { isDark } = useTheme();
@@ -96,7 +101,7 @@ const MessageBubble = memo(function MessageBubble({
     const isFailed = Boolean(message.failed);
     const hasContent = Boolean(message.content && message.content.length > 0);
 
-    let deliveryState: "sent" | "delivered" | "failed" | null = null;
+    let deliveryState: "sent" | "delivered" | "seen" | "failed" | null = null;
     if (isMine) {
         if (isFailed) {
             deliveryState = "failed";
@@ -105,7 +110,17 @@ const MessageBubble = memo(function MessageBubble({
         } else if (message.deliveryStatus === "sent") {
             deliveryState = "sent";
         } else {
-            deliveryState = "delivered";
+            const readAt = otherUserLastReadAt
+                ? new Date(otherUserLastReadAt).getTime()
+                : 0;
+            const msgTime = message.createdAt
+                ? new Date(message.createdAt).getTime()
+                : 0;
+            if (readAt && msgTime && msgTime <= readAt) {
+                deliveryState = "seen";
+            } else {
+                deliveryState = "delivered";
+            }
         }
     }
     const cachedPlaintext = message.plaintext ?? peekDecrypted(message.content);
@@ -351,10 +366,17 @@ const MessageBubble = memo(function MessageBubble({
                 <View
                     testID={`message-status-${deliveryState}`}
                     accessibilityLabel={
-                        deliveryState === "delivered" ? "Delivered" : "Sent"
+                        deliveryState === "seen"
+                            ? "Seen"
+                            : deliveryState === "delivered"
+                            ? "Delivered"
+                            : "Sent"
                     }
                     className="mt-0.5 flex-row items-center justify-end pr-0.5"
                 >
+                    {deliveryState === "seen" && (
+                        <CheckCheck size={14} color="#0284c7" />
+                    )}
                     {deliveryState === "delivered" && (
                         <CheckCheck size={14} color={colors.primary} />
                     )}
@@ -375,6 +397,15 @@ const MessageBubble = memo(function MessageBubble({
                     <Text className="text-label-sm text-text-secondary">
                         {formatMessageTime(message.createdAt)}
                     </Text>
+
+                    {isMine && deliveryState === "seen" && (
+                        <View className="flex-row items-center gap-1">
+                            <CheckCheck size={14} color="#0284c7" />
+                            <Text className="text-label-sm font-semibold text-sky-500">
+                                Seen
+                            </Text>
+                        </View>
+                    )}
 
                     {isMine && deliveryState === "delivered" && (
                         <View className="flex-row items-center gap-1">
@@ -403,6 +434,19 @@ const MessageBubble = memo(function MessageBubble({
                         >
                             <Text className="text-label-sm font-semibold text-primary">
                                 {isCopied ? "Copied" : "Copy"}
+                            </Text>
+                        </Pressable>
+                    )}
+
+                    {isMine && !isPending && !isFailed && (
+                        <Pressable
+                            onPress={() => onDeleteMessage?.(message)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Unsend message"
+                            hitSlop={6}
+                        >
+                            <Text className="text-label-sm font-semibold text-error">
+                                Unsend
                             </Text>
                         </Pressable>
                     )}
@@ -457,6 +501,24 @@ const MessageBubble = memo(function MessageBubble({
                                 </Pressable>
                             );
                         })}
+
+                        {isMine && !isPending && !isFailed && (
+                            <>
+                                <View className="h-5 w-px bg-border mx-0.5" />
+                                <Pressable
+                                    onPress={() => {
+                                        setShowReactionPicker(false);
+                                        onDeleteMessage?.(message);
+                                    }}
+                                    hitSlop={8}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Unsend message"
+                                    className="rounded-full p-2 active:bg-surface-medium"
+                                >
+                                    <Trash2 size={18} color={colors.error} />
+                                </Pressable>
+                            </>
+                        )}
                     </Pressable>
                 </View>
             </Pressable>
@@ -467,17 +529,21 @@ const MessageBubble = memo(function MessageBubble({
 
 const MessageRow = memo(function MessageRow({
     message,
+    otherUserLastReadAt,
     showDateDivider,
     onRetry,
     isRetrying,
     onReaction,
+    onDeleteMessage,
     onOpenMedia,
 }: {
     message: Message;
+    otherUserLastReadAt?: string | null;
     showDateDivider: boolean;
     onRetry: (message: Message) => void;
     isRetrying: boolean;
     onReaction?: (messageId: string, emoji: string) => void;
+    onDeleteMessage?: (message: Message) => void;
     onOpenMedia?: (uri: string) => void;
 }) {
     return (
@@ -485,9 +551,11 @@ const MessageRow = memo(function MessageRow({
             {showDateDivider && <DateDivider value={message.createdAt} />}
             <MessageBubble
                 message={message}
+                otherUserLastReadAt={otherUserLastReadAt}
                 onRetry={onRetry}
                 isRetrying={isRetrying}
                 onReaction={onReaction}
+                onDeleteMessage={onDeleteMessage}
                 onOpenMedia={onOpenMedia}
             />
         </View>
@@ -591,6 +659,7 @@ function getPendingVersion() {
 export default function MessageThread({
     conversationId,
     messages,
+    otherUserLastReadAt,
     recipientId,
     recipientUsername,
     recipientName,
@@ -602,6 +671,7 @@ export default function MessageThread({
 }: {
     conversationId?: string;
     messages: Message[];
+    otherUserLastReadAt?: string | null;
     recipientId?: string | null;
     recipientUsername: string;
     recipientName?: string;
@@ -625,6 +695,29 @@ export default function MessageThread({
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [lightboxUri, setLightboxUri] = useState<string | null>(null);
     const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+    const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleConfirmDelete = useCallback(async () => {
+        if (!conversationId || !messageToDelete?.id) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteMessage(messageToDelete.id);
+            removeMessageFromThreadCache(
+                queryClient,
+                conversationId,
+                messageToDelete.id
+            );
+            haptics.medium();
+            setMessageToDelete(null);
+        } catch {
+            haptics.error();
+            Alert.alert("Error", "Could not unsend message. Please try again.");
+        } finally {
+            setIsDeleting(false);
+        }
+    }, [conversationId, messageToDelete, queryClient]);
 
     const handleReaction = useCallback(
         async (messageId: string, emoji: string) => {
@@ -887,14 +980,23 @@ export default function MessageThread({
         ({ item }: { item: Message }) => (
             <MessageRow
                 message={item}
+                otherUserLastReadAt={otherUserLastReadAt}
                 showDateDivider={newDayMessageIds.has(item.id)}
                 onRetry={handleRetry}
                 isRetrying={retryingIds.has(item.id)}
                 onReaction={handleReaction}
+                onDeleteMessage={setMessageToDelete}
                 onOpenMedia={setLightboxUri}
             />
         ),
-        [newDayMessageIds, handleRetry, retryingIds, handleReaction]
+        [
+            otherUserLastReadAt,
+            newDayMessageIds,
+            handleRetry,
+            retryingIds,
+            handleReaction,
+            setMessageToDelete,
+        ]
     );
 
     const showCounter = text.length >= COUNTER_SHOW_THRESHOLD;
@@ -1069,6 +1171,18 @@ export default function MessageThread({
                     onClose={() => setLightboxUri(null)}
                 />
             )}
+
+            <ConfirmModal
+                visible={Boolean(messageToDelete)}
+                title="Unsend Message"
+                message="Are you sure you want to unsend this message? It will be removed for everyone in this chat."
+                cancelText="Cancel"
+                confirmText="Unsend"
+                destructive
+                loading={isDeleting}
+                onCancel={() => setMessageToDelete(null)}
+                onConfirm={handleConfirmDelete}
+            />
         </View>
     );
 }

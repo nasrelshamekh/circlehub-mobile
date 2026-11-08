@@ -105,3 +105,12 @@ export function removeMessageReaction(messageId: string) {
         method: "DELETE",
     });
 }
+
+export function deleteMessage(messageId: string) {
+    return apiFetch<{
+        message: string;
+        data?: { messageId: string; conversationId: string };
+    }>(`/api/Messages/${messageId}`, {
+        method: "DELETE",
+    });
+}

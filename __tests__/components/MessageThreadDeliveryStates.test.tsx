@@ -55,6 +55,11 @@ jest.mock("@/hooks/useDecryptedContent", () => ({
     }),
 }));
 
+jest.mock("@/api/messages", () => ({
+    deleteMessage: jest.fn().mockResolvedValue({ message: "deleted" }),
+    setMessageReaction: jest.fn().mockResolvedValue({ data: [] }),
+}));
+
 const testQueryClient = new QueryClient({
     defaultOptions: {
         queries: { retry: false },
@@ -195,5 +200,85 @@ describe("MessageThread delivery states", () => {
         // After tapping, shows Delivered and Copy
         expect(getByText("Delivered")).toBeTruthy();
         expect(getByText("Copy")).toBeTruthy();
+    });
+
+    it("renders seen state with Seen label when otherUserLastReadAt is newer than message.createdAt", async () => {
+        const seenMessage: Message = {
+            id: "msg-seen",
+            content: "Seen content",
+            plaintext: "Seen content",
+            createdAt: "2026-10-26T12:00:00.000Z",
+            isMine: true,
+            pending: false,
+            failed: false,
+            sender: mockUser,
+        };
+
+        const { getByText, getByTestId } = await renderWithProviders(
+            <MessageThread
+                messages={[seenMessage]}
+                otherUserLastReadAt="2026-10-26T12:05:00.000Z"
+                recipientUsername="bob"
+                isLoading={false}
+            />
+        );
+
+        // Shows seen double checkmark indicator
+        expect(getByTestId("message-status-seen")).toBeTruthy();
+
+        // Tap to expand
+        await act(async () => {
+            fireEvent.press(getByText("Seen content"));
+        });
+
+        expect(getByText("Seen")).toBeTruthy();
+    });
+
+    it("shows Unsend button for outgoing messages when expanded and triggers deleteMessage on confirmation", async () => {
+        const { deleteMessage } = require("@/api/messages");
+
+        const myMessage: Message = {
+            id: "msg-to-delete",
+            content: "My sent message",
+            plaintext: "My sent message",
+            createdAt: "2026-10-26T12:00:00.000Z",
+            isMine: true,
+            pending: false,
+            failed: false,
+            sender: mockUser,
+        };
+
+        const { getByText, getAllByText } = await renderWithProviders(
+            <MessageThread
+                conversationId="conv-1"
+                messages={[myMessage]}
+                recipientUsername="bob"
+                isLoading={false}
+            />
+        );
+
+        // Tap to expand
+        await act(async () => {
+            fireEvent.press(getByText("My sent message"));
+        });
+
+        const unsendButtons = getAllByText("Unsend");
+        expect(unsendButtons.length).toBeGreaterThanOrEqual(1);
+
+        // Press Unsend to open confirmation modal
+        await act(async () => {
+            fireEvent.press(unsendButtons[0]);
+        });
+
+        // Confirmation modal appears
+        expect(getByText("Unsend Message")).toBeTruthy();
+
+        // Confirm deletion in modal
+        const modalConfirmButton = getAllByText("Unsend")[1];
+        await act(async () => {
+            fireEvent.press(modalConfirmButton);
+        });
+
+        expect(deleteMessage).toHaveBeenCalledWith("msg-to-delete");
     });
 });

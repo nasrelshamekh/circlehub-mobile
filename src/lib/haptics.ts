@@ -1,15 +1,15 @@
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 
 export const HAPTICS_STORAGE_KEY = "circlehub_haptics_enabled";
 
 let _hapticsEnabled = true;
-const _subscribers = new Set<(enabled: boolean) => void>();
+const _subscribers = new Set<() => void>();
 
 function notifySubscribers() {
-    _subscribers.forEach((callback) => callback(_hapticsEnabled));
+    _subscribers.forEach((callback) => callback());
 }
 
 // Pre-load persisted haptics preference asynchronously on app launch
@@ -39,18 +39,23 @@ export async function setHapticsEnabled(enabled: boolean): Promise<void> {
     }
 }
 
+function subscribeHaptics(callback: () => void) {
+    _subscribers.add(callback);
+    return () => {
+        _subscribers.delete(callback);
+    };
+}
+
+function getHapticsSnapshot(): boolean {
+    return _hapticsEnabled;
+}
+
 export function useHapticsSetting(): [boolean, (enabled: boolean) => Promise<void>] {
-    const [enabled, setEnabled] = useState<boolean>(_hapticsEnabled);
-
-    useEffect(() => {
-        setEnabled(_hapticsEnabled);
-
-        const listener = (newVal: boolean) => setEnabled(newVal);
-        _subscribers.add(listener);
-        return () => {
-            _subscribers.delete(listener);
-        };
-    }, []);
+    const enabled = useSyncExternalStore(
+        subscribeHaptics,
+        getHapticsSnapshot,
+        () => true
+    );
 
     return [enabled, setHapticsEnabled];
 }
