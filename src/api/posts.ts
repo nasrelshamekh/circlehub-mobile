@@ -144,15 +144,51 @@ export function getPostById(postId: string) {
     return apiFetch<{ message: string; data: PostDetails }>(`/api/Posts/${postId}`);
 }
 
-export function addPostComment(postId: string, content: string) {
+export function addPostComment(
+    postId: string,
+    content: string,
+    parentCommentId?: string | null
+) {
+    const payload: { content: string; parentCommentId?: string } = { content };
+    if (parentCommentId) {
+        payload.parentCommentId = parentCommentId;
+    }
+
     return apiFetch<{ message: string; data: { comment: PostComment } }>(
         `/api/Posts/${postId}/comments`,
         {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content }),
+            body: JSON.stringify(payload),
         }
     );
+}
+
+export function toggleCommentLike(postId: string, commentId: string) {
+    return apiFetch<{
+        message: string;
+        data: {
+            commentId: string;
+            postId: string;
+            isLiked: boolean;
+            likesCount: number;
+        };
+    }>(`/api/Posts/${postId}/comments/${commentId}/like`, {
+        method: "POST",
+    });
+}
+
+export function togglePinPost(postId: string) {
+    return apiFetch<{
+        message: string;
+        data: {
+            postId: string;
+            isPinned: boolean;
+            pinnedAt: string | null;
+        };
+    }>(`/api/Posts/${postId}/pin`, {
+        method: "POST",
+    });
 }
 
 export function deletePostComment(postId: string, commentId: string) {

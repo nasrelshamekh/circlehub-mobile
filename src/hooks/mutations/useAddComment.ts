@@ -27,14 +27,43 @@ function bumpCommentsCount(posts: Post[], postId: string, delta: number): Post[]
     );
 }
 
+function insertReplyIntoTree(
+    comments: PostComment[],
+    parentCommentId: string,
+    reply: PostComment
+): PostComment[] {
+    return comments.map((comment) => {
+        if (comment.id === parentCommentId) {
+            return {
+                ...comment,
+                replies: [...(comment.replies ?? []), reply],
+            };
+        }
+        if (comment.replies && comment.replies.length > 0) {
+            return {
+                ...comment,
+                replies: insertReplyIntoTree(comment.replies, parentCommentId, reply),
+            };
+        }
+        return comment;
+    });
+}
+
 export default function useAddComment() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ postId, content }: { postId: string; content: string }) =>
-            addPostComment(postId, content),
+        mutationFn: ({
+            postId,
+            content,
+            parentCommentId,
+        }: {
+            postId: string;
+            content: string;
+            parentCommentId?: string | null;
+        }) => addPostComment(postId, content, parentCommentId),
 
-        onSuccess: (response, { postId }) => {
+        onSuccess: (response, { postId, parentCommentId }) => {
             const newComment: PostComment = response.data.comment;
 
             queryClient.setQueryData<PostDetails>(
@@ -42,12 +71,21 @@ export default function useAddComment() {
                 (old) => {
                     if (!old) return old;
 
-                    const comments = [newComment, ...(old.comments ?? [])];
+                    let comments: PostComment[];
+                    if (parentCommentId) {
+                        comments = insertReplyIntoTree(
+                            old.comments ?? [],
+                            parentCommentId,
+                            newComment
+                        );
+                    } else {
+                        comments = [newComment, ...(old.comments ?? [])];
+                    }
 
                     return {
                         ...old,
                         comments,
-                        commentsCount: comments.length,
+                        commentsCount: (old.commentsCount ?? 0) + 1,
                     };
                 }
             );

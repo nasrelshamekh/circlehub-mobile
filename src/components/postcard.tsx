@@ -1,7 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
-import { Copy, MoreHorizontal, Pencil, Share2, Trash2 } from "lucide-react-native";
+import { Copy, MoreHorizontal, Pencil, Pin, Share2, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Share, Text, View } from "react-native";
 
@@ -16,6 +16,7 @@ import ConfirmModal from "@/components/ui/confirmmodal";
 import { useAuth } from "@/context/authcontext";
 import { useTheme } from "@/context/themecontext";
 import useDeletePost from "@/hooks/mutations/useDeletePost";
+import useTogglePinPost from "@/hooks/mutations/useTogglePinPost";
 import { formatPostDate } from "@/lib/formatPostDate";
 import { getImageUrl } from "@/lib/imageUrl";
 import { themeColors } from "@/theme/colors";
@@ -27,6 +28,7 @@ export default function PostCard({
     onPressComments,
     onDeleted,
     canDelete,
+    canManagePosts,
     community,
     isDetailsPage = false,
 }: {
@@ -36,6 +38,7 @@ export default function PostCard({
     onDeleted?: () => void;
 
     canDelete?: boolean;
+    canManagePosts?: boolean;
 
     community?: { id: string; slug: string };
 
@@ -44,6 +47,7 @@ export default function PostCard({
     const { isDark } = useTheme();
     const { user } = useAuth();
     const deletePost = useDeletePost();
+    const togglePinPost = useTogglePinPost();
 
     const [editOpen, setEditOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -170,6 +174,14 @@ export default function PostCard({
     return (
         <>
             <View className="my-2 rounded-lg bg-surface-lowest p-5 gap-4">
+                {post.isPinned && (
+                    <View className="flex-row items-center gap-1.5 self-start rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1">
+                        <Pin size={12} color={colors.primary} />
+                        <Text className="text-[11px] font-semibold text-primary">
+                            Pinned Announcement
+                        </Text>
+                    </View>
+                )}
                 <View className="flex-row items-start justify-between">
                     <Pressable
                         onPress={() =>

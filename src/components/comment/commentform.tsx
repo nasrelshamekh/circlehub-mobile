@@ -14,7 +14,19 @@ import { GifItem } from "@/services/gifService";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 
-export default function CommentForm({ postId }: { postId: string }) {
+export default function CommentForm({
+    postId,
+    parentCommentId = null,
+    replyingTo = null,
+    onCancelReply,
+    onSuccess,
+}: {
+    postId: string;
+    parentCommentId?: string | null;
+    replyingTo?: { name: string; username?: string } | null;
+    onCancelReply?: () => void;
+    onSuccess?: () => void;
+}) {
     const { isDark } = useTheme();
     const { user } = useAuth();
     const addComment = useAddComment();
@@ -47,10 +59,11 @@ export default function CommentForm({ postId }: { postId: string }) {
             : selectedGif!.url;
 
         try {
-            await addComment.mutateAsync({ postId, content });
+            await addComment.mutateAsync({ postId, content, parentCommentId });
             setText("");
             setSelectedGif(null);
             haptics.medium();
+            onSuccess?.();
         } catch (caught) {
             haptics.error();
             setError(
@@ -65,11 +78,31 @@ export default function CommentForm({ postId }: { postId: string }) {
 
     return (
         <View className="gap-3">
+            {replyingTo && (
+                <View className="flex-row items-center justify-between rounded-xl border border-border bg-surface-low px-3 py-2">
+                    <Text className="text-body-sm text-text-secondary">
+                        Replying to{" "}
+                        <Text className="font-semibold text-primary">
+                            @{replyingTo.username || replyingTo.name}
+                        </Text>
+                    </Text>
+                    {onCancelReply && (
+                        <Pressable
+                            onPress={onCancelReply}
+                            hitSlop={8}
+                            accessibilityLabel="Cancel reply"
+                        >
+                            <X size={14} color={colors.textSecondary} />
+                        </Pressable>
+                    )}
+                </View>
+            )}
+
             <View className="flex-row items-start gap-3">
                 <Avatar
                     src={user?.avatarUrl}
                     name={user?.name ?? ""}
-                    className="h-9 w-9"
+                    className={parentCommentId ? "h-8 w-8" : "h-9 w-9"}
                 />
 
                 <View className="flex-1 gap-2">
@@ -79,12 +112,15 @@ export default function CommentForm({ postId }: { postId: string }) {
                             setText(value);
                             setError(null);
                         }}
-                        placeholder="Add a comment..."
+                        placeholder={parentCommentId ? "Write a reply..." : "Add a comment..."}
                         placeholderTextColor={colors.textSecondary}
                         multiline
                         textAlignVertical="top"
                         maxLength={1000}
-                        className="rounded-2xl border border-border bg-surface-low px-4 py-3 text-body-sm text-text-primary min-h-[70px]"
+                        autoFocus={Boolean(parentCommentId)}
+                        className={`rounded-2xl border border-border bg-surface-low px-4 py-3 text-body-sm text-text-primary ${
+                            parentCommentId ? "min-h-[60px]" : "min-h-[70px]"
+                        }`}
                     />
 
                     {/* Selected GIF Preview */}
@@ -140,16 +176,30 @@ export default function CommentForm({ postId }: { postId: string }) {
                     </Text>
                 </Pressable>
 
-                <GradientButton
-                    onPress={handleSubmit}
-                    disabled={isSubmitting || !canSubmit}
-                    icon={isSubmitting ? <ActivityIndicator size="small" color={colors.buttonGradientText} /> : undefined}
-                    label={isSubmitting ? "Posting..." : "Post"}
-                    accessibilityLabel="Add comment"
-                    className="rounded-full"
-                    contentStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
-                    textClassName="text-body-sm font-semibold"
-                />
+                <View className="flex-row items-center gap-3">
+                    {onCancelReply && (
+                        <Pressable
+                            onPress={onCancelReply}
+                            hitSlop={6}
+                            accessibilityLabel="Cancel"
+                        >
+                            <Text className="text-body-sm font-medium text-text-secondary">
+                                Cancel
+                            </Text>
+                        </Pressable>
+                    )}
+
+                    <GradientButton
+                        onPress={handleSubmit}
+                        disabled={isSubmitting || !canSubmit}
+                        icon={isSubmitting ? <ActivityIndicator size="small" color={colors.buttonGradientText} /> : undefined}
+                        label={isSubmitting ? "Posting..." : parentCommentId ? "Reply" : "Post"}
+                        accessibilityLabel={parentCommentId ? "Add reply" : "Add comment"}
+                        className="rounded-full"
+                        contentStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
+                        textClassName="text-body-sm font-semibold"
+                    />
+                </View>
             </View>
 
             <GifPicker

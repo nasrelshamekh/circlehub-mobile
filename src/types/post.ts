@@ -44,6 +44,8 @@ export type Post = {
     likesCount: number;
     commentsCount: number;
     isLikedByMe: boolean;
+    isPinned?: boolean;
+    pinnedAt?: string | null;
     author: PostAuthor;
 
     community?: PostCommunity | null;
@@ -54,6 +56,12 @@ export type PostComment = {
     content: string;
     createdAt: string;
     author: PostAuthor;
+    parentCommentId?: string | null;
+    parentAuthorName?: string | null;
+    parentAuthorUsername?: string | null;
+    likesCount?: number;
+    isLiked?: boolean;
+    replies?: PostComment[];
 };
 
 export type PostDetails = Post & {

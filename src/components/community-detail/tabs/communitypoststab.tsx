@@ -89,6 +89,7 @@ export default function CommunityPostsTab({
                             slug: community.slug,
                         }}
                         canDelete={canManagePosts}
+                        canManagePosts={canManagePosts}
                     />
                 ))
             ) : (
