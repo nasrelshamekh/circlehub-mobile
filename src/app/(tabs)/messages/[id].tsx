@@ -182,10 +182,17 @@ export default function MessageThreadScreen() {
     );
     let keyboardOffset = 0;
     if (isKeyboardOpen && keyboardMetrics) {
-        if (keyboardMetrics.screenY > 0 && rootHeight > 0) {
-            keyboardOffset = Math.max(rootHeight - keyboardMetrics.screenY, 0);
+        if (Platform.OS === "ios") {
+            if (keyboardMetrics.screenY > 0 && rootHeight > 0) {
+                keyboardOffset = Math.max(rootHeight - keyboardMetrics.screenY, 0);
+            } else {
+                keyboardOffset = keyboardMetrics.height;
+            }
         } else {
-            keyboardOffset = keyboardMetrics.height;
+            // On Android with windowSoftInputMode="adjustResize", the window is already resized
+            // by the OS when the keyboard opens. Applying manual keyboard offset causes double-padding,
+            // initial render lag, and position jumps.
+            keyboardOffset = 0;
         }
     }
     const bottomSafeOffset = isKeyboardOpen ? keyboardOffset : bottomInset;
