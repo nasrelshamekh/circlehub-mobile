@@ -5,11 +5,16 @@ describe("Push notification handler & Android status bar dismissal", () => {
     let mockDismissAllNotificationsAsync: jest.Mock;
     let mockSetBadgeCountAsync: jest.Mock;
 
+    let mockDisplayDiscordActivityNotification: jest.Mock;
+    let mockDisplayDiscordMessageNotification: jest.Mock;
+
     function loadPushService() {
         mockGetPresentedNotificationsAsync = jest.fn().mockResolvedValue([]);
         mockDismissNotificationAsync = jest.fn().mockResolvedValue(undefined);
         mockDismissAllNotificationsAsync = jest.fn().mockResolvedValue(undefined);
         mockSetBadgeCountAsync = jest.fn().mockResolvedValue(undefined);
+        mockDisplayDiscordActivityNotification = jest.fn().mockResolvedValue("test-notif-id");
+        mockDisplayDiscordMessageNotification = jest.fn().mockResolvedValue("test-id");
 
         const mockSetNotificationHandler = jest.fn(
             (options: { handleNotification: () => Promise<any> }) => {
@@ -65,8 +70,8 @@ describe("Push notification handler & Android status bar dismissal", () => {
 
         jest.doMock("@/services/discordNotificationService", () => ({
             initializeNotificationChannels: jest.fn().mockResolvedValue(undefined),
-            displayDiscordMessageNotification: jest.fn().mockResolvedValue("test-id"),
-            displayDiscordActivityNotification: jest.fn().mockResolvedValue("test-notif-id"),
+            displayDiscordMessageNotification: mockDisplayDiscordMessageNotification,
+            displayDiscordActivityNotification: mockDisplayDiscordActivityNotification,
             dismissDiscordConversationNotification: jest.fn().mockResolvedValue(undefined),
             dismissDiscordActivityNotification: jest.fn().mockResolvedValue(undefined),
             dismissAllDiscordNotifications: jest.fn().mockResolvedValue(undefined),
@@ -76,7 +81,12 @@ describe("Push notification handler & Android status bar dismissal", () => {
 
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const pushService = require("@/services/pushNotifications");
-        return { pushService, mockSetNotificationHandler };
+        return {
+            pushService,
+            mockSetNotificationHandler,
+            mockDisplayDiscordActivityNotification,
+            mockDisplayDiscordMessageNotification,
+        };
     }
 
     beforeEach(() => {
@@ -257,5 +267,104 @@ describe("Push notification handler & Android status bar dismissal", () => {
 
         await pushService.unregisterCurrentDevicePushToken();
         expect(mockDismissAllNotificationsAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it("correctly unpacks stringified JSON body and prevents rendering raw code in activity notifications", async () => {
+        const { pushService, mockDisplayDiscordActivityNotification } =
+            loadPushService();
+
+        // Android / Expo FCM payload where `body` is a stringified JSON object
+        const rawFcmData = {
+            body: JSON.stringify({
+                type: "notification",
+                notificationId: "notif-777",
+                notificationType: "PostLike",
+                senderName: "Sarah Connor",
+                text: "Sarah Connor liked your post.",
+                postId: "post-100",
+                actorUsername: "sarah",
+            }),
+        };
+
+        const unpacked = pushService.unpackPayload(rawFcmData);
+        expect(unpacked.type).toBe("notification");
+        expect(unpacked.notificationId).toBe("notif-777");
+        expect(unpacked.notificationType).toBe("PostLike");
+        expect(unpacked.senderName).toBe("Sarah Connor");
+        expect(unpacked.text).toBe("Sarah Connor liked your post.");
+
+        await pushService.handleIncomingDiscordPayload(rawFcmData);
+
+        expect(mockDisplayDiscordActivityNotification).toHaveBeenCalledTimes(1);
+        expect(mockDisplayDiscordActivityNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                notificationId: "notif-777",
+                notificationType: "PostLike",
+                senderName: "Sarah Connor",
+                text: "Sarah Connor liked your post.",
+                postId: "post-100",
+                actorUsername: "sarah",
+            })
+        );
+        // Ensure no raw JSON was passed
+        const payloadPassed =
+            mockDisplayDiscordActivityNotification.mock.calls[0][0];
+        expect(payloadPassed.text).not.toContain("{");
+        expect(payloadPassed.senderName).not.toContain("{");
+    });
+
+    it("synthesizes clean human sentence when raw text is missing or contains code", async () => {
+        const { pushService, mockDisplayDiscordActivityNotification } =
+            loadPushService();
+
+        const rawData = {
+            body: JSON.stringify({
+                type: "notification",
+                notificationId: "notif-888",
+                notificationType: "CommentLike",
+                senderName: "John Connor",
+                // Simulate an corrupted / raw code string in text
+                text: '{"corrupted":"json"}',
+            }),
+        };
+
+        await pushService.handleIncomingDiscordPayload(rawData);
+
+        expect(mockDisplayDiscordActivityNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                notificationId: "notif-888",
+                notificationType: "CommentLike",
+                senderName: "John Connor",
+                text: "John Connor liked your comment.",
+            })
+        );
+    });
+
+    it("correctly unpacks stringified message payload and avoids rendering JSON code", async () => {
+        const { pushService, mockDisplayDiscordMessageNotification } =
+            loadPushService();
+
+        const rawFcmMessage = {
+            body: JSON.stringify({
+                type: "message",
+                conversationId: "conv-xyz",
+                messageId: "msg-999",
+                senderName: "Alice",
+                senderUsername: "alice",
+                text: "Hey, are you free tomorrow?",
+            }),
+        };
+
+        await pushService.handleIncomingDiscordPayload(rawFcmMessage);
+
+        expect(mockDisplayDiscordMessageNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                conversationId: "conv-xyz",
+                messageId: "msg-999",
+                senderName: "Alice",
+                recipientUsername: "alice",
+                text: "Hey, are you free tomorrow?",
+            })
+        );
     });
 });

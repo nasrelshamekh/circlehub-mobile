@@ -29,6 +29,53 @@ let lastNavigatedTime = 0;
 let lastNavigatedActivityId: string | null = null;
 let lastNavigatedActivityTime = 0;
 
+function isSerializedPayload(val: unknown): boolean {
+    if (typeof val !== "string") return false;
+    const trimmed = val.trim();
+    if (trimmed.length < 2) return false;
+    if (
+        (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+        (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    ) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === "object") {
+                if (
+                    "notificationId" in parsed ||
+                    "notificationType" in parsed ||
+                    "conversationId" in parsed ||
+                    "senderName" in parsed ||
+                    "actorUsername" in parsed ||
+                    (parsed as any).type === "notification" ||
+                    (parsed as any).type === "message" ||
+                    "postId" in parsed ||
+                    "communitySlug" in parsed
+                ) {
+                    return true;
+                }
+            }
+        } catch {
+            if (
+                trimmed.includes('"notificationId"') ||
+                trimmed.includes('"notificationType"') ||
+                trimmed.includes('"conversationId"') ||
+                trimmed.includes('"type":')
+            ) {
+                return true;
+            }
+        }
+    }
+    if (
+        trimmed.startsWith('{"') &&
+        (trimmed.includes('"notificationId"') ||
+            trimmed.includes('"type"') ||
+            trimmed.includes('"senderName"'))
+    ) {
+        return true;
+    }
+    return false;
+}
+
 /**
  * Navigates directly into an activity target (post, user profile, community, or notifications tab).
  */
@@ -266,9 +313,17 @@ export async function displayDiscordMessageNotification(
     const notifId = `chat_${payload.conversationId}`;
     const timestamp = payload.timestamp || Date.now();
     const isGroup = Boolean(payload.communityName);
+    const safeSenderName =
+        payload.senderName && !isSerializedPayload(payload.senderName)
+            ? payload.senderName
+            : "New message";
+    const safeText =
+        payload.text && !isSerializedPayload(payload.text)
+            ? payload.text
+            : "Sent you a message";
     const conversationTitle = isGroup
         ? `#${payload.channelName || "general"} • ${payload.communityName}`
-        : payload.senderName;
+        : safeSenderName;
 
     // Fetch any currently displayed notification for this conversation to stack threaded history
     let existingMessages: Array<{
@@ -321,7 +376,7 @@ export async function displayDiscordMessageNotification(
 
     // Append new incoming message
     existingMessages.push({
-        text: payload.text,
+        text: safeText,
         timestamp,
         person: currentPerson,
     });
@@ -353,14 +408,14 @@ export async function displayDiscordMessageNotification(
     const notificationOptions = {
         id: notifId,
         title: conversationTitle,
-        body: payload.text,
+        body: safeText,
         data: {
             type: "message",
             conversationId: payload.conversationId,
             messageId: payload.messageId,
             recipientUsername: payload.recipientUsername || "",
             senderId: payload.senderId || "",
-            senderName: payload.senderName,
+            senderName: safeSenderName,
             senderAvatarUrl: payload.senderAvatarUrl || "",
             communityName: payload.communityName || "",
             channelName: payload.channelName || "",
@@ -642,11 +697,26 @@ export async function displayDiscordActivityNotification(
 
     const notifId = `notif_${payload.notificationId}`;
     const timestamp = payload.timestamp || Date.now();
-    const title = payload.title || payload.senderName || "CircleHub";
-    const text = payload.text || "New notification";
+    let senderName = payload.senderName || "CircleHub";
+    if (isSerializedPayload(senderName)) {
+        senderName = "CircleHub";
+    }
+
+    let text = payload.text || "New notification";
+    if (isSerializedPayload(text)) {
+        text =
+            senderName !== "CircleHub"
+                ? `${senderName} sent you a notification.`
+                : "New notification";
+    }
+
+    const title =
+        payload.title && !isSerializedPayload(payload.title)
+            ? payload.title
+            : senderName;
 
     const currentPerson: { name: string; icon?: string } = {
-        name: payload.senderName || "CircleHub",
+        name: senderName,
     };
     if (
         typeof payload.senderAvatarUrl === "string" &&
@@ -692,7 +762,7 @@ export async function displayDiscordActivityNotification(
             postId: String(payload.postId || ""),
             communitySlug: String(payload.communitySlug || ""),
             actorUsername: String(payload.actorUsername || ""),
-            senderName: String(payload.senderName || "CircleHub"),
+            senderName,
             senderAvatarUrl: String(payload.senderAvatarUrl || ""),
             text,
         },

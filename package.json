@@ -1,6 +1,6 @@
 {
   "name": "circlehub-mobile",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.3.0",
   "dependencies": {
     "@expo/ui": "~57.0.26",

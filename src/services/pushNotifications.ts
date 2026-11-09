@@ -53,10 +53,176 @@ function getNotifications(): typeof NotificationsType | null {
 
 export const BACKGROUND_NOTIFICATION_TASK = "BACKGROUND-NOTIFICATION-TASK";
 
-async function handleIncomingDiscordPayload(
-    rawData: Record<string, unknown> | null | undefined
+const processedNotificationIds = new Map<string, number>();
+
+function isDuplicatePayload(id: string): boolean {
+    if (!id) return false;
+    const now = Date.now();
+    for (const [k, ts] of processedNotificationIds.entries()) {
+        if (now - ts > 30000) {
+            processedNotificationIds.delete(k);
+        }
+    }
+    if (processedNotificationIds.has(id)) {
+        return true;
+    }
+    processedNotificationIds.set(id, now);
+    return false;
+}
+
+/**
+ * Checks whether a string value is a serialized JSON payload object/array,
+ * so we never accidentally render raw JSON code on user notification cards.
+ */
+export function isSerializedPayload(val: unknown): boolean {
+    if (typeof val !== "string") return false;
+    const trimmed = val.trim();
+    if (trimmed.length < 2) return false;
+    if (
+        (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+        (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    ) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === "object") {
+                if (
+                    "notificationId" in parsed ||
+                    "notificationType" in parsed ||
+                    "conversationId" in parsed ||
+                    "senderName" in parsed ||
+                    "actorUsername" in parsed ||
+                    (parsed as any).type === "notification" ||
+                    (parsed as any).type === "message" ||
+                    "postId" in parsed ||
+                    "communitySlug" in parsed
+                ) {
+                    return true;
+                }
+            }
+        } catch {
+            if (
+                trimmed.includes('"notificationId"') ||
+                trimmed.includes('"notificationType"') ||
+                trimmed.includes('"conversationId"') ||
+                trimmed.includes('"type":')
+            ) {
+                return true;
+            }
+        }
+    }
+    if (
+        trimmed.startsWith('{"') &&
+        (trimmed.includes('"notificationId"') ||
+            trimmed.includes('"type"') ||
+            trimmed.includes('"senderName"'))
+    ) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Unpacks nested or JSON-stringified payloads from Expo / FCM background delivery.
+ * Android FCM and Expo push services often wrap payloads in { body: "{...}" } or { data: "{...}" }.
+ */
+export function unpackPayload(
+    raw: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+    if (!raw || typeof raw !== "object") return {};
+    let data: Record<string, unknown> = { ...raw };
+
+    // 1. If wrapped in a Notification or Request envelope
+    const req = (data.notification as any)?.request || (data.request as any);
+    const content = req?.content || (data.content as any);
+    if (content && typeof content === "object") {
+        if (content.data && typeof content.data === "object") {
+            data = { ...data, ...content.data };
+        }
+        if (typeof content.body === "string" && content.body.trim().length > 0) {
+            data.body = data.body || content.body;
+        }
+    }
+
+    // 2. If data.data exists (Expo / FCM nested payload)
+    if (data.data) {
+        if (typeof data.data === "object" && data.data !== null) {
+            data = { ...data, ...(data.data as Record<string, unknown>) };
+        } else if (
+            typeof data.data === "string" &&
+            data.data.trim().startsWith("{")
+        ) {
+            try {
+                const parsed = JSON.parse(data.data.trim());
+                if (parsed && typeof parsed === "object") {
+                    data = { ...data, ...(parsed as Record<string, unknown>) };
+                }
+            } catch {}
+        }
+    }
+
+    // 3. If body is a JSON string
+    if (typeof data.body === "string" && data.body.trim().startsWith("{")) {
+        try {
+            const parsed = JSON.parse(data.body.trim());
+            if (parsed && typeof parsed === "object") {
+                const parsedObj = parsed as Record<string, unknown>;
+                data = { ...data, ...parsedObj };
+                if (
+                    typeof parsedObj.text === "string" &&
+                    !isSerializedPayload(parsedObj.text)
+                ) {
+                    data.text = parsedObj.text.trim();
+                } else if (
+                    typeof parsedObj.body === "string" &&
+                    !isSerializedPayload(parsedObj.body)
+                ) {
+                    data.body = parsedObj.body.trim();
+                } else {
+                    delete data.body;
+                }
+            }
+        } catch {}
+    }
+
+    // 4. If text is a JSON string
+    if (typeof data.text === "string" && data.text.trim().startsWith("{")) {
+        try {
+            const parsed = JSON.parse(data.text.trim());
+            if (parsed && typeof parsed === "object") {
+                const parsedObj = parsed as Record<string, unknown>;
+                data = { ...data, ...parsedObj };
+                if (
+                    typeof parsedObj.text === "string" &&
+                    !isSerializedPayload(parsedObj.text)
+                ) {
+                    data.text = parsedObj.text.trim();
+                } else {
+                    delete data.text;
+                }
+            }
+        } catch {}
+    }
+
+    // 5. Sanitize any lingering raw serialized JSON code
+    if (isSerializedPayload(data.body)) {
+        delete data.body;
+    }
+    if (isSerializedPayload(data.text)) {
+        delete data.text;
+    }
+    if (isSerializedPayload(data.senderName)) {
+        delete data.senderName;
+    }
+
+    return data;
+}
+
+export async function handleIncomingDiscordPayload(
+    raw: Record<string, unknown> | null | undefined
 ): Promise<void> {
-    if (!rawData) return;
+    if (!raw) return;
+    const rawData = unpackPayload(raw);
+
     const type = stringField(rawData, "type", "Type")?.toLowerCase();
     const conversationId = stringField(
         rawData,
@@ -69,9 +235,17 @@ async function handleIncomingDiscordPayload(
 
         const messageId =
             stringField(rawData, "messageId", "MessageId") || "";
-        const senderName =
+        const dedupKey = `msg_${conversationId}_${messageId || Date.now()}`;
+        if (messageId && isDuplicatePayload(dedupKey)) {
+            return;
+        }
+
+        let senderName =
             stringField(rawData, "senderName", "SenderName") ||
             "New message";
+        if (isSerializedPayload(senderName)) {
+            senderName = "New message";
+        }
         const senderUsername = stringField(
             rawData,
             "senderUsername",
@@ -85,9 +259,12 @@ async function handleIncomingDiscordPayload(
                 "avatarUrl",
                 "AvatarUrl"
             ) || null;
-        const text =
+        let text =
             stringField(rawData, "text", "Text", "body", "Body") ||
             "Sent you a message";
+        if (isSerializedPayload(text)) {
+            text = "Sent you a message";
+        }
         const senderId = stringField(rawData, "senderId", "SenderId");
 
         await displayDiscordMessageNotification({
@@ -108,13 +285,19 @@ async function handleIncomingDiscordPayload(
                 "id",
                 "Id"
             ) || String(Date.now());
+
+        const dedupKey = `notif_${notificationId}`;
+        if (isDuplicatePayload(dedupKey)) {
+            return;
+        }
+
         const notificationType =
             stringField(
                 rawData,
                 "notificationType",
                 "NotificationType"
             ) || "General";
-        const senderName =
+        let senderName =
             stringField(
                 rawData,
                 "senderName",
@@ -124,6 +307,9 @@ async function handleIncomingDiscordPayload(
                 "title",
                 "Title"
             ) || "CircleHub";
+        if (isSerializedPayload(senderName)) {
+            senderName = "CircleHub";
+        }
         const senderAvatarUrl =
             stringField(
                 rawData,
@@ -145,7 +331,7 @@ async function handleIncomingDiscordPayload(
             "message",
             "Message"
         );
-        if (!text || text === "New notification") {
+        if (!text || text === "New notification" || isSerializedPayload(text)) {
             const rawSender =
                 senderName && senderName !== "CircleHub"
                     ? senderName
@@ -175,12 +361,17 @@ async function handleIncomingDiscordPayload(
                 case "CommunityMemberRemoved":
                     text = `${rawSender} removed you from the community.`;
                     break;
+                case "CommunityRoleChanged":
+                    text = `${rawSender} updated your role in the community.`;
+                    break;
+                case "CommunityPostRemoved":
+                    text = `${rawSender} removed your post from the community.`;
+                    break;
                 default:
                     text =
-                        text ||
-                        (senderName !== "CircleHub"
+                        senderName !== "CircleHub"
                             ? `${senderName} sent you a notification.`
-                            : "New notification");
+                            : "New notification";
                     break;
             }
         }
