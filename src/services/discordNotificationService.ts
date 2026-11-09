@@ -10,6 +10,7 @@ import { router } from "expo-router";
 import { AppState, Platform } from "react-native";
 
 import { markConversationRead, sendMessage } from "@/api/messages";
+import { markNotificationRead } from "@/api/notifications";
 import { encryptMessageContent } from "@/services/messageCrypto";
 
 export const DISCORD_BLURPLE = "#5865F2";
@@ -22,8 +23,66 @@ let pendingNotificationData: {
     senderName?: string;
     senderAvatarUrl?: string | null;
 } | null = null;
+let pendingActivityNotificationData: Record<string, unknown> | null = null;
 let lastNavigatedConversationId: string | null = null;
 let lastNavigatedTime = 0;
+let lastNavigatedActivityId: string | null = null;
+let lastNavigatedActivityTime = 0;
+
+/**
+ * Navigates directly into an activity target (post, user profile, community, or notifications tab).
+ */
+export function navigateToActivityTarget(data: Record<string, unknown>): void {
+    if (!data) return;
+
+    const notifId = data.notificationId ? String(data.notificationId) : undefined;
+    const now = Date.now();
+    if (notifId && lastNavigatedActivityId === notifId && now - lastNavigatedActivityTime < 1000) {
+        return;
+    }
+    if (notifId) {
+        lastNavigatedActivityId = notifId;
+        lastNavigatedActivityTime = now;
+        void dismissDiscordActivityNotification(notifId);
+        markNotificationRead(notifId).catch(() => {});
+    }
+    pendingActivityNotificationData = null;
+
+    const notifType = String(data.notificationType || "");
+    const postId = data.postId ? String(data.postId) : undefined;
+    const communitySlug = data.communitySlug ? String(data.communitySlug) : undefined;
+    const actorUsername = data.actorUsername ? String(data.actorUsername) : undefined;
+
+    setTimeout(() => {
+        try {
+            if (notifType === "Follow" && actorUsername) {
+                router.push({
+                    pathname: "/profile/[username]",
+                    params: { username: actorUsername },
+                });
+            } else if ((notifType === "PostLike" || notifType === "PostComment") && postId) {
+                router.push({
+                    pathname: "/post/[id]",
+                    params: { id: postId },
+                });
+            } else if (notifType === "CommunityJoinRequested" && communitySlug) {
+                router.push({
+                    pathname: "/community-manage",
+                    params: { slug: communitySlug, tab: "requests" },
+                });
+            } else if (communitySlug) {
+                router.push({
+                    pathname: "/community/[slug]",
+                    params: { slug: communitySlug },
+                });
+            } else {
+                router.push("/(tabs)/notifications");
+            }
+        } catch (e) {
+            console.warn("[Notifee] Navigation to activity target failed:", e);
+        }
+    }, 200);
+}
 
 /**
  * Navigates directly into a conversation thread, debounced and deferred slightly
@@ -84,15 +143,26 @@ export async function handleInitialDiscordNotification(): Promise<void> {
             return;
         }
 
+        if (pendingActivityNotificationData) {
+            const data = pendingActivityNotificationData;
+            pendingActivityNotificationData = null;
+            navigateToActivityTarget(data);
+            return;
+        }
+
         const initial = await notifee.getInitialNotification();
-        if (initial?.notification?.data?.conversationId) {
+        if (initial?.notification?.data) {
             const data = initial.notification.data;
-            const convId = String(data.conversationId);
-            navigateToConversation(
-                convId,
-                data.senderName as string | undefined,
-                data.senderAvatarUrl as string | undefined
-            );
+            if (data.type === "notification") {
+                navigateToActivityTarget(data as Record<string, unknown>);
+            } else if (data.conversationId) {
+                const convId = String(data.conversationId);
+                navigateToConversation(
+                    convId,
+                    data.senderName as string | undefined,
+                    data.senderAvatarUrl as string | undefined
+                );
+            }
         }
     } catch (e) {
         console.warn("[Notifee] Failed to handle initial notification:", e);
@@ -122,8 +192,10 @@ export async function initializeNotificationChannels(): Promise<void> {
             id: ACTIVITY_CHANNEL_ID,
             name: "Activity & Notifications",
             description: "Likes, comments, and community updates",
-            importance: AndroidImportance.DEFAULT,
+            importance: AndroidImportance.HIGH,
             vibration: true,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: DISCORD_BLURPLE,
             badge: true,
         });
 
@@ -384,12 +456,17 @@ export function registerDiscordBackgroundEventHandler(): void {
     if (Platform.OS === "web") return;
 
     notifee.onBackgroundEvent(async ({ type, detail }: Event) => {
-        if (type === EventType.PRESS) {
+        if (
+            type === EventType.PRESS ||
+            (type === EventType.ACTION_PRESS &&
+                detail.pressAction?.id === "view_activity")
+        ) {
             const data = detail.notification?.data;
-            const conversationId = data?.conversationId as string | undefined;
-            if (conversationId) {
+            if (data?.type === "notification") {
+                pendingActivityNotificationData = data as Record<string, unknown>;
+            } else if (data?.conversationId) {
                 pendingNotificationData = {
-                    conversationId,
+                    conversationId: data.conversationId as string,
                     senderName: data?.senderName as string | undefined,
                     senderAvatarUrl: data?.senderAvatarUrl as string | undefined,
                 };
@@ -403,8 +480,18 @@ export function registerDiscordBackgroundEventHandler(): void {
                 ?.conversationId as string;
             const recipientUsername = detail.notification?.data
                 ?.recipientUsername as string;
+            const notifId = detail.notification?.data?.notificationId as string;
 
-            if (actionId === "reply") {
+            if (actionId === "dismiss_activity") {
+                if (notifId) {
+                    try {
+                        await markNotificationRead(notifId);
+                    } catch {}
+                }
+                if (detail.notification?.id) {
+                    await notifee.cancelNotification(detail.notification.id);
+                }
+            } else if (actionId === "reply") {
                 const rawInput = detail.input;
                 const replyText =
                     typeof rawInput === "string"
@@ -475,11 +562,16 @@ export function registerDiscordBackgroundEventHandler(): void {
                     try {
                         await markConversationRead(conversationId);
                     } catch {}
-                    if (detail.notification?.id) {
-                        await notifee.cancelNotification(
-                            detail.notification.id
-                        );
-                    }
+                }
+                if (notifId) {
+                    try {
+                        await markNotificationRead(notifId);
+                    } catch {}
+                }
+                if (detail.notification?.id) {
+                    await notifee.cancelNotification(
+                        detail.notification.id
+                    );
                 }
             }
         }
@@ -494,16 +586,21 @@ export function registerDiscordForegroundEventHandler(): () => void {
 
     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
         if (
-            type === EventType.PRESS &&
-            detail.notification?.data?.conversationId
+            type === EventType.PRESS ||
+            (type === EventType.ACTION_PRESS &&
+                detail.pressAction?.id === "view_activity")
         ) {
-            const data = detail.notification.data;
-            const convId = data.conversationId as string;
-            navigateToConversation(
-                convId,
-                data.senderName as string | undefined,
-                data.senderAvatarUrl as string | undefined
-            );
+            const data = detail.notification?.data;
+            if (data?.type === "notification") {
+                navigateToActivityTarget(data as Record<string, unknown>);
+            } else if (data?.conversationId) {
+                const convId = data.conversationId as string;
+                navigateToConversation(
+                    convId,
+                    data.senderName as string | undefined,
+                    data.senderAvatarUrl as string | undefined
+                );
+            }
         }
     });
 
@@ -517,6 +614,145 @@ export function registerDiscordForegroundEventHandler(): () => void {
         unsubscribe();
         appStateSub.remove();
     };
+}
+
+export interface DiscordActivityNotificationPayload {
+    notificationId: string;
+    notificationType: string;
+    senderName: string;
+    senderAvatarUrl?: string | null;
+    title?: string;
+    text: string;
+    timestamp?: number;
+    postId?: string | null;
+    communitySlug?: string | null;
+    actorUsername?: string | null;
+}
+
+/**
+ * Displays a Discord-style activity notification (likes, comments, follows, replies)
+ * with Discord Blurple accent (#5865F2), circular actor avatar, BigText layout, and quick actions.
+ */
+export async function displayDiscordActivityNotification(
+    payload: DiscordActivityNotificationPayload
+): Promise<void> {
+    if (Platform.OS === "web") return;
+
+    await initializeNotificationChannels();
+
+    const notifId = `notif_${payload.notificationId}`;
+    const timestamp = payload.timestamp || Date.now();
+    const title = payload.title || payload.senderName;
+
+    const androidOptions: any = {
+        channelId: ACTIVITY_CHANNEL_ID,
+        category: AndroidCategory.SOCIAL,
+        importance: AndroidImportance.HIGH,
+        color: DISCORD_BLURPLE,
+        smallIcon: "notification_icon",
+        timestamp,
+        showTimestamp: true,
+        pressAction: {
+            id: "default",
+            launchActivity: "default",
+        },
+        style: {
+            type: AndroidStyle.BIGTEXT,
+            title,
+            text: payload.text,
+            summary: "CircleHub",
+        },
+        actions: [
+            {
+                title: "View",
+                pressAction: {
+                    id: "view_activity",
+                    launchActivity: "default",
+                },
+            },
+            {
+                title: "Dismiss",
+                pressAction: {
+                    id: "dismiss_activity",
+                },
+            },
+        ],
+    };
+
+    if (
+        typeof payload.senderAvatarUrl === "string" &&
+        payload.senderAvatarUrl.trim().length > 0
+    ) {
+        androidOptions.largeIcon = payload.senderAvatarUrl.trim();
+    }
+
+    const notificationOptions = {
+        id: notifId,
+        title,
+        body: payload.text,
+        data: {
+            type: "notification",
+            notificationId: payload.notificationId,
+            notificationType: payload.notificationType,
+            postId: payload.postId || "",
+            communitySlug: payload.communitySlug || "",
+            actorUsername: payload.actorUsername || "",
+            senderName: payload.senderName,
+            senderAvatarUrl: payload.senderAvatarUrl || "",
+            text: payload.text,
+        },
+        android: androidOptions,
+        ios: {
+            categoryId: "activity_actions",
+        },
+    };
+
+    try {
+        await notifee.displayNotification(notificationOptions as any);
+    } catch (e) {
+        console.warn("[Notifee] Activity notification display fallback:", e);
+        try {
+            const fallbackOptions = {
+                ...notificationOptions,
+                android: {
+                    ...androidOptions,
+                    smallIcon: "ic_launcher",
+                    largeIcon: undefined,
+                },
+            };
+            await notifee.displayNotification(fallbackOptions as any);
+        } catch (fatal) {
+            console.error("[Notifee] Fatal activity notification failure:", fatal);
+        }
+    }
+}
+
+/**
+ * Dismisses any presented notifications for a specific activity or all activity notifications.
+ */
+export async function dismissDiscordActivityNotification(
+    notificationId?: string
+): Promise<void> {
+    if (Platform.OS === "web") return;
+    try {
+        if (notificationId) {
+            await notifee.cancelNotification(`notif_${notificationId}`);
+            await notifee.cancelNotification(notificationId);
+        } else {
+            const displayed = await notifee.getDisplayedNotifications();
+            for (const n of displayed) {
+                if (
+                    n.notification?.android?.channelId === ACTIVITY_CHANNEL_ID ||
+                    n.id?.startsWith("notif_") ||
+                    n.notification?.data?.type === "notification"
+                ) {
+                    if (n.id) await notifee.cancelNotification(n.id);
+                }
+            }
+        }
+    } catch {
+        // ignore
+    }
 }
 
 /**

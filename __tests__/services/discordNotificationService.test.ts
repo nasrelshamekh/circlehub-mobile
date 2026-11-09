@@ -6,10 +6,13 @@ import notifee, {
 } from "react-native-notify-kit";
 import { router } from "expo-router";
 import {
+    ACTIVITY_CHANNEL_ID,
     checkNotificationPermissionStatus,
+    displayDiscordActivityNotification,
     displayDiscordMessageNotification,
     handleInitialDiscordNotification,
     MESSAGES_CHANNEL_ID,
+    navigateToActivityTarget,
     navigateToConversation,
 } from "@/services/discordNotificationService";
 
@@ -20,6 +23,10 @@ jest.mock("expo-router", () => ({
         replace: jest.fn(),
         navigate: jest.fn(),
     },
+}));
+
+jest.mock("@/api/notifications", () => ({
+    markNotificationRead: jest.fn().mockResolvedValue({}),
 }));
 
 describe("Discord Notification Service", () => {
@@ -97,6 +104,38 @@ describe("Discord Notification Service", () => {
         expect("icon" in style.messages[0].person).toBe(false);
     });
 
+    it("displays an activity notification with Discord Blurple styling, largeIcon avatar and BigText", async () => {
+        await displayDiscordActivityNotification({
+            notificationId: "notif-99",
+            notificationType: "PostLike",
+            senderName: "Kyle Reese",
+            senderAvatarUrl: "https://example.com/kyle.png",
+            text: "Kyle Reese liked your post.",
+            postId: "post-123",
+        });
+
+        expect(notifee.displayNotification).toHaveBeenCalledTimes(1);
+        const callArgs = (notifee.displayNotification as jest.Mock).mock.calls[0][0];
+
+        expect(callArgs.android.channelId).toBe(ACTIVITY_CHANNEL_ID);
+        expect(callArgs.android.color).toBe("#5865F2");
+        expect(callArgs.android.largeIcon).toBe("https://example.com/kyle.png");
+        expect(callArgs.android.pressAction).toEqual({
+            id: "default",
+            launchActivity: "default",
+        });
+
+        const style = callArgs.android.style;
+        expect(style.type).toBe(AndroidStyle.BIGTEXT);
+        expect(style.text).toBe("Kyle Reese liked your post.");
+        expect(style.title).toBe("Kyle Reese");
+
+        expect(callArgs.android.actions).toHaveLength(2);
+        expect(callArgs.android.actions[0].title).toBe("View");
+        expect(callArgs.android.actions[0].pressAction.launchActivity).toBe("default");
+        expect(callArgs.android.actions[1].title).toBe("Dismiss");
+    });
+
     it("checks notification permission status correctly", async () => {
         (notifee.getNotificationSettings as jest.Mock).mockResolvedValueOnce({
             authorizationStatus: AuthorizationStatus.AUTHORIZED,
@@ -122,6 +161,44 @@ describe("Discord Notification Service", () => {
                 name: "Sarah Connor",
                 avatarUrl: "https://example.com/a.png",
             },
+        });
+    });
+
+    it("navigates to activity targets correctly", () => {
+        // Follow target -> profile
+        navigateToActivityTarget({
+            notificationId: "n1",
+            notificationType: "Follow",
+            actorUsername: "sarah_c",
+        });
+        jest.advanceTimersByTime(250);
+        expect(mockRouterPush).toHaveBeenCalledWith({
+            pathname: "/profile/[username]",
+            params: { username: "sarah_c" },
+        });
+
+        // PostLike target -> post
+        navigateToActivityTarget({
+            notificationId: "n2",
+            notificationType: "PostLike",
+            postId: "post-88",
+        });
+        jest.advanceTimersByTime(250);
+        expect(mockRouterPush).toHaveBeenCalledWith({
+            pathname: "/post/[id]",
+            params: { id: "post-88" },
+        });
+
+        // Community target -> community
+        navigateToActivityTarget({
+            notificationId: "n3",
+            notificationType: "CommunityRoleChanged",
+            communitySlug: "cyberpunk",
+        });
+        jest.advanceTimersByTime(250);
+        expect(mockRouterPush).toHaveBeenCalledWith({
+            pathname: "/community/[slug]",
+            params: { slug: "cyberpunk" },
         });
     });
 

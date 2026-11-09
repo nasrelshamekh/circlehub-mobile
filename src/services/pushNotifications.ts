@@ -8,7 +8,9 @@ import { Platform } from "react-native";
 import { registerDeviceToken, unregisterDeviceToken } from "@/api/devices";
 import {
     dismissAllDiscordNotifications,
+    dismissDiscordActivityNotification,
     dismissDiscordConversationNotification,
+    displayDiscordActivityNotification,
     displayDiscordMessageNotification,
     initializeNotificationChannels,
 } from "@/services/discordNotificationService";
@@ -95,6 +97,98 @@ async function handleIncomingDiscordPayload(
             senderAvatarUrl,
             text,
         });
+    } else if (type === "notification") {
+        const notificationId =
+            stringField(
+                rawData,
+                "notificationId",
+                "NotificationId",
+                "id",
+                "Id"
+            ) || String(Date.now());
+        const notificationType =
+            stringField(
+                rawData,
+                "notificationType",
+                "NotificationType"
+            ) || "General";
+        const senderName =
+            stringField(
+                rawData,
+                "senderName",
+                "SenderName",
+                "actorName",
+                "ActorName",
+                "title",
+                "Title"
+            ) || "CircleHub";
+        const senderAvatarUrl =
+            stringField(
+                rawData,
+                "senderAvatarUrl",
+                "SenderAvatarUrl",
+                "actorAvatarUrl",
+                "ActorAvatarUrl"
+            ) || null;
+        const text =
+            stringField(
+                rawData,
+                "text",
+                "Text",
+                "body",
+                "Body",
+                "sentence",
+                "Sentence"
+            ) || "New notification";
+        const postId = stringField(rawData, "postId", "PostId");
+        const communitySlug = stringField(
+            rawData,
+            "communitySlug",
+            "CommunitySlug"
+        );
+        const actorUsername = stringField(
+            rawData,
+            "actorUsername",
+            "ActorUsername"
+        );
+
+        await displayDiscordActivityNotification({
+            notificationId,
+            notificationType,
+            senderName,
+            senderAvatarUrl,
+            text,
+            postId,
+            communitySlug,
+            actorUsername,
+        });
+    } else {
+        const title =
+            stringField(rawData, "title", "Title") || "CircleHub";
+        const text = stringField(
+            rawData,
+            "body",
+            "Body",
+            "text",
+            "Text"
+        );
+        if (text) {
+            const senderAvatarUrl =
+                stringField(
+                    rawData,
+                    "senderAvatarUrl",
+                    "SenderAvatarUrl",
+                    "avatarUrl",
+                    "AvatarUrl"
+                ) || null;
+            await displayDiscordActivityNotification({
+                notificationId: String(Date.now()),
+                notificationType: "General",
+                senderName: title,
+                senderAvatarUrl,
+                text,
+            });
+        }
     }
 }
 
@@ -364,6 +458,7 @@ export async function dismissConversationNotifications(
 export async function dismissActivityNotifications(
     notificationId?: string | null
 ): Promise<void> {
+    void dismissDiscordActivityNotification(notificationId || undefined);
     const Notifications = getNotifications();
     if (!Notifications) return;
 

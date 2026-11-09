@@ -61,7 +61,10 @@ import {
     registerCurrentDevicePushToken,
     subscribeToNotificationResponses,
 } from "@/services/pushNotifications";
-import { displayDiscordMessageNotification } from "@/services/discordNotificationService";
+import {
+    displayDiscordActivityNotification,
+    displayDiscordMessageNotification,
+} from "@/services/discordNotificationService";
 import {
     isRecoveryPromptSettled,
     markRecoveryPromptDismissed,
@@ -840,16 +843,28 @@ export function ChatConnectionProvider({
                         };
                     });
 
-                    // In-app banner: do not show if user is currently looking at notifications screen
                     const currentPath = (pathnameRef.current ?? "").toLowerCase();
                     const isViewingNotifications = currentPath.includes("/notifications");
 
-                    if (!isViewingNotifications) {
-                        const actorName = notification.actor?.name || "Someone";
-                        const actorAvatar = notification.actor?.avatarUrl ?? null;
-                        const actionText = notificationSentence(notification);
-                        const actorId = notification.actor?.id;
+                    const actorName = notification.actor?.name || "Someone";
+                    const actorAvatar = notification.actor?.avatarUrl ?? null;
+                    const actionText = notificationSentence(notification);
+                    const actorId = notification.actor?.id;
 
+                    if (AppState.currentState !== "active") {
+                        void displayDiscordActivityNotification({
+                            notificationId: notification.id,
+                            notificationType: notification.type,
+                            senderName: actorName,
+                            senderAvatarUrl: actorAvatar,
+                            text: `${actorName} ${actionText}`,
+                            postId: notification.postId,
+                            communitySlug: notification.communitySlug,
+                            actorUsername: notification.actor?.username,
+                        });
+                    }
+
+                    if (!isViewingNotifications) {
                         haptics.light();
 
                         setInAppNotification((prev) => {

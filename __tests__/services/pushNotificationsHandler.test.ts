@@ -66,7 +66,9 @@ describe("Push notification handler & Android status bar dismissal", () => {
         jest.doMock("@/services/discordNotificationService", () => ({
             initializeNotificationChannels: jest.fn().mockResolvedValue(undefined),
             displayDiscordMessageNotification: jest.fn().mockResolvedValue("test-id"),
+            displayDiscordActivityNotification: jest.fn().mockResolvedValue("test-notif-id"),
             dismissDiscordConversationNotification: jest.fn().mockResolvedValue(undefined),
+            dismissDiscordActivityNotification: jest.fn().mockResolvedValue(undefined),
             dismissAllDiscordNotifications: jest.fn().mockResolvedValue(undefined),
             registerDiscordBackgroundEventHandler: jest.fn(),
             registerDiscordForegroundEventHandler: jest.fn().mockReturnValue(() => {}),

@@ -37,13 +37,7 @@ import {
     notificationSentence,
 } from "@/lib/notificationCopy";
 import { NotificationTypeBadgeIcon } from "@/components/common/notificationbadge";
-import notifee from "react-native-notify-kit";
 import { dismissActivityNotifications } from "@/services/pushNotifications";
-import {
-    checkNotificationPermissionStatus,
-    displayDiscordMessageNotification,
-    MESSAGES_CHANNEL_ID,
-} from "@/services/discordNotificationService";
 import { themeColors } from "@/theme/colors";
 import { ApiError } from "@/types/api";
 import { NotificationItem } from "@/types/notification";
@@ -334,74 +328,6 @@ export default function NotificationsScreen() {
                             </Pressable>
                         )}
                     </View>
-
-                    <Pressable
-                        onPress={async () => {
-                            try {
-                                const status = await checkNotificationPermissionStatus();
-                                if (!status.enabled) {
-                                    Alert.alert(
-                                        "Notifications Disabled",
-                                        "Notifications are blocked in your device settings for CircleHub. Please enable them to view notifications.",
-                                        [
-                                            {
-                                                text: "Open Settings",
-                                                onPress: () => {
-                                                    void notifee.openNotificationSettings();
-                                                },
-                                            },
-                                            { text: "Cancel", style: "cancel" },
-                                        ]
-                                    );
-                                    return;
-                                }
-
-                                if (status.channelBlocked) {
-                                    Alert.alert(
-                                        "Channel Muted",
-                                        "The 'Direct Messages' notification channel is disabled in your settings.",
-                                        [
-                                            {
-                                                text: "Open Channel Settings",
-                                                onPress: () => {
-                                                    void notifee.openNotificationSettings(MESSAGES_CHANNEL_ID);
-                                                },
-                                            },
-                                            { text: "Cancel", style: "cancel" },
-                                        ]
-                                    );
-                                    return;
-                                }
-
-                                await displayDiscordMessageNotification({
-                                    conversationId: "test-discord-demo",
-                                    messageId: String(Date.now()),
-                                    senderName: "Sarah Connor",
-                                    senderAvatarUrl:
-                                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-                                    text: "Hey! This is the Discord-style notification with circular avatar & inline reply! 🔥",
-                                });
-
-                                Alert.alert(
-                                    "Discord Notification Sent!",
-                                    "Pull down your Android status bar / notification drawer to see the Discord card with circular avatar, Blurple accent, and inline quick-reply."
-                                );
-                            } catch (err: any) {
-                                Alert.alert(
-                                    "Notification Error",
-                                    err?.message || String(err)
-                                );
-                            }
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Preview Discord notification card"
-                        className="mb-3.5 flex-row items-center justify-center gap-2 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/30 px-3.5 py-2.5 active:opacity-70"
-                    >
-                        <View className="h-2 w-2 rounded-full bg-[#5865F2]" />
-                        <Text className="text-label-sm font-semibold text-[#5865F2]">
-                            Preview Discord Notification Card
-                        </Text>
-                    </Pressable>
 
                     {isLoading ? (
                         <View className="gap-2.5">
