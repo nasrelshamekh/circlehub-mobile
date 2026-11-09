@@ -631,7 +631,7 @@ export interface DiscordActivityNotificationPayload {
 
 /**
  * Displays a Discord-style activity notification (likes, comments, follows, replies)
- * with Discord Blurple accent (#5865F2), circular actor avatar, BigText layout, and quick actions.
+ * with Discord Blurple accent (#5865F2), circular actor avatar, MessagingStyle layout, and quick actions.
  */
 export async function displayDiscordActivityNotification(
     payload: DiscordActivityNotificationPayload
@@ -642,66 +642,88 @@ export async function displayDiscordActivityNotification(
 
     const notifId = `notif_${payload.notificationId}`;
     const timestamp = payload.timestamp || Date.now();
-    const title = payload.title || payload.senderName;
+    const title = payload.title || payload.senderName || "CircleHub";
+    const text = payload.text || "New notification";
 
-    const androidOptions: any = {
-        channelId: ACTIVITY_CHANNEL_ID,
-        category: AndroidCategory.SOCIAL,
-        importance: AndroidImportance.HIGH,
-        color: DISCORD_BLURPLE,
-        smallIcon: "notification_icon",
-        timestamp,
-        showTimestamp: true,
-        pressAction: {
-            id: "default",
-            launchActivity: "default",
+    const currentPerson: { name: string; icon?: string } = {
+        name: payload.senderName || "CircleHub",
+    };
+    if (
+        typeof payload.senderAvatarUrl === "string" &&
+        payload.senderAvatarUrl.trim().length > 0 &&
+        (payload.senderAvatarUrl.startsWith("http://") ||
+            payload.senderAvatarUrl.startsWith("https://"))
+    ) {
+        currentPerson.icon = payload.senderAvatarUrl.trim();
+    }
+
+    const messagingStyle: {
+        type: AndroidStyle.MESSAGING;
+        person: { name: string };
+        group: boolean;
+        messages: Array<{
+            text: string;
+            timestamp: number;
+            person?: { name: string; icon?: string };
+        }>;
+    } = {
+        type: AndroidStyle.MESSAGING,
+        person: {
+            name: "Me",
         },
-        style: {
-            type: AndroidStyle.BIGTEXT,
-            title,
-            text: payload.text,
-            summary: "CircleHub",
-        },
-        actions: [
+        group: false,
+        messages: [
             {
-                title: "View",
-                pressAction: {
-                    id: "view_activity",
-                    launchActivity: "default",
-                },
-            },
-            {
-                title: "Dismiss",
-                pressAction: {
-                    id: "dismiss_activity",
-                },
+                text,
+                timestamp,
+                person: currentPerson,
             },
         ],
     };
 
-    if (
-        typeof payload.senderAvatarUrl === "string" &&
-        payload.senderAvatarUrl.trim().length > 0
-    ) {
-        androidOptions.largeIcon = payload.senderAvatarUrl.trim();
-    }
-
     const notificationOptions = {
         id: notifId,
         title,
-        body: payload.text,
+        body: text,
         data: {
             type: "notification",
-            notificationId: payload.notificationId,
-            notificationType: payload.notificationType,
-            postId: payload.postId || "",
-            communitySlug: payload.communitySlug || "",
-            actorUsername: payload.actorUsername || "",
-            senderName: payload.senderName,
-            senderAvatarUrl: payload.senderAvatarUrl || "",
-            text: payload.text,
+            notificationId: String(payload.notificationId || Date.now()),
+            notificationType: String(payload.notificationType || "General"),
+            postId: String(payload.postId || ""),
+            communitySlug: String(payload.communitySlug || ""),
+            actorUsername: String(payload.actorUsername || ""),
+            senderName: String(payload.senderName || "CircleHub"),
+            senderAvatarUrl: String(payload.senderAvatarUrl || ""),
+            text,
         },
-        android: androidOptions,
+        android: {
+            channelId: MESSAGES_CHANNEL_ID,
+            category: AndroidCategory.MESSAGE,
+            importance: AndroidImportance.HIGH,
+            color: DISCORD_BLURPLE,
+            smallIcon: "notification_icon",
+            timestamp,
+            showTimestamp: true,
+            pressAction: {
+                id: "default",
+                launchActivity: "default",
+            },
+            style: messagingStyle,
+            actions: [
+                {
+                    title: "View",
+                    pressAction: {
+                        id: "view_activity",
+                    },
+                },
+                {
+                    title: "Dismiss",
+                    pressAction: {
+                        id: "dismiss_activity",
+                    },
+                },
+            ],
+        },
         ios: {
             categoryId: "activity_actions",
         },
@@ -710,17 +732,32 @@ export async function displayDiscordActivityNotification(
     try {
         await notifee.displayNotification(notificationOptions as any);
     } catch (e) {
-        console.warn("[Notifee] Activity notification display fallback:", e);
+        console.warn(
+            "[Notifee] Activity notification display primary failed, fallback without icon:",
+            e
+        );
         try {
-            const fallbackOptions = {
+            const fallbackMessages = [
+                {
+                    text,
+                    timestamp,
+                    person: { name: payload.senderName || "CircleHub" },
+                },
+            ];
+            const fallbackStyle = {
+                type: AndroidStyle.MESSAGING,
+                person: { name: "Me" },
+                group: false,
+                messages: fallbackMessages,
+            };
+            await notifee.displayNotification({
                 ...notificationOptions,
                 android: {
-                    ...androidOptions,
+                    ...notificationOptions.android,
                     smallIcon: "ic_launcher",
-                    largeIcon: undefined,
+                    style: fallbackStyle,
                 },
-            };
-            await notifee.displayNotification(fallbackOptions as any);
+            } as any);
         } catch (fatal) {
             console.error("[Notifee] Fatal activity notification failure:", fatal);
         }

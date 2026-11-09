@@ -220,23 +220,10 @@ if (Platform.OS !== "web" && !isRunningInExpoGo()) {
                     if (error || !data) return;
                     const req = data?.notification?.request;
                     const content = req?.content;
-                    const reqId = req?.identifier;
-                    if (reqId && Notifications?.dismissNotificationAsync) {
-                        try {
-                            await Notifications.dismissNotificationAsync(reqId);
-                        } catch {}
-                    }
-                    const rawData = {
-                        title: content?.title,
-                        body: content?.body,
-                        ...(content?.data && typeof content.data === "object"
-                            ? content.data
-                            : {}),
-                        ...(data?.data && typeof data.data === "object"
-                            ? data.data
-                            : {}),
-                        ...(typeof data === "object" ? data : {}),
-                    };
+                    const rawData =
+                        (content?.data as Record<string, unknown> | undefined) ||
+                        (data?.data as Record<string, unknown> | undefined) ||
+                        (data as Record<string, unknown> | undefined);
                     await handleIncomingDiscordPayload(rawData);
                 }
             );
@@ -249,25 +236,13 @@ if (Platform.OS !== "web" && !isRunningInExpoGo()) {
         }
 
         if (Notifications?.addNotificationReceivedListener) {
-            Notifications.addNotificationReceivedListener(
-                async (notification) => {
-                    const reqId = notification?.request?.identifier;
-                    const content = notification?.request?.content;
-                    if (reqId && Notifications?.dismissNotificationAsync) {
-                        try {
-                            await Notifications.dismissNotificationAsync(reqId);
-                        } catch {}
-                    }
-                    const rawData = {
-                        title: content?.title,
-                        body: content?.body,
-                        ...(content?.data && typeof content.data === "object"
-                            ? content.data
-                            : {}),
-                    };
-                    void handleIncomingDiscordPayload(rawData);
-                }
-            );
+            Notifications.addNotificationReceivedListener((notification) => {
+                const content = notification?.request?.content;
+                const rawData =
+                    (content?.data as Record<string, unknown> | undefined) ||
+                    (notification as any)?.data;
+                void handleIncomingDiscordPayload(rawData);
+            });
         }
     } catch {
         // ignore

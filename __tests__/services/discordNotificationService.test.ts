@@ -104,7 +104,7 @@ describe("Discord Notification Service", () => {
         expect("icon" in style.messages[0].person).toBe(false);
     });
 
-    it("displays an activity notification with Discord Blurple styling, largeIcon avatar and BigText", async () => {
+    it("displays an activity notification with Discord Blurple styling and MessagingStyle layout", async () => {
         await displayDiscordActivityNotification({
             notificationId: "notif-99",
             notificationType: "PostLike",
@@ -117,22 +117,21 @@ describe("Discord Notification Service", () => {
         expect(notifee.displayNotification).toHaveBeenCalledTimes(1);
         const callArgs = (notifee.displayNotification as jest.Mock).mock.calls[0][0];
 
-        expect(callArgs.android.channelId).toBe(ACTIVITY_CHANNEL_ID);
+        expect(callArgs.android.channelId).toBe(MESSAGES_CHANNEL_ID);
         expect(callArgs.android.color).toBe("#5865F2");
-        expect(callArgs.android.largeIcon).toBe("https://example.com/kyle.png");
         expect(callArgs.android.pressAction).toEqual({
             id: "default",
             launchActivity: "default",
         });
 
         const style = callArgs.android.style;
-        expect(style.type).toBe(AndroidStyle.BIGTEXT);
-        expect(style.text).toBe("Kyle Reese liked your post.");
-        expect(style.title).toBe("Kyle Reese");
+        expect(style.type).toBe(AndroidStyle.MESSAGING);
+        expect(style.messages[0].text).toBe("Kyle Reese liked your post.");
+        expect(style.messages[0].person.name).toBe("Kyle Reese");
+        expect(style.messages[0].person.icon).toBe("https://example.com/kyle.png");
 
         expect(callArgs.android.actions).toHaveLength(2);
         expect(callArgs.android.actions[0].title).toBe("View");
-        expect(callArgs.android.actions[0].pressAction.launchActivity).toBe("default");
         expect(callArgs.android.actions[1].title).toBe("Dismiss");
     });
 
