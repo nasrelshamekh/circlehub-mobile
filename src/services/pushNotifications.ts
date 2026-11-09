@@ -431,25 +431,13 @@ export async function registerCurrentDevicePushToken(): Promise<string | null> {
             Constants?.easConfig?.projectId ??
             "e785b374-5326-4afc-86ef-af5cf6c6772c";
 
-        let token: string | null = null;
-        try {
-            const deviceTokenRes = await Notifications.getDevicePushTokenAsync();
-            if (deviceTokenRes?.data && typeof deviceTokenRes.data === "string") {
-                token = deviceTokenRes.data;
-            }
-        } catch {
-            // fallback
-        }
+        const tokenResponse = await Notifications.getExpoPushTokenAsync(
+            projectId ? { projectId } : undefined
+        );
+        const token = tokenResponse.data;
 
         if (!token) {
-            const tokenResponse = await Notifications.getExpoPushTokenAsync(
-                projectId ? { projectId } : undefined
-            );
-            token = tokenResponse.data;
-        }
-
-        if (!token) {
-            console.warn("[Push] No token returned from push token providers");
+            console.warn("[Push] No token returned from getExpoPushTokenAsync");
             return null;
         }
 
