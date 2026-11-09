@@ -134,32 +134,67 @@ export async function displayDiscordMessageNotification(
         ) {
             const prev = existing.notification.android.style.messages;
             if (Array.isArray(prev)) {
-                existingMessages = prev.map((m) => ({
-                    text: m.text,
-                    timestamp: m.timestamp,
-                    person: m.person
-                        ? { name: m.person.name, icon: m.person.icon }
-                        : undefined,
-                }));
+                existingMessages = prev.map((m) => {
+                    const personObj: { name: string; icon?: string } = {
+                        name: m.person?.name || payload.senderName,
+                    };
+                    if (
+                        typeof m.person?.icon === "string" &&
+                        m.person.icon.trim().length > 0
+                    ) {
+                        personObj.icon = m.person.icon.trim();
+                    }
+                    return {
+                        text: m.text,
+                        timestamp: m.timestamp,
+                        person: personObj,
+                    };
+                });
             }
         }
     } catch {
         // Fallback to fresh message
     }
 
+    const currentPerson: { name: string; icon?: string } = {
+        name: payload.senderName,
+    };
+    if (
+        typeof payload.senderAvatarUrl === "string" &&
+        payload.senderAvatarUrl.trim().length > 0
+    ) {
+        currentPerson.icon = payload.senderAvatarUrl.trim();
+    }
+
     // Append new incoming message
     existingMessages.push({
         text: payload.text,
         timestamp,
-        person: {
-            name: payload.senderName,
-            icon: payload.senderAvatarUrl || undefined,
-        },
+        person: currentPerson,
     });
 
     // Retain up to the 5 most recent messages in the drawer thread
     while (existingMessages.length > 5) {
         existingMessages.shift();
+    }
+
+    const messagingStyle: {
+        type: AndroidStyle.MESSAGING;
+        person: { name: string };
+        group: boolean;
+        messages: typeof existingMessages;
+        title?: string;
+    } = {
+        type: AndroidStyle.MESSAGING,
+        person: {
+            name: "Me",
+        },
+        group: isGroup,
+        messages: existingMessages,
+    };
+
+    if (isGroup && conversationTitle) {
+        messagingStyle.title = conversationTitle;
     }
 
     const notificationOptions = {
@@ -188,15 +223,7 @@ export async function displayDiscordMessageNotification(
             pressAction: {
                 id: "default",
             },
-            style: {
-                type: AndroidStyle.MESSAGING,
-                person: {
-                    name: "Me",
-                },
-                title: isGroup ? conversationTitle : undefined,
-                group: isGroup,
-                messages: existingMessages,
-            },
+            style: messagingStyle,
             actions: [
                 {
                     title: "Reply",
@@ -232,14 +259,32 @@ export async function displayDiscordMessageNotification(
                 timestamp: m.timestamp,
                 person: { name: m.person?.name || payload.senderName },
             }));
+
+            const fallbackStyle: {
+                type: AndroidStyle.MESSAGING;
+                person: { name: string };
+                group: boolean;
+                messages: typeof fallbackMessages;
+                title?: string;
+            } = {
+                type: AndroidStyle.MESSAGING,
+                person: {
+                    name: "Me",
+                },
+                group: isGroup,
+                messages: fallbackMessages,
+            };
+
+            if (isGroup && conversationTitle) {
+                fallbackStyle.title = conversationTitle;
+            }
+
             await notifee.displayNotification({
                 ...notificationOptions,
                 android: {
                     ...notificationOptions.android,
-                    style: {
-                        ...notificationOptions.android.style,
-                        messages: fallbackMessages,
-                    },
+                    smallIcon: "ic_launcher",
+                    style: fallbackStyle,
                 },
             } as any);
         } catch (fatalErr) {
