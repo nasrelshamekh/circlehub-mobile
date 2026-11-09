@@ -120,7 +120,7 @@ export default function GifPicker({ visible, onClose, onSelect }: GifPickerProps
                     className="w-full rounded-t-3xl bg-surface-lowest shadow-2xl"
                 >
                     {/* Header bar */}
-                    <View className="border-b border-border/40 px-4 pt-3 pb-2.5">
+                    <View className="border-b border-border px-4 pt-3 pb-2.5">
                         <View className="mb-2 flex-row items-center justify-between">
                             <Text className="text-title-md font-bold text-text-primary">
                                 Choose a GIF
@@ -138,7 +138,7 @@ export default function GifPicker({ visible, onClose, onSelect }: GifPickerProps
                         </View>
 
                         {/* Search Input */}
-                        <View className="flex-row items-center rounded-xl border border-border/40 bg-surface-low px-3 py-1.5">
+                        <View className="flex-row items-center rounded-xl border border-border bg-surface-low px-3 py-1.5">
                             <Search size={16} color={colors.textSecondary} />
                             <TextInput
                                 value={search}
@@ -187,7 +187,7 @@ export default function GifPicker({ visible, onClose, onSelect }: GifPickerProps
                                         className={`rounded-full px-3 py-1 ${
                                             isSelected
                                                 ? "bg-primary"
-                                                : "border border-border/40 bg-surface-low"
+                                                : "border border-border bg-surface-low"
                                         }`}
                                     >
                                         <Text
@@ -254,7 +254,7 @@ export default function GifPicker({ visible, onClose, onSelect }: GifPickerProps
                     )}
 
                     {/* Footer Attribution */}
-                    <View className="flex-row items-center justify-between border-t border-border/40 px-4 py-2">
+                    <View className="flex-row items-center justify-between border-t border-border px-4 py-2">
                         <Text className="text-[11px] font-semibold text-text-secondary uppercase">
                             GIFs
                         </Text>

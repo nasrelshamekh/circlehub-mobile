@@ -192,7 +192,7 @@ function RecoveryUnlockPrompt({
                 theme vars itself — without them every var(--surface-…) resolves to nothing and the
                 card paints transparent over the scrim. */}
             <View className="flex-1 justify-center bg-black/50 px-4" style={theme}>
-                <View className="rounded-2xl bg-surface-lowest p-5 shadow-2xl">
+                <View className="rounded-2xl bg-surface-lowest p-5">
                     <Text className="text-title-lg font-semibold text-text-primary">
                         Message Recovery Available
                     </Text>
@@ -202,12 +202,13 @@ function RecoveryUnlockPrompt({
                         messages on this device.
                     </Text>
 
-                    <View className="mt-5 flex-row gap-2.5">
+                    <View className="mt-5 flex-row gap-2">
                         <Pressable
                             onPress={onLater}
                             accessibilityRole="button"
                             accessibilityLabel="Later"
-                            className="flex-1 items-center rounded-full border border-border/50 bg-surface-low py-3 active:bg-surface-high"
+                            className="flex-1 items-center rounded-xl border border-border bg-surface-low py-3"
+                            style={{ borderRadius: 24 }}
                         >
                             <Text className="text-label-md font-semibold text-text-primary">
                                 Later
@@ -218,8 +219,8 @@ function RecoveryUnlockPrompt({
                             onPress={onUnlock}
                             accessibilityLabel="Unlock"
                             label="Unlock"
-                            className="flex-1 rounded-full"
-                            contentStyle={{ paddingVertical: 12, borderRadius: 9999 }}
+                            className="flex-1 rounded-xl"
+                            contentStyle={{ paddingVertical: 12, borderRadius: 24 }}
                             textClassName="text-label-md font-semibold"
                         />
                     </View>

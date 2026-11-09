@@ -4,18 +4,35 @@ import notifee, {
     AndroidStyle,
     AuthorizationStatus,
 } from "react-native-notify-kit";
+import { router } from "expo-router";
 import {
     checkNotificationPermissionStatus,
     displayDiscordMessageNotification,
+    handleInitialDiscordNotification,
     MESSAGES_CHANNEL_ID,
+    navigateToConversation,
 } from "@/services/discordNotificationService";
+
+const mockRouterPush = jest.fn();
+jest.mock("expo-router", () => ({
+    router: {
+        push: (...args: unknown[]) => mockRouterPush(...args),
+        replace: jest.fn(),
+        navigate: jest.fn(),
+    },
+}));
 
 describe("Discord Notification Service", () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.useFakeTimers();
     });
 
-    it("displays a 1-on-1 direct message without 'title' in MessagingStyle", async () => {
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it("displays a 1-on-1 direct message without 'title' in MessagingStyle and with launchActivity", async () => {
         await displayDiscordMessageNotification({
             conversationId: "test-conv-1",
             messageId: "msg-1",
@@ -31,6 +48,10 @@ describe("Discord Notification Service", () => {
         expect(callArgs.android.channelId).toBe(MESSAGES_CHANNEL_ID);
         expect(callArgs.android.importance).toBe(AndroidImportance.HIGH);
         expect(callArgs.android.color).toBe("#5865F2");
+        expect(callArgs.android.pressAction).toEqual({
+            id: "default",
+            launchActivity: "default",
+        });
 
         // MessagingStyle checks
         const style = callArgs.android.style;
@@ -88,5 +109,41 @@ describe("Discord Notification Service", () => {
         const status = await checkNotificationPermissionStatus();
         expect(status.enabled).toBe(true);
         expect(status.channelBlocked).toBe(false);
+    });
+
+    it("navigates to conversation when navigateToConversation is called", () => {
+        navigateToConversation("conv-42", "Sarah Connor", "https://example.com/a.png");
+        jest.advanceTimersByTime(250);
+
+        expect(mockRouterPush).toHaveBeenCalledWith({
+            pathname: "/messages/[id]",
+            params: {
+                id: "conv-42",
+                name: "Sarah Connor",
+                avatarUrl: "https://example.com/a.png",
+            },
+        });
+    });
+
+    it("handles initial notification on cold boot", async () => {
+        (notifee.getInitialNotification as jest.Mock).mockResolvedValueOnce({
+            notification: {
+                data: {
+                    conversationId: "cold-boot-conv",
+                    senderName: "Sarah",
+                },
+            },
+        });
+
+        await handleInitialDiscordNotification();
+        jest.advanceTimersByTime(250);
+
+        expect(mockRouterPush).toHaveBeenCalledWith({
+            pathname: "/messages/[id]",
+            params: {
+                id: "cold-boot-conv",
+                name: "Sarah",
+            },
+        });
     });
 });

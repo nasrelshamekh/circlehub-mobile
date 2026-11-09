@@ -138,7 +138,7 @@ export default function NewMessageModal({
 
                     {!selectedRecipient ? (
                         <View className="gap-3">
-                            <View className="flex-row items-center gap-2 rounded-xl border border-border/40 bg-surface-low px-3 py-2">
+                            <View className="flex-row items-center gap-2 rounded-xl border border-border bg-surface-low px-3 py-2">
                                 <Search
                                     size={16}
                                     color={colors.textSecondary}
@@ -265,7 +265,7 @@ export default function NewMessageModal({
                                 multiline
                                 placeholder={`Write a message to ${selectedRecipient.name}…`}
                                 placeholderTextColor={colors.textSecondary}
-                                className="min-h-[96px] rounded-xl border border-border/40 bg-surface-low p-3 text-body-sm text-text-primary"
+                                className="min-h-[96px] rounded-xl border border-border bg-surface-low p-3 text-body-sm text-text-primary"
                                 textAlignVertical="top"
                             />
 

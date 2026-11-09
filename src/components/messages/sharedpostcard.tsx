@@ -13,7 +13,7 @@ export default function SharedPostCard({
 }) {
     if (!post) {
         return (
-            <View className="mt-2 rounded-xl border border-border/40 bg-surface-lowest px-3 py-2">
+            <View className="mt-2 rounded-xl border border-border bg-surface-lowest px-3 py-2">
                 <Text className="text-body-sm text-text-secondary">
                     This post is no longer available.
                 </Text>
@@ -36,7 +36,7 @@ export default function SharedPostCard({
             onPress={openPost}
             accessibilityRole="button"
             accessibilityLabel={`View shared post by ${post.author.name}`}
-            className="mt-2 overflow-hidden rounded-xl border border-border/40 bg-surface-lowest"
+            className="mt-2 overflow-hidden rounded-xl border border-border bg-surface-lowest"
         >
             <View className="flex-row items-center gap-2.5 p-3">
                 <Avatar

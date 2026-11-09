@@ -7,7 +7,7 @@ import notifee, {
     type Event,
 } from "react-native-notify-kit";
 import { router } from "expo-router";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { markConversationRead, sendMessage } from "@/api/messages";
 import { encryptMessageContent } from "@/services/messageCrypto";
@@ -17,6 +17,87 @@ export const MESSAGES_CHANNEL_ID = "messages";
 export const ACTIVITY_CHANNEL_ID = "activity";
 
 let isInitialized = false;
+let pendingNotificationData: {
+    conversationId: string;
+    senderName?: string;
+    senderAvatarUrl?: string | null;
+} | null = null;
+let lastNavigatedConversationId: string | null = null;
+let lastNavigatedTime = 0;
+
+/**
+ * Navigates directly into a conversation thread, debounced and deferred slightly
+ * to ensure navigation containers and root layout have completed transitions.
+ */
+export function navigateToConversation(
+    conversationId: string,
+    senderName?: string,
+    senderAvatarUrl?: string | null
+): void {
+    if (!conversationId) return;
+
+    const now = Date.now();
+    if (
+        lastNavigatedConversationId === conversationId &&
+        now - lastNavigatedTime < 1000
+    ) {
+        return;
+    }
+    lastNavigatedConversationId = conversationId;
+    lastNavigatedTime = now;
+    pendingNotificationData = null;
+
+    void dismissDiscordConversationNotification(conversationId);
+
+    setTimeout(() => {
+        try {
+            router.push({
+                pathname: "/messages/[id]",
+                params: {
+                    id: conversationId,
+                    ...(senderName ? { name: senderName } : {}),
+                    ...(senderAvatarUrl ? { avatarUrl: senderAvatarUrl } : {}),
+                },
+            });
+        } catch (e) {
+            console.warn("[Notifee] Navigation to conversation failed:", e);
+        }
+    }, 200);
+}
+
+/**
+ * Queries Notifee for any notification that cold-booted the app from a quit state,
+ * or checks for any pending notification click caught while backgrounded.
+ */
+export async function handleInitialDiscordNotification(): Promise<void> {
+    if (Platform.OS === "web") return;
+
+    try {
+        if (pendingNotificationData?.conversationId) {
+            const data = pendingNotificationData;
+            pendingNotificationData = null;
+            navigateToConversation(
+                data.conversationId,
+                data.senderName,
+                data.senderAvatarUrl
+            );
+            return;
+        }
+
+        const initial = await notifee.getInitialNotification();
+        if (initial?.notification?.data?.conversationId) {
+            const data = initial.notification.data;
+            const convId = String(data.conversationId);
+            navigateToConversation(
+                convId,
+                data.senderName as string | undefined,
+                data.senderAvatarUrl as string | undefined
+            );
+        }
+    } catch (e) {
+        console.warn("[Notifee] Failed to handle initial notification:", e);
+    }
+}
 
 /**
  * Initializes Android notification channels configured with Discord-style styling.
@@ -222,6 +303,7 @@ export async function displayDiscordMessageNotification(
             showTimestamp: true,
             pressAction: {
                 id: "default",
+                launchActivity: "default",
             },
             style: messagingStyle,
             actions: [
@@ -302,6 +384,19 @@ export function registerDiscordBackgroundEventHandler(): void {
     if (Platform.OS === "web") return;
 
     notifee.onBackgroundEvent(async ({ type, detail }: Event) => {
+        if (type === EventType.PRESS) {
+            const data = detail.notification?.data;
+            const conversationId = data?.conversationId as string | undefined;
+            if (conversationId) {
+                pendingNotificationData = {
+                    conversationId,
+                    senderName: data?.senderName as string | undefined,
+                    senderAvatarUrl: data?.senderAvatarUrl as string | undefined,
+                };
+            }
+            return;
+        }
+
         if (type === EventType.ACTION_PRESS) {
             const actionId = detail.pressAction?.id;
             const conversationId = detail.notification?.data
@@ -397,18 +492,31 @@ export function registerDiscordBackgroundEventHandler(): void {
 export function registerDiscordForegroundEventHandler(): () => void {
     if (Platform.OS === "web") return () => {};
 
-    return notifee.onForegroundEvent(({ type, detail }) => {
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
         if (
             type === EventType.PRESS &&
             detail.notification?.data?.conversationId
         ) {
-            const convId = detail.notification.data.conversationId as string;
-            router.push({
-                pathname: "/messages/[id]",
-                params: { id: convId },
-            });
+            const data = detail.notification.data;
+            const convId = data.conversationId as string;
+            navigateToConversation(
+                convId,
+                data.senderName as string | undefined,
+                data.senderAvatarUrl as string | undefined
+            );
         }
     });
+
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+        if (nextState === "active") {
+            void handleInitialDiscordNotification();
+        }
+    });
+
+    return () => {
+        unsubscribe();
+        appStateSub.remove();
+    };
 }
 
 /**

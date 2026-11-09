@@ -22,6 +22,7 @@ import { ThemeProvider, useTheme } from "@/context/themecontext";
 import { queryClient } from "@/lib/queryClient";
 import { themes } from "@/theme/themes";
 import {
+    handleInitialDiscordNotification,
     registerDiscordBackgroundEventHandler,
     registerDiscordForegroundEventHandler,
 } from "@/services/discordNotificationService";
@@ -74,6 +75,12 @@ function RootNavigator() {
     useEffect(() => {
         return registerDiscordForegroundEventHandler();
     }, []);
+
+    useEffect(() => {
+        if (status === "authenticated") {
+            void handleInitialDiscordNotification();
+        }
+    }, [status]);
 
     useEffect(() => {
         SystemUI.setBackgroundColorAsync(stackBackground).catch(() => {});
