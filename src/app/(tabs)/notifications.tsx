@@ -37,7 +37,7 @@ import {
     notificationSentence,
 } from "@/lib/notificationCopy";
 import { NotificationTypeBadgeIcon } from "@/components/common/notificationbadge";
-import notifee from "@notifee/react-native";
+import notifee from "react-native-notify-kit";
 import { dismissActivityNotifications } from "@/services/pushNotifications";
 import {
     checkNotificationPermissionStatus,

@@ -5,7 +5,7 @@ import notifee, {
     AuthorizationStatus,
     EventType,
     type Event,
-} from "@notifee/react-native";
+} from "react-native-notify-kit";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 

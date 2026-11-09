@@ -72,7 +72,8 @@
         {
           "enforceContrast": false
         }
-      ]
+      ],
+      "react-native-notify-kit"
     ],
     "experiments": {
       "typedRoutes": true,

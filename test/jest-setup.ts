@@ -59,7 +59,7 @@ jest.mock("lucide-react-native", () => {
     );
 });
 
-jest.mock("@notifee/react-native", () => require("@notifee/react-native/jest-mock"));
+jest.mock("react-native-notify-kit", () => require("react-native-notify-kit/jest-mock"));
 
 jest.mock("expo-task-manager", () => ({
     defineTask: jest.fn(),
