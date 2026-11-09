@@ -2,12 +2,14 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
 import type * as NotificationsType from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
+import * as TaskManager from "expo-task-manager";
 import { Platform } from "react-native";
 
 import { registerDeviceToken, unregisterDeviceToken } from "@/api/devices";
 import {
     dismissAllDiscordNotifications,
     dismissDiscordConversationNotification,
+    displayDiscordMessageNotification,
     initializeNotificationChannels,
 } from "@/services/discordNotificationService";
 
@@ -47,9 +49,89 @@ function getNotifications(): typeof NotificationsType | null {
     return cachedNotifications;
 }
 
+export const BACKGROUND_NOTIFICATION_TASK = "BACKGROUND-NOTIFICATION-TASK";
+
+async function handleIncomingDiscordPayload(
+    rawData: Record<string, unknown> | null | undefined
+): Promise<void> {
+    if (!rawData) return;
+    const type = stringField(rawData, "type", "Type")?.toLowerCase();
+
+    if (type === "message") {
+        const conversationId = stringField(
+            rawData,
+            "conversationId",
+            "ConversationId"
+        );
+        if (!conversationId) return;
+
+        const messageId =
+            stringField(rawData, "messageId", "MessageId") || "";
+        const senderName =
+            stringField(rawData, "senderName", "SenderName") ||
+            "New message";
+        const senderUsername = stringField(
+            rawData,
+            "senderUsername",
+            "SenderUsername"
+        );
+        const senderAvatarUrl =
+            stringField(
+                rawData,
+                "senderAvatarUrl",
+                "SenderAvatarUrl"
+            ) || null;
+        const text =
+            stringField(rawData, "text", "Text", "body", "Body") ||
+            "Sent you a message";
+        const senderId = stringField(rawData, "senderId", "SenderId");
+
+        await displayDiscordMessageNotification({
+            conversationId,
+            messageId,
+            recipientUsername: senderUsername || undefined,
+            senderId: senderId || undefined,
+            senderName,
+            senderAvatarUrl,
+            text,
+        });
+    }
+}
+
 if (Platform.OS !== "web" && !isRunningInExpoGo()) {
     try {
-        getNotifications();
+        const Notifications = getNotifications();
+
+        if (!TaskManager.isTaskDefined(BACKGROUND_NOTIFICATION_TASK)) {
+            TaskManager.defineTask(
+                BACKGROUND_NOTIFICATION_TASK,
+                async ({ data, error }: any) => {
+                    if (error || !data) return;
+                    const rawData =
+                        (data?.notification?.request?.content?.data as
+                            | Record<string, unknown>
+                            | undefined) ||
+                        (data?.data as Record<string, unknown> | undefined) ||
+                        (data as Record<string, unknown> | undefined);
+                    await handleIncomingDiscordPayload(rawData);
+                }
+            );
+        }
+
+        if (Notifications?.registerTaskAsync) {
+            void Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK).catch(
+                () => {}
+            );
+        }
+
+        if (Notifications?.addNotificationReceivedListener) {
+            Notifications.addNotificationReceivedListener((notification) => {
+                const rawData = notification?.request?.content?.data as
+                    | Record<string, unknown>
+                    | undefined;
+                void handleIncomingDiscordPayload(rawData);
+            });
+        }
     } catch {
         // ignore
     }
