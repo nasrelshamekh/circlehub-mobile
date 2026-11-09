@@ -27,6 +27,7 @@ import {
 } from "@/services/discordNotificationService";
 
 registerDiscordBackgroundEventHandler();
+import "@/services/pushNotifications";
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     return <ErrorFallback error={error} retry={retry} />;
