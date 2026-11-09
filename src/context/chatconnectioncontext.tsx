@@ -61,6 +61,7 @@ import {
     registerCurrentDevicePushToken,
     subscribeToNotificationResponses,
 } from "@/services/pushNotifications";
+import { displayDiscordMessageNotification } from "@/services/discordNotificationService";
 import {
     isRecoveryPromptSettled,
     markRecoveryPromptDismissed,
@@ -703,6 +704,24 @@ export function ChatConnectionProvider({
                         message?.SenderAvatarUrl ??
                         matchedConv?.otherUser?.avatarUrl ??
                         null;
+
+                    const resolvedSenderUsername =
+                        message?.senderUsername ??
+                        message?.SenderUsername ??
+                        matchedConv?.otherUser?.username ??
+                        "";
+
+                    if (AppState.currentState !== "active") {
+                        void displayDiscordMessageNotification({
+                            conversationId,
+                            messageId: String(messageId || ""),
+                            recipientUsername: resolvedSenderUsername,
+                            senderId: senderId ? String(senderId) : undefined,
+                            senderName: resolvedSenderName,
+                            senderAvatarUrl: resolvedAvatarUrl,
+                            text: displayMsg,
+                        });
+                    }
 
                     setInAppNotification((prev) => {
                         if (

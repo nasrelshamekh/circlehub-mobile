@@ -1,0 +1,337 @@
+import notifee, {
+    AndroidCategory,
+    AndroidImportance,
+    AndroidStyle,
+    EventType,
+    type Event,
+} from "@notifee/react-native";
+import { router } from "expo-router";
+import { Platform } from "react-native";
+
+import { markConversationRead, sendMessage } from "@/api/messages";
+import { encryptMessageContent } from "@/services/messageCrypto";
+
+export const DISCORD_BLURPLE = "#5865F2";
+export const MESSAGES_CHANNEL_ID = "messages";
+export const ACTIVITY_CHANNEL_ID = "activity";
+
+let isInitialized = false;
+
+/**
+ * Initializes Android notification channels configured with Discord-style styling.
+ */
+export async function initializeNotificationChannels(): Promise<void> {
+    if (Platform.OS !== "android") return;
+    if (isInitialized) return;
+
+    try {
+        await notifee.createChannel({
+            id: MESSAGES_CHANNEL_ID,
+            name: "Direct Messages",
+            description: "Incoming chat and direct messages",
+            importance: AndroidImportance.HIGH,
+            vibration: true,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: DISCORD_BLURPLE,
+            badge: true,
+        });
+
+        await notifee.createChannel({
+            id: ACTIVITY_CHANNEL_ID,
+            name: "Activity & Notifications",
+            description: "Likes, comments, and community updates",
+            importance: AndroidImportance.DEFAULT,
+            vibration: true,
+            badge: true,
+        });
+
+        isInitialized = true;
+    } catch (e) {
+        console.warn("[Notifee] Channel initialization failed:", e);
+    }
+}
+
+export interface DiscordMessageNotificationPayload {
+    conversationId: string;
+    messageId: string;
+    recipientUsername?: string;
+    senderId?: string;
+    senderName: string;
+    senderAvatarUrl?: string | null;
+    text: string;
+    timestamp?: number;
+    communityName?: string;
+    channelName?: string;
+}
+
+/**
+ * Displays a Discord-style notification in the Android notification drawer / iOS banner.
+ * Uses native MessagingStyle with contact avatar, conversation history, and an inline reply text box.
+ */
+export async function displayDiscordMessageNotification(
+    payload: DiscordMessageNotificationPayload
+): Promise<void> {
+    if (Platform.OS === "web") return;
+
+    await initializeNotificationChannels();
+
+    const notifId = `chat_${payload.conversationId}`;
+    const timestamp = payload.timestamp || Date.now();
+    const isGroup = Boolean(payload.communityName);
+    const conversationTitle = isGroup
+        ? `#${payload.channelName || "general"} • ${payload.communityName}`
+        : payload.senderName;
+
+    // Fetch any currently displayed notification for this conversation to stack threaded history
+    let existingMessages: Array<{
+        text: string;
+        timestamp: number;
+        person?: { name: string; icon?: string };
+    }> = [];
+
+    try {
+        const displayed = await notifee.getDisplayedNotifications();
+        const existing = displayed.find((n) => n.id === notifId);
+
+        if (
+            existing?.notification?.android?.style?.type ===
+            AndroidStyle.MESSAGING
+        ) {
+            const prev = existing.notification.android.style.messages;
+            if (Array.isArray(prev)) {
+                existingMessages = prev.map((m) => ({
+                    text: m.text,
+                    timestamp: m.timestamp,
+                    person: m.person
+                        ? { name: m.person.name, icon: m.person.icon }
+                        : undefined,
+                }));
+            }
+        }
+    } catch {
+        // Fallback to fresh message
+    }
+
+    // Append new incoming message
+    existingMessages.push({
+        text: payload.text,
+        timestamp,
+        person: {
+            name: payload.senderName,
+            icon: payload.senderAvatarUrl || undefined,
+        },
+    });
+
+    // Retain up to the 5 most recent messages in the drawer thread
+    while (existingMessages.length > 5) {
+        existingMessages.shift();
+    }
+
+    try {
+        await notifee.displayNotification({
+            id: notifId,
+            title: conversationTitle,
+            body: payload.text,
+            data: {
+                type: "message",
+                conversationId: payload.conversationId,
+                messageId: payload.messageId,
+                recipientUsername: payload.recipientUsername || "",
+                senderId: payload.senderId || "",
+                senderName: payload.senderName,
+                senderAvatarUrl: payload.senderAvatarUrl || "",
+                communityName: payload.communityName || "",
+                channelName: payload.channelName || "",
+            },
+            android: {
+                channelId: MESSAGES_CHANNEL_ID,
+                category: AndroidCategory.MESSAGE,
+                importance: AndroidImportance.HIGH,
+                color: DISCORD_BLURPLE,
+                smallIcon: "notification_icon",
+                timestamp,
+                showTimestamp: true,
+                pressAction: {
+                    id: "default",
+                },
+                style: {
+                    type: AndroidStyle.MESSAGING,
+                    person: {
+                        name: "Me",
+                    },
+                    title: isGroup ? conversationTitle : undefined,
+                    group: isGroup,
+                    messages: existingMessages,
+                },
+                actions: [
+                    {
+                        title: "Reply",
+                        pressAction: {
+                            id: "reply",
+                        },
+                        input: {
+                            allowFreeFormInput: true,
+                            placeholder: `Reply to ${payload.senderName}...`,
+                        },
+                    },
+                    {
+                        title: "Mark as Read",
+                        pressAction: {
+                            id: "mark_as_read",
+                        },
+                    },
+                ],
+            },
+            ios: {
+                categoryId: "message_actions",
+            },
+        });
+    } catch (e) {
+        console.warn("[Notifee] Failed to display notification:", e);
+    }
+}
+
+/**
+ * Handles background notification actions: inline reply and mark-as-read.
+ * Must be registered at the entry point of the app.
+ */
+export function registerDiscordBackgroundEventHandler(): void {
+    if (Platform.OS === "web") return;
+
+    notifee.onBackgroundEvent(async ({ type, detail }: Event) => {
+        if (type === EventType.ACTION_PRESS) {
+            const actionId = detail.pressAction?.id;
+            const conversationId = detail.notification?.data
+                ?.conversationId as string;
+            const recipientUsername = detail.notification?.data
+                ?.recipientUsername as string;
+
+            if (actionId === "reply") {
+                const rawInput = detail.input;
+                const replyText =
+                    typeof rawInput === "string"
+                        ? rawInput.trim()
+                        : typeof (rawInput as any)?.text === "string"
+                          ? ((rawInput as any).text as string).trim()
+                          : "";
+                if (replyText && (conversationId || recipientUsername)) {
+                    try {
+                        const content = recipientUsername
+                            ? await encryptMessageContent({
+                                  recipientUsername,
+                                  plaintext: replyText,
+                              })
+                            : replyText;
+
+                        if (recipientUsername) {
+                            await sendMessage({
+                                recipientUsername,
+                                content,
+                                previewText: replyText,
+                            });
+                        }
+
+                        // Update the notification in the tray with the sent reply appended
+                        const currentMessages =
+                            detail.notification?.android?.style?.type ===
+                            AndroidStyle.MESSAGING
+                                ? detail.notification.android.style.messages ||
+                                  []
+                                : [];
+
+                        const updatedMessages = [
+                            ...currentMessages,
+                            {
+                                text: replyText,
+                                timestamp: Date.now(),
+                                person: { name: "You" },
+                            },
+                        ];
+
+                        while (updatedMessages.length > 5) {
+                            updatedMessages.shift();
+                        }
+
+                        if (detail.notification) {
+                            await notifee.displayNotification({
+                                ...detail.notification,
+                                android: {
+                                    ...detail.notification.android,
+                                    style: {
+                                        type: AndroidStyle.MESSAGING,
+                                        person: { name: "Me" },
+                                        messages: updatedMessages,
+                                    },
+                                },
+                            });
+                        }
+                    } catch (err) {
+                        console.error(
+                            "[Notifee] Failed to send inline reply from drawer:",
+                            err
+                        );
+                    }
+                }
+            } else if (actionId === "mark_as_read") {
+                if (conversationId) {
+                    try {
+                        await markConversationRead(conversationId);
+                    } catch {}
+                    if (detail.notification?.id) {
+                        await notifee.cancelNotification(
+                            detail.notification.id
+                        );
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Handles foreground notification interactions (tapping the notification banner).
+ */
+export function registerDiscordForegroundEventHandler(): () => void {
+    if (Platform.OS === "web") return () => {};
+
+    return notifee.onForegroundEvent(({ type, detail }) => {
+        if (
+            type === EventType.PRESS &&
+            detail.notification?.data?.conversationId
+        ) {
+            const convId = detail.notification.data.conversationId as string;
+            router.push({
+                pathname: "/messages/[id]",
+                params: { id: convId },
+            });
+        }
+    });
+}
+
+/**
+ * Dismisses any presented notifications for a conversation when the user enters the chat.
+ */
+export async function dismissDiscordConversationNotification(
+    conversationId: string
+): Promise<void> {
+    if (Platform.OS === "web" || !conversationId) return;
+    try {
+        await notifee.cancelNotification(`chat_${conversationId}`);
+        await notifee.cancelNotification(conversationId);
+    } catch {
+        // ignore
+    }
+}
+
+/**
+ * Dismisses all presented notifications on logout or clear.
+ */
+export async function dismissAllDiscordNotifications(): Promise<void> {
+    if (Platform.OS === "web") return;
+    try {
+        await notifee.cancelAllNotifications();
+        await notifee.setBadgeCount(0);
+    } catch {
+        // ignore
+    }
+}

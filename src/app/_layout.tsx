@@ -21,6 +21,12 @@ import { ChatConnectionProvider } from "@/context/chatconnectioncontext";
 import { ThemeProvider, useTheme } from "@/context/themecontext";
 import { queryClient } from "@/lib/queryClient";
 import { themes } from "@/theme/themes";
+import {
+    registerDiscordBackgroundEventHandler,
+    registerDiscordForegroundEventHandler,
+} from "@/services/discordNotificationService";
+
+registerDiscordBackgroundEventHandler();
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     return <ErrorFallback error={error} retry={retry} />;
@@ -63,6 +69,10 @@ function RootNavigator() {
         }),
         [isDark, stackBackground],
     );
+
+    useEffect(() => {
+        return registerDiscordForegroundEventHandler();
+    }, []);
 
     useEffect(() => {
         SystemUI.setBackgroundColorAsync(stackBackground).catch(() => {});

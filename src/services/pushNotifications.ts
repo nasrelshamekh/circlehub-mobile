@@ -5,6 +5,11 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 import { registerDeviceToken, unregisterDeviceToken } from "@/api/devices";
+import {
+    dismissAllDiscordNotifications,
+    dismissDiscordConversationNotification,
+    initializeNotificationChannels,
+} from "@/services/discordNotificationService";
 
 const PUSH_TOKEN_KEY = "circlehub_push_token";
 let cachedPushToken: string | null = null;
@@ -230,6 +235,8 @@ export async function dismissConversationNotifications(
     if (!targetConvId) return;
     const targetSenderId = senderId ? String(senderId).trim().toLowerCase() : "";
 
+    void dismissDiscordConversationNotification(targetConvId);
+
     const Notifications = getNotifications();
     if (!Notifications) return;
 
@@ -318,6 +325,7 @@ export async function dismissActivityNotifications(
 }
 
 export async function dismissAllPresentedNotifications(): Promise<void> {
+    void dismissAllDiscordNotifications();
     const Notifications = getNotifications();
     if (!Notifications) return;
 
@@ -416,17 +424,32 @@ export async function registerCurrentDevicePushToken(): Promise<string | null> {
             return null;
         }
 
+        await initializeNotificationChannels();
+
         const projectId =
             Constants?.expoConfig?.extra?.eas?.projectId ??
             Constants?.easConfig?.projectId ??
             "e785b374-5326-4afc-86ef-af5cf6c6772c";
 
-        const tokenResponse = await Notifications.getExpoPushTokenAsync(
-            projectId ? { projectId } : undefined
-        );
-        const token = tokenResponse.data;
+        let token: string | null = null;
+        try {
+            const deviceTokenRes = await Notifications.getDevicePushTokenAsync();
+            if (deviceTokenRes?.data && typeof deviceTokenRes.data === "string") {
+                token = deviceTokenRes.data;
+            }
+        } catch {
+            // fallback
+        }
+
         if (!token) {
-            console.warn("[Push] No token returned from getExpoPushTokenAsync");
+            const tokenResponse = await Notifications.getExpoPushTokenAsync(
+                projectId ? { projectId } : undefined
+            );
+            token = tokenResponse.data;
+        }
+
+        if (!token) {
+            console.warn("[Push] No token returned from push token providers");
             return null;
         }
 

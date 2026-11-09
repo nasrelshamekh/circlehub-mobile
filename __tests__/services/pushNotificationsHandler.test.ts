@@ -63,6 +63,15 @@ describe("Push notification handler & Android status bar dismissal", () => {
             deleteItemAsync: jest.fn().mockResolvedValue(undefined),
         }));
 
+        jest.doMock("@/services/discordNotificationService", () => ({
+            initializeNotificationChannels: jest.fn().mockResolvedValue(undefined),
+            displayDiscordMessageNotification: jest.fn().mockResolvedValue("test-id"),
+            dismissDiscordConversationNotification: jest.fn().mockResolvedValue(undefined),
+            dismissAllDiscordNotifications: jest.fn().mockResolvedValue(undefined),
+            registerDiscordBackgroundEventHandler: jest.fn(),
+            registerDiscordForegroundEventHandler: jest.fn().mockReturnValue(() => {}),
+        }));
+
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const pushService = require("@/services/pushNotifications");
         return { pushService, mockSetNotificationHandler };
