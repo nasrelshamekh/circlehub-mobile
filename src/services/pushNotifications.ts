@@ -58,13 +58,13 @@ async function handleIncomingDiscordPayload(
 ): Promise<void> {
     if (!rawData) return;
     const type = stringField(rawData, "type", "Type")?.toLowerCase();
+    const conversationId = stringField(
+        rawData,
+        "conversationId",
+        "ConversationId"
+    );
 
-    if (type === "message") {
-        const conversationId = stringField(
-            rawData,
-            "conversationId",
-            "ConversationId"
-        );
+    if (type === "message" || conversationId) {
         if (!conversationId) return;
 
         const messageId =
@@ -81,7 +81,9 @@ async function handleIncomingDiscordPayload(
             stringField(
                 rawData,
                 "senderAvatarUrl",
-                "SenderAvatarUrl"
+                "SenderAvatarUrl",
+                "avatarUrl",
+                "AvatarUrl"
             ) || null;
         const text =
             stringField(rawData, "text", "Text", "body", "Body") ||
@@ -97,7 +99,7 @@ async function handleIncomingDiscordPayload(
             senderAvatarUrl,
             text,
         });
-    } else if (type === "notification") {
+    } else {
         const notificationId =
             stringField(
                 rawData,
@@ -128,18 +130,60 @@ async function handleIncomingDiscordPayload(
                 "senderAvatarUrl",
                 "SenderAvatarUrl",
                 "actorAvatarUrl",
-                "ActorAvatarUrl"
+                "ActorAvatarUrl",
+                "avatarUrl",
+                "AvatarUrl"
             ) || null;
-        const text =
-            stringField(
-                rawData,
-                "text",
-                "Text",
-                "body",
-                "Body",
-                "sentence",
-                "Sentence"
-            ) || "New notification";
+        let text = stringField(
+            rawData,
+            "text",
+            "Text",
+            "body",
+            "Body",
+            "sentence",
+            "Sentence",
+            "message",
+            "Message"
+        );
+        if (!text || text === "New notification") {
+            const rawSender =
+                senderName && senderName !== "CircleHub"
+                    ? senderName
+                    : "Someone";
+            switch (notificationType) {
+                case "PostLike":
+                    text = `${rawSender} liked your post.`;
+                    break;
+                case "CommentLike":
+                    text = `${rawSender} liked your comment.`;
+                    break;
+                case "PostComment":
+                    text = `${rawSender} commented on your post.`;
+                    break;
+                case "Follow":
+                    text = `${rawSender} started following you.`;
+                    break;
+                case "CommunityJoinRequested":
+                    text = `${rawSender} requested to join the community.`;
+                    break;
+                case "CommunityJoinRequestApproved":
+                    text = `${rawSender} approved your request to join the community.`;
+                    break;
+                case "CommunityJoinRequestRejected":
+                    text = `${rawSender} declined your request to join the community.`;
+                    break;
+                case "CommunityMemberRemoved":
+                    text = `${rawSender} removed you from the community.`;
+                    break;
+                default:
+                    text =
+                        text ||
+                        (senderName !== "CircleHub"
+                            ? `${senderName} sent you a notification.`
+                            : "New notification");
+                    break;
+            }
+        }
         const postId = stringField(rawData, "postId", "PostId");
         const communitySlug = stringField(
             rawData,
@@ -162,33 +206,6 @@ async function handleIncomingDiscordPayload(
             communitySlug,
             actorUsername,
         });
-    } else {
-        const title =
-            stringField(rawData, "title", "Title") || "CircleHub";
-        const text = stringField(
-            rawData,
-            "body",
-            "Body",
-            "text",
-            "Text"
-        );
-        if (text) {
-            const senderAvatarUrl =
-                stringField(
-                    rawData,
-                    "senderAvatarUrl",
-                    "SenderAvatarUrl",
-                    "avatarUrl",
-                    "AvatarUrl"
-                ) || null;
-            await displayDiscordActivityNotification({
-                notificationId: String(Date.now()),
-                notificationType: "General",
-                senderName: title,
-                senderAvatarUrl,
-                text,
-            });
-        }
     }
 }
 
@@ -201,12 +218,25 @@ if (Platform.OS !== "web" && !isRunningInExpoGo()) {
                 BACKGROUND_NOTIFICATION_TASK,
                 async ({ data, error }: any) => {
                     if (error || !data) return;
-                    const rawData =
-                        (data?.notification?.request?.content?.data as
-                            | Record<string, unknown>
-                            | undefined) ||
-                        (data?.data as Record<string, unknown> | undefined) ||
-                        (data as Record<string, unknown> | undefined);
+                    const req = data?.notification?.request;
+                    const content = req?.content;
+                    const reqId = req?.identifier;
+                    if (reqId && Notifications?.dismissNotificationAsync) {
+                        try {
+                            await Notifications.dismissNotificationAsync(reqId);
+                        } catch {}
+                    }
+                    const rawData = {
+                        title: content?.title,
+                        body: content?.body,
+                        ...(content?.data && typeof content.data === "object"
+                            ? content.data
+                            : {}),
+                        ...(data?.data && typeof data.data === "object"
+                            ? data.data
+                            : {}),
+                        ...(typeof data === "object" ? data : {}),
+                    };
                     await handleIncomingDiscordPayload(rawData);
                 }
             );
@@ -219,12 +249,25 @@ if (Platform.OS !== "web" && !isRunningInExpoGo()) {
         }
 
         if (Notifications?.addNotificationReceivedListener) {
-            Notifications.addNotificationReceivedListener((notification) => {
-                const rawData = notification?.request?.content?.data as
-                    | Record<string, unknown>
-                    | undefined;
-                void handleIncomingDiscordPayload(rawData);
-            });
+            Notifications.addNotificationReceivedListener(
+                async (notification) => {
+                    const reqId = notification?.request?.identifier;
+                    const content = notification?.request?.content;
+                    if (reqId && Notifications?.dismissNotificationAsync) {
+                        try {
+                            await Notifications.dismissNotificationAsync(reqId);
+                        } catch {}
+                    }
+                    const rawData = {
+                        title: content?.title,
+                        body: content?.body,
+                        ...(content?.data && typeof content.data === "object"
+                            ? content.data
+                            : {}),
+                    };
+                    void handleIncomingDiscordPayload(rawData);
+                }
+            );
         }
     } catch {
         // ignore

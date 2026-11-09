@@ -60,7 +60,7 @@ export function navigateToActivityTarget(data: Record<string, unknown>): void {
                     pathname: "/profile/[username]",
                     params: { username: actorUsername },
                 });
-            } else if ((notifType === "PostLike" || notifType === "PostComment") && postId) {
+            } else if (postId) {
                 router.push({
                     pathname: "/post/[id]",
                     params: { id: postId },
