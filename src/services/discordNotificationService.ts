@@ -2,6 +2,7 @@ import notifee, {
     AndroidCategory,
     AndroidImportance,
     AndroidStyle,
+    AuthorizationStatus,
     EventType,
     type Event,
 } from "@notifee/react-native";
@@ -48,6 +49,40 @@ export async function initializeNotificationChannels(): Promise<void> {
         isInitialized = true;
     } catch (e) {
         console.warn("[Notifee] Channel initialization failed:", e);
+    }
+
+    try {
+        await notifee.requestPermission();
+    } catch (e) {
+        console.warn("[Notifee] Permission request skipped/failed:", e);
+    }
+}
+
+/**
+ * Checks whether notifications are allowed by Android/iOS system settings.
+ */
+export async function checkNotificationPermissionStatus(): Promise<{
+    enabled: boolean;
+    channelBlocked: boolean;
+}> {
+    if (Platform.OS === "web") {
+        return { enabled: true, channelBlocked: false };
+    }
+
+    await initializeNotificationChannels();
+    try {
+        const settings = await notifee.getNotificationSettings();
+        const enabled = settings.authorizationStatus !== AuthorizationStatus.DENIED;
+        if (Platform.OS === "android") {
+            const channel = await notifee.getChannel(MESSAGES_CHANNEL_ID);
+            return {
+                enabled,
+                channelBlocked: Boolean(channel?.blocked),
+            };
+        }
+        return { enabled, channelBlocked: false };
+    } catch {
+        return { enabled: true, channelBlocked: false };
     }
 }
 
@@ -127,67 +162,90 @@ export async function displayDiscordMessageNotification(
         existingMessages.shift();
     }
 
+    const notificationOptions = {
+        id: notifId,
+        title: conversationTitle,
+        body: payload.text,
+        data: {
+            type: "message",
+            conversationId: payload.conversationId,
+            messageId: payload.messageId,
+            recipientUsername: payload.recipientUsername || "",
+            senderId: payload.senderId || "",
+            senderName: payload.senderName,
+            senderAvatarUrl: payload.senderAvatarUrl || "",
+            communityName: payload.communityName || "",
+            channelName: payload.channelName || "",
+        },
+        android: {
+            channelId: MESSAGES_CHANNEL_ID,
+            category: AndroidCategory.MESSAGE,
+            importance: AndroidImportance.HIGH,
+            color: DISCORD_BLURPLE,
+            smallIcon: "notification_icon",
+            timestamp,
+            showTimestamp: true,
+            pressAction: {
+                id: "default",
+            },
+            style: {
+                type: AndroidStyle.MESSAGING,
+                person: {
+                    name: "Me",
+                },
+                title: isGroup ? conversationTitle : undefined,
+                group: isGroup,
+                messages: existingMessages,
+            },
+            actions: [
+                {
+                    title: "Reply",
+                    pressAction: {
+                        id: "reply",
+                    },
+                    input: {
+                        allowFreeFormInput: true,
+                        placeholder: `Reply to ${payload.senderName}...`,
+                    },
+                },
+                {
+                    title: "Mark as Read",
+                    pressAction: {
+                        id: "mark_as_read",
+                    },
+                },
+            ],
+        },
+        ios: {
+            categoryId: "message_actions",
+        },
+    };
+
     try {
-        await notifee.displayNotification({
-            id: notifId,
-            title: conversationTitle,
-            body: payload.text,
-            data: {
-                type: "message",
-                conversationId: payload.conversationId,
-                messageId: payload.messageId,
-                recipientUsername: payload.recipientUsername || "",
-                senderId: payload.senderId || "",
-                senderName: payload.senderName,
-                senderAvatarUrl: payload.senderAvatarUrl || "",
-                communityName: payload.communityName || "",
-                channelName: payload.channelName || "",
-            },
-            android: {
-                channelId: MESSAGES_CHANNEL_ID,
-                category: AndroidCategory.MESSAGE,
-                importance: AndroidImportance.HIGH,
-                color: DISCORD_BLURPLE,
-                smallIcon: "notification_icon",
-                timestamp,
-                showTimestamp: true,
-                pressAction: {
-                    id: "default",
-                },
-                style: {
-                    type: AndroidStyle.MESSAGING,
-                    person: {
-                        name: "Me",
-                    },
-                    title: isGroup ? conversationTitle : undefined,
-                    group: isGroup,
-                    messages: existingMessages,
-                },
-                actions: [
-                    {
-                        title: "Reply",
-                        pressAction: {
-                            id: "reply",
-                        },
-                        input: {
-                            allowFreeFormInput: true,
-                            placeholder: `Reply to ${payload.senderName}...`,
-                        },
-                    },
-                    {
-                        title: "Mark as Read",
-                        pressAction: {
-                            id: "mark_as_read",
-                        },
-                    },
-                ],
-            },
-            ios: {
-                categoryId: "message_actions",
-            },
-        });
+        await notifee.displayNotification(notificationOptions as any);
     } catch (e) {
-        console.warn("[Notifee] Failed to display notification:", e);
+        console.warn("[Notifee] Primary display failed, attempting fallback without remote icon:", e);
+        try {
+            // Fallback: strip remote icon in case Android IconCompat failed on URL
+            const fallbackMessages = existingMessages.map((m) => ({
+                text: m.text,
+                timestamp: m.timestamp,
+                person: { name: m.person?.name || payload.senderName },
+            }));
+            await notifee.displayNotification({
+                ...notificationOptions,
+                android: {
+                    ...notificationOptions.android,
+                    style: {
+                        ...notificationOptions.android.style,
+                        messages: fallbackMessages,
+                    },
+                },
+            } as any);
+        } catch (fatalErr) {
+            console.error("[Notifee] Fatal notification display failure:", fatalErr);
+            throw fatalErr;
+        }
     }
 }
 
