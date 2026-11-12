@@ -46,12 +46,20 @@ jobs:
       - name: Build & Archive iOS App
         run: |
           cd ios
-          WORKSPACE="CircleHub.xcworkspace"
-          SCHEME="CircleHub"
-          ARCHIVE_PATH="build/CircleHub.xcarchive"
-          
-          echo "Building workspace: $WORKSPACE with scheme: $SCHEME..."
-          
+          WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "Error: No .xcworkspace found in ios directory"
+            ls -la
+            exit 1
+          fi
+
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Found workspace: $WORKSPACE with inferred scheme: $SCHEME"
+          xcodebuild -list -workspace "$WORKSPACE"
+
+          ARCHIVE_PATH="build/$SCHEME.xcarchive"
+          echo "Archiving to $ARCHIVE_PATH..."
+
           xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -65,14 +73,13 @@ jobs:
       - name: Package into Sideloadable IPA
         run: |
           cd ios
-          ARCHIVE_APP="build/CircleHub.xcarchive/Products/Applications/CircleHub.app"
-          
-          if [ ! -d "$ARCHIVE_APP" ]; then
-            echo "Error: Archive app directory not found at $ARCHIVE_APP"
-            find build -name "*.app"
-            ARCHIVE_APP=$(find build -name "*.app" | head -n 1)
+          ARCHIVE_APP=$(find build -name "*.app" | head -n 1)
+          if [ -z "$ARCHIVE_APP" ]; then
+            echo "Error: Archive app directory not found"
+            find build
+            exit 1
           fi
-          
+
           echo "Found app bundle at: $ARCHIVE_APP"
           mkdir -p ipa_build/Payload
           cp -R "$ARCHIVE_APP" ipa_build/Payload/
