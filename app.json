@@ -13,7 +13,12 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.nasrdev97.circlehubmobile",
+      "supportsTablet": true,
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
