@@ -16,7 +16,7 @@ on:
 jobs:
   build-ipa:
     name: Build Unsigned iOS IPA
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
 
     env:
