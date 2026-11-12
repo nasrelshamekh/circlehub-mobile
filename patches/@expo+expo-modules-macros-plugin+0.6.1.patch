@@ -1,0 +1,7 @@
+diff --git a/node_modules/@expo/expo-modules-macros-plugin/apple/Package.swift b/node_modules/@expo/expo-modules-macros-plugin/apple/Package.swift
+--- a/node_modules/@expo/expo-modules-macros-plugin/apple/Package.swift
++++ b/node_modules/@expo/expo-modules-macros-plugin/apple/Package.swift
+@@ -1,2 +1,2 @@
+-// swift-tools-version: 6.2
++// swift-tools-version: 6.0
+ // The swift-tools-version declares the minimum version of Swift required to build this package.

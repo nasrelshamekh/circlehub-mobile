@@ -35,6 +35,10 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Ensure Swift tools compatibility
+        run: |
+          find node_modules -name "Package.swift" -exec sed -i '' 's/swift-tools-version: 6.2/swift-tools-version: 6.0/g' {} + 2>/dev/null || true
+
       - name: Generate iOS native project via Expo Prebuild
         run: npx expo prebuild --platform ios --clean
 
